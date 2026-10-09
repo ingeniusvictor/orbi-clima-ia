@@ -87,10 +87,14 @@ function buildUncertaintyBand(params: {
   };
 }
 
-function findStartIndex(times: unknown[]): number {
+function findStartIndex(times: unknown[], utcOffsetSeconds = 0): number {
   if (!Array.isArray(times) || !times.length) return -1;
-  const now = new Date();
-  const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}`;
+
+  // Open-Meteo hourly timestamps are local wall-clock values for the requested
+  // timezone. Build the target-location wall clock from the API offset instead
+  // of using the phone/browser timezone, which may be different.
+  const targetNow = new Date(Date.now() + utcOffsetSeconds * 1000);
+  const nowKey = targetNow.toISOString().slice(0, 13);
   const index = times.findIndex(time => String(time).slice(0, 13) >= nowKey);
   return index >= 0 ? index : 0;
 }
@@ -133,7 +137,7 @@ export async function fetchForecastUncertainty(params: {
     const raw = await response.json();
     const hourly = raw.hourly ?? {};
     const times = Array.isArray(hourly.time) ? hourly.time : [];
-    const start = findStartIndex(times);
+    const start = findStartIndex(times, Number(raw.utc_offset_seconds || 0));
     const points: ForecastUncertaintyPoint[] = [];
 
     if (start >= 0) {
