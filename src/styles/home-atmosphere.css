@@ -6,9 +6,9 @@
   isolation: isolate;
   overflow: clip;
   background:
-    radial-gradient(circle at 50% 14%, rgba(var(--atmo-a), 0.14), transparent 34%),
-    radial-gradient(circle at 86% 36%, rgba(var(--atmo-b), 0.10), transparent 30%),
-    linear-gradient(180deg, rgba(3, 8, 20, 0.30), rgba(2, 6, 18, 0.78));
+    radial-gradient(circle at 50% 14%, rgba(var(--atmo-a), 0.16), transparent 34%),
+    radial-gradient(circle at 86% 36%, rgba(var(--atmo-b), 0.11), transparent 30%),
+    linear-gradient(180deg, rgba(3, 8, 20, 0.24), rgba(2, 6, 18, 0.82));
 }
 
 #orbi-mobile-home-screen::before,
@@ -30,7 +30,7 @@
   max-height: 520px;
   top: 7rem;
   left: -24vw;
-  background: radial-gradient(circle, rgba(var(--atmo-a), 0.25), rgba(var(--atmo-b), 0.08) 56%, transparent 72%);
+  background: radial-gradient(circle, rgba(var(--atmo-a), 0.28), rgba(var(--atmo-b), 0.09) 56%, transparent 72%);
   animation: orbi-atmosphere-drift-a 16s ease-in-out infinite alternate;
 }
 
@@ -41,8 +41,71 @@
   max-height: 480px;
   top: 38rem;
   right: -30vw;
-  background: radial-gradient(circle, rgba(var(--atmo-b), 0.20), rgba(var(--atmo-c), 0.08) 54%, transparent 72%);
+  background: radial-gradient(circle, rgba(var(--atmo-b), 0.22), rgba(var(--atmo-c), 0.09) 54%, transparent 72%);
   animation: orbi-atmosphere-drift-b 19s ease-in-out infinite alternate;
+}
+
+#orbi-mobile-home-screen > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* The first child is WelcomeHeroSection. We illuminate around it without touching its DOM or Orb styles. */
+#orbi-mobile-home-screen > :first-child {
+  filter: drop-shadow(0 28px 52px rgba(var(--atmo-a), 0.06));
+}
+
+#orbi-mobile-home-screen > :first-child::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  inset: 22% 3% 5%;
+  border-radius: 44px;
+  background:
+    radial-gradient(circle at 50% 58%, rgba(var(--atmo-a), 0.22), transparent 40%),
+    radial-gradient(circle at 43% 70%, rgba(var(--atmo-b), 0.18), transparent 52%);
+  filter: blur(32px);
+  opacity: 0.92;
+  animation: orbi-hero-breathe 6.5s ease-in-out infinite;
+}
+
+/* Existing direct Home cards become richer glass surfaces without changing their markup. */
+#orbi-mobile-home-screen > section {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 18px 46px rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(var(--atmo-a), 0.018);
+}
+
+#orbi-mobile-home-screen > section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--atmo-a), 0.075), transparent 35%),
+    linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.024) 45%, transparent 68%);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+}
+
+#orbi-mobile-home-screen > section:nth-of-type(2) {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 20px 52px rgba(0,0,0,0.18),
+    0 0 34px rgba(var(--atmo-a), 0.045);
+}
+
+#orbi-mobile-home-screen button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#orbi-mobile-home-screen button:active {
+  transform: scale(0.985);
 }
 
 #orbi-mobile-home-screen[data-atmosphere='sunny'] {
@@ -187,6 +250,7 @@
 @media (prefers-reduced-motion: reduce) {
   #orbi-mobile-home-screen::before,
   #orbi-mobile-home-screen::after,
+  #orbi-mobile-home-screen > :first-child::after,
   .orbi-home-hero-shell::before,
   .orbi-premium-glass::before {
     animation: none !important;
