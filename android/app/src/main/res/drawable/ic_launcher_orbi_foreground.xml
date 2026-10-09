@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer atmospheric shell -->
+    <path
+        android:fillColor="#152A4A"
+        android:pathData="M54,25 C70.016,25 83,37.984 83,54 C83,70.016 70.016,83 54,83 C37.984,83 25,70.016 25,54 C25,37.984 37.984,25 54,25 Z" />
+
+    <!-- Blue depth -->
+    <path
+        android:fillColor="#2563EB"
+        android:fillAlpha="0.78"
+        android:pathData="M54,30 C67.255,30 78,40.745 78,54 C78,67.255 67.255,78 54,78 C40.745,78 30,67.255 30,54 C30,40.745 40.745,30 54,30 Z" />
+
+    <!-- Teal Golden-Orb core -->
+    <path
+        android:fillColor="#14B8A6"
+        android:pathData="M54,35 C64.493,35 73,43.507 73,54 C73,64.493 64.493,73 54,73 C43.507,73 35,64.493 35,54 C35,43.507 43.507,35 54,35 Z" />
+
+    <!-- Cyan luminous face -->
+    <path
+        android:fillColor="#67E8F9"
+        android:fillAlpha="0.72"
+        android:pathData="M50,39 C57.732,39 64,45.268 64,53 C64,60.732 57.732,67 50,67 C42.268,67 36,60.732 36,53 C36,45.268 42.268,39 50,39 Z" />
+
+    <!-- Specular glint -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.88"
+        android:pathData="M44,40 C47.314,40 50,42.686 50,46 C50,49.314 47.314,52 44,52 C40.686,52 38,49.314 38,46 C38,42.686 40.686,40 44,40 Z" />
+
+    <!-- Cyan Dyson-style orbital ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#67E8F9"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M17,54 C25,39 83,39 91,54 C83,69 25,69 17,54 Z" />
+
+    <!-- Golden orbital ring -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-42">
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#F6C453"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round"
+            android:pathData="M20,54 C28,42 80,42 88,54 C80,66 28,66 20,54 Z" />
+    </group>
+
+    <!-- Small ORBI red accent -->
+    <path
+        android:fillColor="#FB4D5B"
+        android:pathData="M82,49 C84.209,49 86,50.791 86,53 C86,55.209 84.209,57 82,57 C79.791,57 78,55.209 78,53 C78,50.791 79.791,49 82,49 Z" />
+</vector>
