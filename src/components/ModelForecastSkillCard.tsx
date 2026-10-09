@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Award, Clock3, CloudRain, Target, Thermometer, Wind } from 'lucide-react';
 import { ModelSkillRow, ModelSkillSummary } from '../services/modelForecastVerificationService';
 
@@ -102,7 +103,7 @@ export default function ModelForecastSkillCard({ summary }: ModelForecastSkillCa
   );
 }
 
-function MiniMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MiniMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="p-2 rounded-lg bg-black/10 border border-white/5">
       <div className="flex items-center gap-1 text-slate-500">{icon}<span className="text-[7px] font-mono uppercase">{label}</span></div>
