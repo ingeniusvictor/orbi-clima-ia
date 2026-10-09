@@ -53,6 +53,23 @@ object OfficialAlertWatchStore {
             .apply()
     }
 
+    fun updateQuietHours(
+        context: Context,
+        enabled: Boolean,
+        mode: String,
+        startTime: String,
+        endTime: String,
+        allowCritical: Boolean,
+    ) {
+        prefs(context).edit()
+            .putBoolean("quiet_enabled", enabled)
+            .putString("quiet_mode", mode)
+            .putString("quiet_start", startTime)
+            .putString("quiet_end", endTime)
+            .putBoolean("quiet_allow_critical", allowCritical)
+            .apply()
+    }
+
     fun loadConfig(context: Context): OfficialAlertWatchConfig? {
         val p = prefs(context)
         val latitude = p.getString("latitude", null)?.toDoubleOrNull() ?: return null
@@ -130,7 +147,7 @@ object OfficialAlertWatchStore {
     private fun deliveredStorageKey(dedupKey: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(dedupKey.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(Locale.US, it) }
+            .joinToString("") { "%02x".format(Locale.US, it.toInt() and 0xff) }
         return "$DELIVERED_PREFIX$digest"
     }
 
