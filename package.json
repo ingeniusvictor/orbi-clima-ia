@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "ui:verify-mobile-home": "node scripts/verify-mobile-home-simplification.mjs",
+    "android:verify-qa-channel": "node scripts/verify-qa-install-channel.mjs",
     "android:verify-background-watch": "node scripts/verify-android-background-watch.mjs",
     "android:verify-modern-target": "node scripts/verify-android-modern-target.mjs",
     "android:verify-runtime-readiness": "node scripts/verify-android-runtime-readiness.mjs",
