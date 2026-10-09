@@ -18,6 +18,7 @@ const manifest = read('android/app/src/main/AndroidManifest.xml');
 const mainActivity = read('android/app/src/main/java/com/orbi/clima/MainActivity.java');
 const geoService = read('src/services/geolocationService.ts');
 const notificationPermission = read('src/services/notificationPermissionService.ts');
+const notificationService = read('src/services/orbiNotificationService.ts');
 const backgroundService = read('src/services/officialAlertBackgroundWatchService.ts');
 const backgroundWorker = read('android/app/src/main/java/com/orbi/clima/alerts/OfficialAlertWorker.kt');
 const backgroundPlugin = read('android/app/src/main/java/com/orbi/clima/alerts/OrbiOfficialAlertWatchPlugin.kt');
@@ -60,6 +61,9 @@ forbidMatch('Foreground geolocation must not request background permission', geo
 
 requireMatch('Notification permission check', notificationPermission, /LocalNotifications\.checkPermissions\(\)/);
 requireMatch('Notification permission request', notificationPermission, /LocalNotifications\.requestPermissions\(\)/);
+requireMatch('Immediate local notification delivery', notificationService, /LocalNotifications\.schedule\(\{/);
+forbidMatch('Immediate local alerts must not schedule exact clock alarms', notificationService, /schedule\s*:\s*\{\s*at\s*:/s);
+forbidMatch('Immediate local alerts must not require exact alarms', notificationService, /isExactMandatory\s*:\s*true|isExactNotification\s*:\s*true/);
 
 requireMatch('Background watch reports background-location usage', backgroundService, /usesBackgroundLocation:\s*boolean/);
 requireMatch('Background watch reports foreground-service usage', backgroundService, /usesForegroundService:\s*boolean/);
@@ -78,6 +82,7 @@ console.log('OC-13 Android modern-target gate: PASS');
 console.log(' - targetSdk/compileSdk 36');
 console.log(' - foreground-only location permissions');
 console.log(' - POST_NOTIFICATIONS runtime path present');
+console.log(' - immediate local alerts avoid exact-alarm scheduling privileges');
 console.log(' - no exact-alarm / foreground-service privilege added');
 console.log(' - Android 15/16 WebView system-bar and cutout insets handled natively');
 console.log(' - OC-11 WorkManager watch remains snapshot-based, without background location');
