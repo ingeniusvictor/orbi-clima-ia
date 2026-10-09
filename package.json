@@ -14,6 +14,7 @@
     "android:verify-modern-target": "node scripts/verify-android-modern-target.mjs",
     "android:verify-runtime-readiness": "node scripts/verify-android-runtime-readiness.mjs",
     "android:verify-premium-widget": "node scripts/verify-premium-widget-snapshot.mjs",
+    "android:verify-widget-refresh": "node scripts/verify-widget-refresh-fanout.mjs",
     "android:sync": "cap sync android",
     "android:doctor": "cap doctor android",
     "android:build": "cd android && gradlew.bat assembleDebug",
