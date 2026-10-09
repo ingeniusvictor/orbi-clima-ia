@@ -63,27 +63,25 @@ export function buildOfficialAlertNotificationCandidates(params: {
     })
     .sort((a, b) => severityWeight(b) - severityWeight(a));
 
-  if (!eligible.length) return [];
+  const createdAt = new Date().toISOString();
 
-  // One official authority notification per refresh cycle. Distinct official
-  // alerts remain eligible on later cycles because dedup happens against the
-  // persistent notification history, not by dropping lower-priority records.
-  const alert = eligible[0];
-  const severity = severityFor(alert);
-  const dedupKey = officialAlertDedupKey(alert);
-  const area = alert.comuna || alert.area || alert.region;
+  return eligible.map(alert => {
+    const severity = severityFor(alert);
+    const dedupKey = officialAlertDedupKey(alert);
+    const area = alert.comuna || alert.area || alert.region;
 
-  return [{
-    id: `official_${normalizeToken(alert.id)}_${Date.now()}`,
-    title: `SENAPRED · ${alert.title}`,
-    body: `${area}: ${alert.eventType}. Revisa la información oficial y sigue las instrucciones de la autoridad.`,
-    channel: 'official_alerts',
-    severity,
-    profile,
-    alertId: alert.id,
-    category: 'general',
-    createdAt: new Date().toISOString(),
-    dedupKey,
-    source: 'official_senapred',
-  }];
+    return {
+      id: `official_${normalizeToken(alert.id)}_${Date.now()}`,
+      title: `SENAPRED · ${alert.title}`,
+      body: `${area}: ${alert.eventType}. Revisa la información oficial y sigue las instrucciones de la autoridad.`,
+      channel: 'official_alerts',
+      severity,
+      profile,
+      alertId: alert.id,
+      category: 'general',
+      createdAt,
+      dedupKey,
+      source: 'official_senapred',
+    };
+  });
 }
