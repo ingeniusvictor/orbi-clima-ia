@@ -1,0 +1,32 @@
+name: Golden Orb Protected Files Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  golden-orb-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history for base comparison
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject modifications to protected Golden Orb files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          BASE="$(git merge-base HEAD origin/main)"
+          git diff --name-only "$BASE" HEAD > /tmp/orbi-changed-files.txt
+          echo "Changed files:"
+          cat /tmp/orbi-changed-files.txt
+          if grep -E '^(src/components/OrbiClimateCore\.tsx|src/styles/skycore-fx\.css|src/components/WelcomeHeroSection\.tsx)$' /tmp/orbi-changed-files.txt; then
+            echo "::error::Golden Orb protected file modified. Explicit owner authorization and a dedicated review are required."
+            exit 1
+          fi
+          echo "Golden Orb protected file gate: PASS"
