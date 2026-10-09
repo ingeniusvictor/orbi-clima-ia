@@ -4,6 +4,8 @@ import {
   fetchSenapredOfficialAlerts,
 } from './senapredArcgisAlertService';
 
+export const ORBI_OFFICIAL_ALERTS_EVENT = 'orbi-official-alerts-updated';
+
 export type OfficialAlertSeverity = 'info' | 'watch' | 'warning' | 'severe' | 'extreme';
 
 export interface OfficialWeatherAlert {
@@ -46,6 +48,13 @@ export interface OfficialAlertsResult {
   checkedAt: string;
 }
 
+function publishOfficialAlertsResult(result: OfficialAlertsResult): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent<OfficialAlertsResult>(ORBI_OFFICIAL_ALERTS_EVENT, {
+    detail: result,
+  }));
+}
+
 function formatArea(alert: SenapredOfficialAlert): string {
   return [alert.comuna, alert.provincia, alert.region].filter(Boolean).join(' · ');
 }
@@ -86,6 +95,8 @@ function mapSenapredAlert(alert: SenapredOfficialAlert, checkedAt: string): Offi
  *   DMC remains explicitly not_configured in THIS authority-alert service.
  * - If SENAPRED coverage cannot be verified, an empty array MUST NOT be shown
  *   to the user as proof that there are no official alerts.
+ * - Every completed authority refresh publishes an internal event. Consumers
+ *   must still enforce hasVerifiedCoverage before taking any delivery action.
  */
 export async function fetchOfficialWeatherAlerts(
   location: WeatherLocation,
@@ -116,7 +127,7 @@ export async function fetchOfficialWeatherAlerts(
           message: senapred.integrityMessage,
         };
 
-    return {
+    const result: OfficialAlertsResult = {
       alerts,
       providers: [
         {
@@ -134,8 +145,11 @@ export async function fetchOfficialWeatherAlerts(
       coveragePartial: senapred.isPartial,
       checkedAt,
     };
+
+    publishOfficialAlertsResult(result);
+    return result;
   } catch (error) {
-    return {
+    const result: OfficialAlertsResult = {
       alerts: [],
       providers: [
         {
@@ -163,5 +177,8 @@ export async function fetchOfficialWeatherAlerts(
       coveragePartial: false,
       checkedAt,
     };
+
+    publishOfficialAlertsResult(result);
+    return result;
   }
 }
