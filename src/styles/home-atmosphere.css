@@ -9,6 +9,60 @@
     radial-gradient(circle at 50% 14%, rgba(var(--atmo-a), 0.16), transparent 34%),
     radial-gradient(circle at 86% 36%, rgba(var(--atmo-b), 0.11), transparent 30%),
     linear-gradient(180deg, rgba(3, 8, 20, 0.24), rgba(2, 6, 18, 0.82));
+  transition: background 900ms ease;
+}
+
+/*
+ * Weather-reactive palette without touching WelcomeHeroSection or OrbiClimateCore.
+ * The hero already exposes a condition-specific Tailwind gradient on the ORBI Clima title.
+ * :has() simply reads that existing visual state and lets the surrounding atmosphere respond.
+ */
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-amber-300) {
+  --atmo-a: 56, 189, 248;
+  --atmo-b: 99, 102, 241;
+  --atmo-c: 250, 204, 21;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-sky-300) {
+  --atmo-a: 34, 211, 238;
+  --atmo-b: 129, 140, 248;
+  --atmo-c: 16, 185, 129;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-blue-400) {
+  --atmo-a: 14, 165, 233;
+  --atmo-b: 79, 70, 229;
+  --atmo-c: 6, 182, 212;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-indigo-400) {
+  --atmo-a: 99, 102, 241;
+  --atmo-b: 168, 85, 247;
+  --atmo-c: 14, 165, 233;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-teal-400) {
+  --atmo-a: 45, 212, 191;
+  --atmo-b: 100, 116, 139;
+  --atmo-c: 16, 185, 129;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-cyan-300) {
+  --atmo-a: 103, 232, 249;
+  --atmo-b: 59, 130, 246;
+  --atmo-c: 129, 140, 248;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-red-400) {
+  --atmo-a: 251, 146, 60;
+  --atmo-b: 239, 68, 68;
+  --atmo-c: 250, 204, 21;
+}
+
+#orbi-mobile-home-screen:has(#welcome-hero-section .from-zinc-400) {
+  --atmo-a: 148, 163, 184;
+  --atmo-b: 100, 116, 139;
+  --atmo-c: 34, 211, 238;
 }
 
 #orbi-mobile-home-screen::before,
@@ -50,24 +104,46 @@
   z-index: 1;
 }
 
-/* The first child is WelcomeHeroSection. We illuminate around it without touching its DOM or Orb styles. */
-#orbi-mobile-home-screen > :first-child {
-  filter: drop-shadow(0 28px 52px rgba(var(--atmo-a), 0.06));
+/* Golden Orb remains untouched; only the container around it receives environmental light. */
+#orbi-mobile-home-screen > #welcome-hero-section {
+  background:
+    radial-gradient(circle at 50% 64%, rgba(var(--atmo-a), 0.085), transparent 34%),
+    radial-gradient(circle at 82% 14%, rgba(var(--atmo-b), 0.075), transparent 34%),
+    linear-gradient(155deg, rgba(5, 10, 24, 0.84), rgba(2, 6, 18, 0.72));
+  border-color: rgba(148, 163, 184, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 28px 70px rgba(0,0,0,0.28),
+    0 0 58px rgba(var(--atmo-a), 0.055);
+  transition: background 900ms ease, box-shadow 900ms ease, border-color 900ms ease;
 }
 
-#orbi-mobile-home-screen > :first-child::after {
+#orbi-mobile-home-screen > #welcome-hero-section::before,
+#orbi-mobile-home-screen > #welcome-hero-section::after {
   content: '';
   position: absolute;
   pointer-events: none;
-  z-index: -1;
-  inset: 22% 3% 5%;
-  border-radius: 44px;
-  background:
-    radial-gradient(circle at 50% 58%, rgba(var(--atmo-a), 0.22), transparent 40%),
-    radial-gradient(circle at 43% 70%, rgba(var(--atmo-b), 0.18), transparent 52%);
-  filter: blur(32px);
-  opacity: 0.92;
-  animation: orbi-hero-breathe 6.5s ease-in-out infinite;
+  z-index: 0;
+  border-radius: 999px;
+  filter: blur(28px);
+}
+
+#orbi-mobile-home-screen > #welcome-hero-section::before {
+  width: 68%;
+  height: 30%;
+  top: -8%;
+  right: -18%;
+  background: radial-gradient(circle, rgba(var(--atmo-b), 0.20), rgba(var(--atmo-a), 0.06) 56%, transparent 74%);
+  animation: orbi-hero-aurora-a 10s ease-in-out infinite alternate;
+}
+
+#orbi-mobile-home-screen > #welcome-hero-section::after {
+  width: 76%;
+  height: 42%;
+  left: -26%;
+  bottom: 8%;
+  background: radial-gradient(circle, rgba(var(--atmo-a), 0.16), rgba(var(--atmo-c), 0.055) 58%, transparent 76%);
+  animation: orbi-hero-aurora-b 13s ease-in-out infinite alternate;
 }
 
 /* Existing direct Home cards become richer glass surfaces without changing their markup. */
@@ -108,50 +184,9 @@
   transform: scale(0.985);
 }
 
-#orbi-mobile-home-screen[data-atmosphere='sunny'] {
-  --atmo-a: 56, 189, 248;
-  --atmo-b: 99, 102, 241;
-  --atmo-c: 250, 204, 21;
-}
-
-#orbi-mobile-home-screen[data-atmosphere='partly_cloudy'],
-#orbi-mobile-home-screen[data-atmosphere='cloudy'] {
-  --atmo-a: 34, 211, 238;
-  --atmo-b: 129, 140, 248;
-  --atmo-c: 16, 185, 129;
-}
-
-#orbi-mobile-home-screen[data-atmosphere='rain'],
-#orbi-mobile-home-screen[data-atmosphere='storm'] {
-  --atmo-a: 14, 165, 233;
-  --atmo-b: 79, 70, 229;
-  --atmo-c: 6, 182, 212;
-}
-
-#orbi-mobile-home-screen[data-atmosphere='night'] {
-  --atmo-a: 99, 102, 241;
-  --atmo-b: 76, 29, 149;
-  --atmo-c: 14, 116, 144;
-}
-
 .orbi-home-hero-shell {
   position: relative;
   z-index: 1;
-}
-
-.orbi-home-hero-shell::before {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  z-index: -1;
-  inset: 18% 4% 3%;
-  border-radius: 42px;
-  background:
-    radial-gradient(circle at 50% 58%, rgba(var(--atmo-a), 0.22), transparent 40%),
-    radial-gradient(circle at 42% 68%, rgba(var(--atmo-b), 0.16), transparent 48%);
-  filter: blur(28px);
-  opacity: 0.9;
-  animation: orbi-hero-breathe 6.5s ease-in-out infinite;
 }
 
 .orbi-premium-glass {
@@ -236,9 +271,14 @@
   100% { transform: translate3d(-9%, -7%, 0) scale(1.05); opacity: 0.76; }
 }
 
-@keyframes orbi-hero-breathe {
-  0%, 100% { opacity: 0.66; transform: scale(0.985); }
-  50% { opacity: 0.96; transform: scale(1.018); }
+@keyframes orbi-hero-aurora-a {
+  0% { transform: translate3d(-5%, -3%, 0) scale(0.96); opacity: 0.42; }
+  100% { transform: translate3d(10%, 8%, 0) scale(1.10); opacity: 0.72; }
+}
+
+@keyframes orbi-hero-aurora-b {
+  0% { transform: translate3d(6%, 6%, 0) scale(0.94); opacity: 0.34; }
+  100% { transform: translate3d(-7%, -5%, 0) scale(1.08); opacity: 0.62; }
 }
 
 @keyframes orbi-glass-shimmer {
@@ -250,8 +290,8 @@
 @media (prefers-reduced-motion: reduce) {
   #orbi-mobile-home-screen::before,
   #orbi-mobile-home-screen::after,
-  #orbi-mobile-home-screen > :first-child::after,
-  .orbi-home-hero-shell::before,
+  #orbi-mobile-home-screen > #welcome-hero-section::before,
+  #orbi-mobile-home-screen > #welcome-hero-section::after,
   .orbi-premium-glass::before {
     animation: none !important;
   }
