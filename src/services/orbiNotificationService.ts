@@ -31,6 +31,21 @@ export function isWeatherFresh(updatedAt: string | number | undefined, maxAgeMin
   return diffMin < maxAgeMinutes;
 }
 
+/**
+ * Mirrors Java/Kotlin String.hashCode() for the normalized ASCII SENAPRED
+ * dedup key. The native worker uses the same positive ID, so even a rare race
+ * between WebView and WorkManager replaces one Android notification instead of
+ * producing two visible cards.
+ */
+function stableOfficialAndroidNotificationId(dedupKey: string): number {
+  let hash = 0;
+  for (let index = 0; index < dedupKey.length; index += 1) {
+    hash = (Math.imul(31, hash) + dedupKey.charCodeAt(index)) | 0;
+  }
+  const positive = hash & 0x7fffffff;
+  return positive === 0 ? 11011 : positive;
+}
+
 function initializeOfficialAlertDeliveryBridge(): void {
   if (officialAlertBridgeInitialized || typeof window === 'undefined') return;
   officialAlertBridgeInitialized = true;
@@ -313,10 +328,14 @@ export async function sendOrbiLocalNotification(
           ? 'orbi_official_alerts'
           : 'orbi_system_status';
 
+    const notificationId = isOfficialAuthorityAlert
+      ? stableOfficialAndroidNotificationId(candidate.dedupKey)
+      : Math.floor(Math.random() * 1000000) + 1;
+
     await LocalNotifications.schedule({
       notifications: [
         {
-          id: Math.floor(Math.random() * 1000000) + 1,
+          id: notificationId,
           title: candidate.title,
           body: candidate.body,
           channelId,
