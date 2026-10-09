@@ -1,14 +1,54 @@
 import { WeatherCondition } from '../types/weatherTypes';
 
+export type OrbiPrecipitationKind =
+  | 'none'
+  | 'drizzle'
+  | 'freezing_drizzle'
+  | 'rain'
+  | 'freezing_rain'
+  | 'showers'
+  | 'snow'
+  | 'storm'
+  | 'unknown';
+
+export type OrbiPrecipitationIntensity = 'none' | 'trace' | 'light' | 'moderate' | 'heavy' | 'violent';
+
+export function getWmoPrecipitationKind(code?: number): OrbiPrecipitationKind {
+  if (code === undefined) return 'unknown';
+  if ([51, 53, 55].includes(code)) return 'drizzle';
+  if ([56, 57].includes(code)) return 'freezing_drizzle';
+  if ([61, 63, 65].includes(code)) return 'rain';
+  if ([66, 67].includes(code)) return 'freezing_rain';
+  if ([80, 81, 82].includes(code)) return 'showers';
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snow';
+  if ([95, 96, 99].includes(code)) return 'storm';
+  if ([0, 1, 2, 3, 45, 48].includes(code)) return 'none';
+  return 'unknown';
+}
+
+export function getWmoPrecipitationIntensity(code?: number, precipitationMm = 0): OrbiPrecipitationIntensity {
+  if (!Number.isFinite(precipitationMm) || precipitationMm <= 0) return 'none';
+
+  // WMO code keeps the phenomenon semantics while measured/modelled hourly
+  // accumulation refines the impact severity.
+  if (code === 82 || code === 99) return 'violent';
+  if ([55, 57, 65, 67, 75, 86, 96].includes(code ?? -1) || precipitationMm >= 8) return 'heavy';
+  if ([53, 63, 73, 81].includes(code ?? -1) || precipitationMm >= 2) return 'moderate';
+  if (precipitationMm < 0.2) return 'trace';
+  return 'light';
+}
+
 export function mapWmoCodeToOrbiCondition(code?: number, isDay?: boolean, precipitationMm?: number): WeatherCondition {
   if (code === undefined) return 'cloudy';
-  
-  // If the code is a rain/storm code but there is no actual current precipitation, we map to cloudy to avoid false rain visuals
+
+  // If the code is a rain/storm code but there is no actual current
+  // precipitation, keep the visual conservative. The exact WMO phenomenon is
+  // still preserved separately by the adapter for risk/narrative decisions.
   const isRainCode = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code);
   if (isRainCode && (precipitationMm === undefined || precipitationMm <= 0)) {
     return 'cloudy';
   }
-  
+
   switch (code) {
     case 0:
       return isDay !== false ? 'sunny' : 'night';
@@ -73,8 +113,8 @@ export function getWmoHumanLabel(code?: number): string {
     case 75: return 'Nevada intensa';
     case 77: return 'Granizo menudo';
     case 80: return 'Chubascos ligeros';
-    case 81: return 'Chubascos de lluvia moderados';
-    case 82: return 'Chubascos de lluvia violentos';
+    case 81: return 'Chubascos moderados';
+    case 82: return 'Chubascos violentos';
     case 85: return 'Chubascos de nieve ligeros';
     case 86: return 'Chubascos de nieve intensos';
     case 95: return 'Tormenta';
