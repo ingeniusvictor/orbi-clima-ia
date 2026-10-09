@@ -1,42 +1,39 @@
 import { WeatherLocation, WeatherSourceState } from '../types/weatherTypes';
 
-// 1. WeatherProvider Interface matching all requested fields
 export interface WeatherProvider {
   providerId: string;
   providerName: string;
   providerType: 'forecast' | 'observation' | 'climate_risk' | 'fallback';
   isFree: boolean;
   requiresApiKey: boolean;
-  coverage: string; // e.g. "Global", "Nacional (Chile)", "Regional"
+  coverage: string;
   lastUpdated: string;
   status: 'active' | 'simulated' | 'inactive' | 'stub';
   attributionLabel: string;
 }
 
-// 2. Open-Meteo active provider definition
 export const OpenMeteoProviderRef: WeatherProvider = {
   providerId: 'open_meteo',
   providerName: 'Open-Meteo',
   providerType: 'forecast',
   isFree: true,
   requiresApiKey: false,
-  coverage: 'Global / Alta Resolución',
+  coverage: 'Global',
   lastUpdated: 'Reciente',
   status: 'active',
-  attributionLabel: 'Datos meteorológicos abiertos por Open-Meteo (CC BY 4.0)'
+  attributionLabel: 'Datos meteorológicos abiertos por Open-Meteo',
 };
 
-// 3. Extensible stubs for future public/free and premium sources in Chile
 export const DmcChileProviderRef: WeatherProvider = {
   providerId: 'dmc_chile',
   providerName: 'Dirección Meteorológica de Chile (DMC)',
   providerType: 'observation',
   isFree: true,
   requiresApiKey: false,
-  coverage: 'Nacional (Chile) - Estaciones de Terreno',
-  lastUpdated: 'No disponible en tiempo real',
+  coverage: 'Nacional (Chile)',
+  lastUpdated: 'Pendiente de integración verificable',
   status: 'stub',
-  attributionLabel: 'Datos de dominio público de la Dirección Meteorológica de Chile'
+  attributionLabel: 'Dirección Meteorológica de Chile',
 };
 
 export const RedMeteoChileProviderRef: WeatherProvider = {
@@ -45,10 +42,10 @@ export const RedMeteoChileProviderRef: WeatherProvider = {
   providerType: 'observation',
   isFree: true,
   requiresApiKey: false,
-  coverage: 'Comunitario / Chile Central',
-  lastUpdated: 'Planificado',
+  coverage: 'Chile',
+  lastUpdated: 'Pendiente de integración verificable',
   status: 'stub',
-  attributionLabel: 'Red Meteorológica Aficionada y Colaborativa de Chile'
+  attributionLabel: 'Fuente comunitaria; no activa en el cálculo actual',
 };
 
 export const ArClimProviderRef: WeatherProvider = {
@@ -57,10 +54,10 @@ export const ArClimProviderRef: WeatherProvider = {
   providerType: 'climate_risk',
   isFree: true,
   requiresApiKey: false,
-  coverage: 'Nacional (Chile) - Proyecciones de Cambio Climático',
-  lastUpdated: 'Estático (Modelo Histórico/Proyección)',
+  coverage: 'Nacional (Chile)',
+  lastUpdated: 'No es una fuente de tiempo actual',
   status: 'stub',
-  attributionLabel: 'Plataforma del Ministerio del Medio Ambiente & CR2 de Chile'
+  attributionLabel: 'Ministerio del Medio Ambiente / CR2',
 };
 
 export const PremiumFutureProviderRef: WeatherProvider = {
@@ -69,10 +66,10 @@ export const PremiumFutureProviderRef: WeatherProvider = {
   providerType: 'forecast',
   isFree: false,
   requiresApiKey: true,
-  coverage: 'Hiperlocal / Terreno Agrícola y Minero',
-  lastUpdated: 'En desarrollo',
+  coverage: 'Planificado',
+  lastUpdated: 'No activo',
   status: 'stub',
-  attributionLabel: 'Análisis micro-climático de alta resolución propietario de ORBI'
+  attributionLabel: 'No activo en producción',
 };
 
 export const registeredTrustProviders: WeatherProvider[] = [
@@ -80,99 +77,72 @@ export const registeredTrustProviders: WeatherProvider[] = [
   DmcChileProviderRef,
   RedMeteoChileProviderRef,
   ArClimProviderRef,
-  PremiumFutureProviderRef
+  PremiumFutureProviderRef,
 ];
 
-// 4. Source Trust Layer State Result
 export interface SkyCoreTrustState {
   activePrimarySource: string;
   sourceStatus: 'live' | 'cache' | 'fallback' | 'demo';
   lastUpdatedMinutesText: string;
   dataQuality: 'Excelente' | 'Aceptable' | ' Degradada' | 'Crítica';
   confidenceLevel: 'Alta' | 'Media' | 'Baja';
-  confidenceScore: number; // 0 to 100
+  confidenceScore: number;
   userMessage: string;
   isExtensibleComparisonAvailable: boolean;
 }
 
-// 5. SkyCore Confidence Index & Trust Calculator
+/**
+ * Source trust describes provenance/freshness, not forecast accuracy.
+ * A live response from one model is useful, but it is not evidence of
+ * hyperlocal accuracy or independent multi-model agreement.
+ */
 export function calculateSkyCoreTrust(
   sourceState: WeatherSourceState,
-  location: WeatherLocation,
-  connectionQuality: 'buena' | 'intermitente' | 'ninguna' = 'buena'
+  _location: WeatherLocation,
+  connectionQuality: 'buena' | 'intermitente' | 'ninguna' = 'buena',
 ): SkyCoreTrustState {
   let activePrimarySource = 'Open-Meteo';
-  let sourceStatus: 'live' | 'cache' | 'fallback' | 'demo' = 'live';
-  let confidenceLevel: 'Alta' | 'Media' | 'Baja' = 'Alta';
-  let confidenceScore = 100;
-  let dataQuality: 'Excelente' | 'Aceptable' | ' Degradada' | 'Crítica' = 'Excelente';
-  let lastUpdatedMinutesText = 'hace menos de 5 min';
+  let sourceStatus: SkyCoreTrustState['sourceStatus'] = 'live';
+  let dataQuality: SkyCoreTrustState['dataQuality'] = 'Aceptable';
+  let confidenceLevel: SkyCoreTrustState['confidenceLevel'] = 'Media';
+  let confidenceScore = 78;
+  let lastUpdatedMinutesText = sourceState.lastUpdated ? `actualizado ${sourceState.lastUpdated}` : 'actualización reciente';
+  let userMessage = 'Datos en vivo de una fuente meteorológica real. La cobertura actual es single-source: útil para pronóstico, pero todavía sin corroboración independiente ni alertas oficiales integradas.';
 
-  // Determine provider status mapping
-  if (sourceState.provider === 'mock') {
+  if (sourceState.provider === 'mock' || sourceState.mode === 'mock') {
     sourceStatus = 'demo';
-    activePrimarySource = 'Demo Local Correlacionada';
-    lastUpdatedMinutesText = 'Simulada';
-    dataQuality = 'Excelente';
-    confidenceScore = 95;
-    confidenceLevel = 'Alta';
+    activePrimarySource = 'Datos Demo ORBI';
+    dataQuality = 'Crítica';
+    confidenceLevel = 'Baja';
+    confidenceScore = 15;
+    lastUpdatedMinutesText = 'simulación local';
+    userMessage = 'Modo demostración. Estos valores no deben interpretarse como tiempo real ni usarse para decisiones operativas.';
   } else if (sourceState.mode === 'cached') {
     sourceStatus = 'cache';
-    activePrimarySource = 'Open-Meteo (Caché)';
-    lastUpdatedMinutesText = 'hace 15-30 min';
+    activePrimarySource = 'Open-Meteo (caché)';
     dataQuality = 'Aceptable';
-    confidenceScore = 80;
     confidenceLevel = 'Media';
+    confidenceScore = 60;
+    lastUpdatedMinutesText = sourceState.lastUpdated ? `último dato ${sourceState.lastUpdated}` : 'último dato guardado';
+    userMessage = 'Sin actualización en vivo. ORBI muestra el último paquete Open-Meteo guardado y debe tratarse como información potencialmente desactualizada.';
   } else if (sourceState.mode === 'fallback') {
     sourceStatus = 'fallback';
-    activePrimarySource = 'Respaldo Local ORBI';
-    lastUpdatedMinutesText = 'último estado guardado';
+    activePrimarySource = sourceState.provider === 'mock' ? 'Fallback Demo ORBI' : 'Fallback local';
     dataQuality = ' Degradada';
-    confidenceScore = 65;
-    confidenceLevel = 'Media';
-  } else {
-    // live
-    sourceStatus = 'live';
-    activePrimarySource = 'Open-Meteo (Live API)';
-    lastUpdatedMinutesText = 'hace 5 min';
-    dataQuality = 'Excelente';
-    confidenceScore = 100;
-    confidenceLevel = 'Alta';
-  }
-
-  // Adjust scores based on simulated connection quality or extreme distance
-  if (connectionQuality === 'intermitente') {
-    confidenceScore -= 15;
-    dataQuality = 'Aceptable';
-  } else if (connectionQuality === 'ninguna') {
-    confidenceScore -= 35;
-    dataQuality = ' Degradada';
-  }
-
-  // Adjust score slightly if we are querying GPS vs predefined stations
-  if (location.id === 'gps_location') {
-    // GPS can have minor variance depending on satellite distance
-    confidenceScore -= 3;
-  }
-
-  // Final tier categorization
-  if (confidenceScore >= 85) {
-    confidenceLevel = 'Alta';
-  } else if (confidenceScore >= 60) {
-    confidenceLevel = 'Media';
-  } else {
     confidenceLevel = 'Baja';
-    dataQuality = 'Crítica';
+    confidenceScore = 30;
+    lastUpdatedMinutesText = 'sin fuente meteorológica en vivo';
+    userMessage = 'Fuente en vivo no disponible. No uses este estado para decisiones críticas hasta recuperar datos meteorológicos actuales.';
   }
 
-  // Beautiful human user messages
-  let userMessage = 'ORBI Clima IA usa datos meteorológicos abiertos y los interpreta localmente con SkyCore™. Los parámetros de confianza son estables.';
-  if (sourceStatus === 'cache') {
-    userMessage = 'ORBI mantiene el último estado disponible mientras vuelve la conexión. Los parámetros de protección siguen respaldados.';
-  } else if (sourceStatus === 'fallback') {
-    userMessage = 'Se activó el respaldo climático local de contingencia. Tu continuidad de monitoreo operativo está garantizada.';
-  } else if (sourceStatus === 'demo') {
-    userMessage = 'Visualizando simulación de alta precisión para evaluación de parámetros en terreno.';
+  if (connectionQuality === 'intermitente' && sourceStatus === 'live') {
+    confidenceScore = Math.min(confidenceScore, 68);
+    dataQuality = 'Aceptable';
+    confidenceLevel = 'Media';
+  } else if (connectionQuality === 'ninguna' && sourceStatus === 'live') {
+    confidenceScore = Math.min(confidenceScore, 45);
+    dataQuality = ' Degradada';
+    confidenceLevel = 'Baja';
   }
 
   return {
@@ -183,6 +153,6 @@ export function calculateSkyCoreTrust(
     confidenceLevel,
     confidenceScore,
     userMessage,
-    isExtensibleComparisonAvailable: true
+    isExtensibleComparisonAvailable: false,
   };
 }
