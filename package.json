@@ -14,6 +14,7 @@
     "ui:verify-premium-home": "node scripts/verify-premium-home-atmosphere.mjs",
     "weather:verify-current-truth": "node scripts/verify-current-weather-truth.mjs && npx tsx scripts/test-current-weather-truth.ts",
     "android:verify-background-watch": "node scripts/verify-android-background-watch.mjs",
+    "android:verify-performance": "node scripts/verify-android-performance.mjs",
     "android:verify-modern-target": "node scripts/verify-android-modern-target.mjs",
     "android:verify-runtime-readiness": "node scripts/verify-android-runtime-readiness.mjs",
     "android:verify-premium-widget": "node scripts/verify-premium-widget-snapshot.mjs",
