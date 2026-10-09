@@ -52,6 +52,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run ui:verify-mobile-home
 
+      - name: QA install identity source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-qa-channel
+
       - name: Android background-watch source gate
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-background-watch
@@ -123,6 +127,9 @@ jobs:
 
       - name: Verify Mobile Home Experience after Capacitor copy
         run: npm run ui:verify-mobile-home
+
+      - name: Verify QA install identity after Capacitor copy
+        run: npm run android:verify-qa-channel
 
       - name: Verify background-watch invariants after Capacitor copy
         run: npm run android:verify-background-watch
