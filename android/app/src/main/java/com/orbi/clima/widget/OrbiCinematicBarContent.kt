@@ -1,7 +1,6 @@
 package com.orbi.clima.widget
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
@@ -18,12 +17,7 @@ import com.orbi.clima.MainActivity
 
 @Composable
 fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
-    val riskColor = OrbiWidgetTheme.getRiskColor(state.riskLevel)
-    val isApt = state.globalDecisionLabel.lowercase() in listOf("óptimo", "favorable", "optimo")
     val sourceLabel = OrbiWidgetTheme.getSourceLabel(state.sourceMode)
-
-    // Select dynamic background soft color based on weather condition
-    val atmosphereBgColor = OrbiWidgetTheme.getConditionColor(state.conditionCode).copy(alpha = 0.08f)
 
     Row(
         modifier = GlanceModifier
@@ -34,7 +28,6 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
             .clickable(actionStartActivity<MainActivity>()),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left Column: Temperature + Orb Box
         Column(
             modifier = GlanceModifier
                 .width(90.dp)
@@ -51,9 +44,7 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                 weatherMood = state.weatherMood,
                 visualTheme = state.visualTheme
             )
-
             Spacer(modifier = GlanceModifier.height(4.dp))
-
             Text(
                 text = "${state.temperatureC}°",
                 style = TextStyle(
@@ -74,16 +65,14 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.width(10.dp))
 
-        // Right Column: Information, Narrative phrase, and micro-timeline
         Column(
             modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
-            verticalAlignment = Alignment.SpaceBetween
+            verticalAlignment = Alignment.Top
         ) {
-            // Header Row
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.SpaceBetween
+                horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text = "ORBI CINEMATIC BAR",
@@ -93,6 +82,7 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                         fontWeight = FontWeight.Bold
                     )
                 )
+                Spacer(modifier = GlanceModifier.defaultWeight())
                 Text(
                     text = state.locationName,
                     style = TextStyle(
@@ -103,17 +93,18 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                 )
             }
 
-            // Narrative summary phrase
-            val isAlertActive = state.mainAlertTitle.isNotEmpty() && 
-                    state.mainAlertTitle != "Sin alertas relevantes" && 
+            Spacer(modifier = GlanceModifier.defaultWeight())
+
+            val isAlertActive = state.mainAlertTitle.isNotEmpty() &&
+                    state.mainAlertTitle != "Sin alertas relevantes" &&
                     state.mainAlertTitle != "Sin alertas operativas críticas"
-            
+
             val cinematicText = if (isAlertActive) {
                 "${state.mainAlertTitle.uppercase()}: ${state.mainAlertMessage}"
             } else {
                 state.shortNarrative
             }
-            
+
             val textColor = if (isAlertActive) {
                 OrbiWidgetTheme.getRiskColor(state.mainAlertSeverity)
             } else {
@@ -129,12 +120,12 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                 maxLines = 2
             )
 
-            // Micro-timeline row (next 3 hours)
+            Spacer(modifier = GlanceModifier.defaultWeight())
+
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Hour 1
                 Box(modifier = GlanceModifier.defaultWeight().background(ColorProvider(OrbiWidgetTheme.OrbiCardBg)).padding(horizontal = 4.dp, vertical = 2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = state.nextHour1Label, style = TextStyle(color = ColorProvider(OrbiWidgetTheme.OrbiDim), fontSize = 7.5.sp))
@@ -143,7 +134,6 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                     }
                 }
                 Spacer(modifier = GlanceModifier.width(3.dp))
-                // Hour 2
                 Box(modifier = GlanceModifier.defaultWeight().background(ColorProvider(OrbiWidgetTheme.OrbiCardBg)).padding(horizontal = 4.dp, vertical = 2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = state.nextHour2Label, style = TextStyle(color = ColorProvider(OrbiWidgetTheme.OrbiDim), fontSize = 7.5.sp))
@@ -152,7 +142,6 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                     }
                 }
                 Spacer(modifier = GlanceModifier.width(3.dp))
-                // Hour 3
                 Box(modifier = GlanceModifier.defaultWeight().background(ColorProvider(OrbiWidgetTheme.OrbiCardBg)).padding(horizontal = 4.dp, vertical = 2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = state.nextHour3Label, style = TextStyle(color = ColorProvider(OrbiWidgetTheme.OrbiDim), fontSize = 7.5.sp))
@@ -162,11 +151,12 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                 }
             }
 
-            // Footer Best window and sync badge
+            Spacer(modifier = GlanceModifier.defaultWeight())
+
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.SpaceBetween
+                horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text = "Ventana: ${state.bestWindow}",
@@ -176,6 +166,7 @@ fun OrbiCinematicBarContent(state: OrbiWidgetContract) {
                         fontWeight = FontWeight.Bold
                     )
                 )
+                Spacer(modifier = GlanceModifier.defaultWeight())
                 Text(
                     text = "$sourceLabel • ${state.lastUpdated}",
                     style = TextStyle(
