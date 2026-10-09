@@ -1,0 +1,3 @@
+# Weather audit placeholder
+
+This file is temporary and will be replaced by the structured audit in the weather accuracy branch.
