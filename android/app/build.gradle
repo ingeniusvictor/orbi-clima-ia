@@ -10,14 +10,24 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10602
-        versionName "1.0.6-final-clean"
+        versionCode 10718
+        versionName "1.0.7-oc18"
+        manifestPlaceholders = [appLabel: "ORBI Clima IA"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            // QA builds install beside the existing ORBI Clima app instead of
+            // attempting to replace a build signed by a different CI debug key.
+            applicationIdSuffix ".qa18"
+            versionNameSuffix "-qa18"
+            manifestPlaceholders = [appLabel: "ORBI Clima IA QA18"]
+        }
+
         release {
             minifyEnabled false
+            manifestPlaceholders = [appLabel: "ORBI Clima IA"]
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
