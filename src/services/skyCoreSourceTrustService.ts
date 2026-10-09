@@ -127,7 +127,7 @@ export function calculateSkyCoreTrust(
     userMessage = 'Sin actualización en vivo. ORBI muestra el último paquete Open-Meteo guardado y debe tratarse como información potencialmente desactualizada.';
   } else if (sourceState.mode === 'fallback') {
     sourceStatus = 'fallback';
-    activePrimarySource = sourceState.provider === 'mock' ? 'Fallback Demo ORBI' : 'Fallback local';
+    activePrimarySource = 'Fallback local';
     dataQuality = ' Degradada';
     confidenceLevel = 'Baja';
     confidenceScore = 30;
