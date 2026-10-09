@@ -23,7 +23,9 @@ class OrbiOfficialAlertWatchPlugin : Plugin() {
         val enabled = call.getBoolean("enabled", false) ?: false
         if (!enabled) {
             OfficialAlertWatchStore.setEnabled(context, false)
-            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_PERIODIC_WORK)
+            val manager = WorkManager.getInstance(context)
+            manager.cancelUniqueWork(UNIQUE_PERIODIC_WORK)
+            manager.cancelUniqueWork(UNIQUE_IMMEDIATE_WORK)
             call.resolve(OfficialAlertWatchStore.statusJson(context).toJsObject())
             return
         }
@@ -69,6 +71,24 @@ class OrbiOfficialAlertWatchPlugin : Plugin() {
         OfficialAlertWatchStore.saveConfig(context, config)
         schedulePeriodic(config.intervalMinutes)
         enqueueImmediateCheck()
+        call.resolve(OfficialAlertWatchStore.statusJson(context).toJsObject())
+    }
+
+    @PluginMethod
+    fun updateQuietHours(call: PluginCall) {
+        val quiet = call.getObject("quietHours")
+        if (quiet == null) {
+            call.reject("Missing quietHours")
+            return
+        }
+        OfficialAlertWatchStore.updateQuietHours(
+            context = context,
+            enabled = quiet.getBool("enabled") ?: true,
+            mode = quiet.getString("mode") ?: "critical_only",
+            startTime = quiet.getString("startTime") ?: "22:00",
+            endTime = quiet.getString("endTime") ?: "07:00",
+            allowCritical = quiet.getBool("allowCritical") ?: true,
+        )
         call.resolve(OfficialAlertWatchStore.statusJson(context).toJsObject())
     }
 
