@@ -29,7 +29,25 @@ jobs:
         run: npm ci
 
       - name: TypeScript gate
-        run: npm run typecheck
+        id: typecheck
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee typecheck.log
+
+      - name: Upload TypeScript diagnostics
+        if: steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          retention-days: 7
+
+      - name: Stop on TypeScript failure
+        if: steps.typecheck.outcome == 'failure'
+        run: exit 1
 
       - name: Production build
+        if: steps.typecheck.outcome == 'success'
         run: npm run build
