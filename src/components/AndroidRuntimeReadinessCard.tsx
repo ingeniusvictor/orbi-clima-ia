@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BatteryCharging, Bell, CheckCircle2, Cpu, MapPin, RefreshCw, Smartphone, TriangleAlert, Widget } from 'lucide-react';
+import { BatteryCharging, Bell, CheckCircle2, Cpu, MapPin, RefreshCw, Smartphone, TriangleAlert } from 'lucide-react';
 import {
   getAndroidRuntimeDiagnostics,
   isAndroidNativeRuntime,
@@ -106,7 +106,7 @@ export default function AndroidRuntimeReadinessCard() {
 
           <div className="grid grid-cols-2 gap-2 text-[9px]">
             <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04]">
-              <div className="flex items-center gap-1.5 text-slate-400"><Widget className="w-3.5 h-3.5" /> Widgets colocados</div>
+              <div className="flex items-center gap-1.5 text-slate-400"><Smartphone className="w-3.5 h-3.5" /> Widgets colocados</div>
               <div className="text-lg font-black text-slate-100 mt-1">{status.placedWidgetCount}</div>
               <div className="text-slate-600">Premium 4×4: {status.widgets.commandPremium}</div>
             </div>
