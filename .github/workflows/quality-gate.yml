@@ -48,6 +48,10 @@ jobs:
         if: steps.typecheck.outcome == 'failure'
         run: exit 1
 
+      - name: Android background-watch source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-background-watch
+
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build

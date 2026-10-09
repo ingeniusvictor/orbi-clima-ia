@@ -10,6 +10,7 @@ import WeatherMemoryPanel from './WeatherMemoryPanel';
 import DeveloperModeGate, { isDeveloperModeEnabled } from './DeveloperModeGate';
 import CompactSectionCard from './CompactSectionCard';
 import OrbiZenSoundSettingsCard from './OrbiZenSoundSettingsCard';
+import OfficialAlertBackgroundWatchCard from './OfficialAlertBackgroundWatchCard';
 import { loadFinalReleaseSealState } from '../services/finalReleaseSealService';
 import { ORBI_APP_VERSION } from '../config/orbiAppVersion';
 
@@ -93,15 +94,19 @@ export default function MobileSettingsScreen({
         </div>
       </CompactSectionCard>
 
-      {/* 3. Local Privacy and Trust Card */}
+      {/* 3. Local Privacy, Trust and Official Background Watch */}
       <CompactSectionCard
         title="Seguridad y Privacidad"
-        subtitle="Políticas de retención y control de cookies"
+        subtitle="Privacidad local y vigilancia oficial SENAPRED"
         status="Seguro"
         icon={<Shield className="w-4 h-4 text-emerald-400" />}
       >
-        <div className="text-left">
+        <div className="text-left space-y-4">
           <PrivacyTrustCard />
+          <OfficialAlertBackgroundWatchCard
+            currentLocation={currentLocation}
+            weatherSourceState={weatherSourceState}
+          />
         </div>
       </CompactSectionCard>
 

@@ -3,6 +3,7 @@ import {
   SenapredOfficialAlert,
   fetchSenapredOfficialAlerts,
 } from './senapredArcgisAlertService';
+import { syncOfficialAlertBackgroundWatch } from './officialAlertBackgroundWatchService';
 
 export const ORBI_OFFICIAL_ALERTS_EVENT = 'orbi-official-alerts-updated';
 
@@ -97,11 +98,20 @@ function mapSenapredAlert(alert: SenapredOfficialAlert, checkedAt: string): Offi
  *   to the user as proof that there are no official alerts.
  * - Every completed authority refresh publishes an internal event. Consumers
  *   must still enforce hasVerifiedCoverage before taking any delivery action.
+ * - When the Android background watch is enabled, the foreground-confirmed
+ *   location is synchronized natively here; background execution never asks
+ *   Android for hidden/background GPS access.
  */
 export async function fetchOfficialWeatherAlerts(
   location: WeatherLocation,
 ): Promise<OfficialAlertsResult> {
   const checkedAt = new Date().toISOString();
+
+  // Keep the native WorkManager snapshot aligned with the location the user is
+  // actively consulting. This is intentionally non-blocking for the live UI.
+  void syncOfficialAlertBackgroundWatch(location).catch(error => {
+    console.debug('Official background watch location sync skipped:', error);
+  });
 
   try {
     const senapred = await fetchSenapredOfficialAlerts(location);
