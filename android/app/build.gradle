@@ -10,14 +10,24 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10602
-        versionName "1.0.6-final-clean"
+        versionCode 10919
+        versionName "1.0.9-oc19"
+        manifestPlaceholders = [appLabel: "ORBI Clima IA"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            // Device-test build installs beside production/QA18 so we can
+            // compare identical GPS/time without CI debug-signature conflicts.
+            applicationIdSuffix ".qa19"
+            versionNameSuffix "-qa19"
+            manifestPlaceholders = [appLabel: "ORBI Clima IA QA19"]
+        }
+
         release {
             minifyEnabled false
+            manifestPlaceholders = [appLabel: "ORBI Clima IA"]
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
