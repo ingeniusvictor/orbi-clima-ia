@@ -3,6 +3,7 @@ import { WeatherLocation } from '../types/weatherTypes';
 const SENAPRED_ARCGIS_BASE = 'https://services3.arcgis.com/CNzkI2T3GmfwkaAR/arcgis/rest/services';
 const SENAPRED_PUBLIC_ALERTS_URL = 'https://senapred.cl/informate/eventos';
 const REQUEST_TIMEOUT_MS = 9000;
+const MAX_DATED_LAYER_AGE_DAYS = 21;
 
 export type SenapredAlertLevel = 'temprana_preventiva' | 'amarilla' | 'roja';
 export type SenapredQueryStatus = 'ok' | 'inactive_layer' | 'error';
@@ -44,6 +45,7 @@ export interface SenapredOfficialAlertsResult {
   verifiedMachineFeed: true;
   hasVerifiedCoverage: boolean;
   isPartial: boolean;
+  discoveryMode: 'directory' | 'canonical_fallback';
   queryResults: SenapredLayerQueryResult[];
   sourceLabel: string;
   publicSourceUrl: string;
@@ -61,6 +63,13 @@ interface ArcGisQueryResponse {
     message?: string;
     details?: string[];
   };
+}
+
+interface ArcGisServicesDirectory {
+  services?: Array<{
+    name?: string;
+    type?: string;
+  }>;
 }
 
 const LEVELS: Array<{
@@ -143,8 +152,12 @@ function isStaleStartDate(value: unknown, level: SenapredAlertLevel): boolean {
   return Date.now() - parsed.epochMs > staleDays * 24 * 60 * 60 * 1000;
 }
 
+function encodeServicePath(service: string): string {
+  return service.split('/').map(part => encodeURIComponent(part)).join('/');
+}
+
 function queryUrl(service: string, location: WeatherLocation): string {
-  const endpoint = `${SENAPRED_ARCGIS_BASE}/${service}/FeatureServer/0/query`;
+  const endpoint = `${SENAPRED_ARCGIS_BASE}/${encodeServicePath(service)}/FeatureServer/0/query`;
   const geometry = JSON.stringify({
     x: location.longitude,
     y: location.latitude,
@@ -163,11 +176,83 @@ function queryUrl(service: string, location: WeatherLocation): string {
   return `${endpoint}?${params.toString()}`;
 }
 
+function datedServiceEpoch(service: string, suffix: string): number | null {
+  const finalName = service.split('/').at(-1) ?? service;
+  const match = new RegExp(`^METEOROLOGICAS_${suffix}_(\\d{2})(\\d{2})(\\d{2})$`, 'i').exec(finalName);
+  if (!match) return null;
+  const [, day, month, shortYear] = match;
+  const year = 2000 + Number(shortYear);
+  const epoch = Date.parse(`${year}-${month}-${day}T12:00:00-03:00`);
+  return Number.isFinite(epoch) ? epoch : null;
+}
+
+function chooseService(
+  services: Array<{ name?: string; type?: string }>,
+  suffix: 'VERDE' | 'AMARILLA' | 'ROJA',
+): string | null {
+  const exactName = `METEOROLOGICAS_${suffix}`;
+  const featureServices = services
+    .filter(service => String(service.type ?? '').toLowerCase() === 'featureserver')
+    .map(service => String(service.name ?? '').trim())
+    .filter(Boolean);
+
+  const exact = featureServices.find(service => (service.split('/').at(-1) ?? service).toUpperCase() === exactName);
+  if (exact) return exact;
+
+  const cutoff = Date.now() - MAX_DATED_LAYER_AGE_DAYS * 24 * 60 * 60 * 1000;
+  const futureTolerance = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  const recentDated = featureServices
+    .map(service => ({ service, epoch: datedServiceEpoch(service, suffix) }))
+    .filter((item): item is { service: string; epoch: number } => item.epoch !== null)
+    .filter(item => item.epoch >= cutoff && item.epoch <= futureTolerance)
+    .sort((a, b) => b.epoch - a.epoch);
+
+  return recentDated[0]?.service ?? null;
+}
+
+async function discoverMeteorologicalServices(): Promise<Map<SenapredAlertLevel, string> | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${SENAPRED_ARCGIS_BASE}?f=json`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return null;
+    const directory = await response.json() as ArcGisServicesDirectory;
+    if (!Array.isArray(directory.services)) return null;
+
+    const result = new Map<SenapredAlertLevel, string>();
+    for (const definition of LEVELS) {
+      const service = chooseService(directory.services, definition.serviceSuffix);
+      if (service) result.set(definition.level, service);
+    }
+    return result;
+  } catch (error) {
+    console.warn('SENAPRED ArcGIS service discovery unavailable; using canonical layer fallback.', error);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function queryLayer(
   location: WeatherLocation,
   definition: (typeof LEVELS)[number],
+  discoveredService?: string | null,
 ): Promise<SenapredLayerQueryResult> {
-  const service = `METEOROLOGICAS_${definition.serviceSuffix}`;
+  if (discoveredService === null) {
+    return {
+      service: `METEOROLOGICAS_${definition.serviceSuffix}`,
+      level: definition.level,
+      status: 'inactive_layer',
+      httpStatus: null,
+      alerts: [],
+      errorMessage: null,
+    };
+  }
+
+  const service = discoveredService ?? `METEOROLOGICAS_${definition.serviceSuffix}`;
   const url = queryUrl(service, location);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -312,6 +397,7 @@ export async function fetchSenapredOfficialAlerts(
       verifiedMachineFeed: true,
       hasVerifiedCoverage: false,
       isPartial: false,
+      discoveryMode: 'canonical_fallback',
       queryResults: [],
       sourceLabel: 'SENAPRED · dashboard oficial ArcGIS',
       publicSourceUrl: SENAPRED_PUBLIC_ALERTS_URL,
@@ -319,15 +405,21 @@ export async function fetchSenapredOfficialAlerts(
     };
   }
 
-  const queryResults = await Promise.all(LEVELS.map(definition => queryLayer(location, definition)));
+  const discovered = await discoverMeteorologicalServices();
+  const discoveryMode: SenapredOfficialAlertsResult['discoveryMode'] = discovered ? 'directory' : 'canonical_fallback';
+  const queryResults = await Promise.all(LEVELS.map(definition => {
+    const service = discovered ? (discovered.get(definition.level) ?? null) : undefined;
+    return queryLayer(location, definition, service);
+  }));
+
   const successfulQueries = queryResults.filter(result => result.status === 'ok').length;
   const errors = queryResults.filter(result => result.status === 'error').length;
   const inactiveLayers = queryResults.filter(result => result.status === 'inactive_layer').length;
   const alerts = deduplicateAlerts(queryResults.flatMap(result => result.alerts));
 
   // Conservative coverage rule: at least one real FeatureServer layer must answer
-  // successfully. If all three layers are absent/renamed we refuse to conclude
-  // that there are zero alerts, even though ArcGIS itself is reachable.
+  // successfully. If all alert layers are absent/renamed we refuse to conclude
+  // that there are zero alerts, even when the ArcGIS host itself is reachable.
   const hasVerifiedCoverage = successfulQueries > 0;
   const isPartial = hasVerifiedCoverage && errors > 0;
 
@@ -335,11 +427,11 @@ export async function fetchSenapredOfficialAlerts(
   if (!hasVerifiedCoverage) {
     integrityMessage = errors > 0
       ? 'No fue posible verificar ninguna capa meteorológica SENAPRED en esta consulta. ORBI no puede afirmar ausencia de alertas oficiales.'
-      : `Las ${inactiveLayers} capas consultadas no estaban disponibles. ORBI no interpreta esto como ausencia confirmada de alertas.`;
+      : `Las ${inactiveLayers} capas meteorológicas consultadas no estaban activas o verificables. ORBI no interpreta esto como ausencia confirmada de alertas.`;
   } else if (isPartial) {
     integrityMessage = 'SENAPRED respondió parcialmente. Las alertas mostradas son oficiales y geográficamente coincidentes, pero alguna capa no pudo verificarse.';
   } else {
-    integrityMessage = 'Cobertura SENAPRED verificada mediante intersección del punto consultado con polígonos oficiales del dashboard ArcGIS.';
+    integrityMessage = `Cobertura SENAPRED verificada mediante intersección del punto consultado con polígonos oficiales del dashboard ArcGIS (${discoveryMode === 'directory' ? 'capas descubiertas dinámicamente' : 'rutas canónicas'}).`;
   }
 
   return {
@@ -348,6 +440,7 @@ export async function fetchSenapredOfficialAlerts(
     verifiedMachineFeed: true,
     hasVerifiedCoverage,
     isPartial,
+    discoveryMode,
     queryResults,
     sourceLabel: 'SENAPRED · dashboard oficial ArcGIS',
     publicSourceUrl: SENAPRED_PUBLIC_ALERTS_URL,
