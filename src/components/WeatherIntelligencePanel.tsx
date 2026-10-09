@@ -10,6 +10,12 @@ import {
   fetchTrueMultiModelConsensus,
 } from '../services/openMeteoMultiModelService';
 import {
+  ModelSkillSummary,
+  registerMultiModelForecastTargets,
+  summarizeModelSkill,
+  verifyMatureForecastsAgainstDmc,
+} from '../services/modelForecastVerificationService';
+import {
   DmcObservationSnapshot,
   compareDmcObservationToModel,
   fetchNearestDmcObservation,
@@ -25,6 +31,7 @@ import DmcObservationCard from './DmcObservationCard';
 import ForecastUncertaintyCard from './ForecastUncertaintyCard';
 import HydrologicRiskCard from './HydrologicRiskCard';
 import MicroclimateCard from './MicroclimateCard';
+import ModelForecastSkillCard from './ModelForecastSkillCard';
 import MultiModelConsensusCard from './MultiModelConsensusCard';
 
 interface WeatherIntelligencePanelProps {
@@ -50,6 +57,7 @@ export default function WeatherIntelligencePanel({
   const [airQuality, setAirQuality] = useState<AirQualitySnapshot | null>(null);
   const [uncertainty, setUncertainty] = useState<ForecastUncertaintyReport | null>(null);
   const [multiModel, setMultiModel] = useState<MultiModelConsensusReport | null>(null);
+  const [modelSkill, setModelSkill] = useState<ModelSkillSummary>(() => summarizeModelSkill(location));
   const [hydroPrecipitation, setHydroPrecipitation] = useState<HydroPrecipSnapshot | null>(null);
   const [floodContext, setFloodContext] = useState<FloodContextSnapshot | null>(null);
   const [officialAlerts, setOfficialAlerts] = useState<OfficialAlertsResult | null>(null);
@@ -73,6 +81,7 @@ export default function WeatherIntelligencePanel({
     const summary = summarizeVerificationHistory(location);
     publishVerificationSummary(summary);
     onVerificationUpdate?.(summary);
+    setModelSkill(summarizeModelSkill(location));
   }, [location.latitude, location.longitude, location.name, onVerificationUpdate]);
 
   useEffect(() => {
@@ -97,12 +106,38 @@ export default function WeatherIntelligencePanel({
   ]);
 
   useEffect(() => {
+    if (!enabled || !multiModel?.verificationTargets.length) return;
+    const summary = registerMultiModelForecastTargets(location, multiModel.verificationTargets);
+    setModelSkill(summary);
+  }, [
+    enabled,
+    multiModel?.generatedAt,
+    location.latitude,
+    location.longitude,
+    location.name,
+  ]);
+
+  useEffect(() => {
+    if (!enabled || !dmcObservation) return;
+    const summary = verifyMatureForecastsAgainstDmc(location, dmcObservation);
+    setModelSkill(summary);
+  }, [
+    enabled,
+    dmcObservation?.stationId,
+    dmcObservation?.reportTime,
+    location.latitude,
+    location.longitude,
+    location.name,
+  ]);
+
+  useEffect(() => {
     let active = true;
 
     if (!enabled) {
       setAirQuality(null);
       setUncertainty(null);
       setMultiModel(null);
+      setModelSkill(summarizeModelSkill(location));
       setHydroPrecipitation(null);
       setFloodContext(null);
       setOfficialAlerts(null);
@@ -203,9 +238,9 @@ export default function WeatherIntelligencePanel({
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">DMC observado · 4 modelos · calibración · ensemble · HydroWatch</p>
+          <p className="text-xs text-slate-400 mt-0.5">DMC observado · forecast skill · 4 modelos · ensemble · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-06</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-07</span>
       </div>
 
       <DmcObservationCard
@@ -214,6 +249,7 @@ export default function WeatherIntelligencePanel({
         loading={loading}
       />
       <MultiModelConsensusCard report={multiModel} loading={loading} />
+      <ModelForecastSkillCard summary={modelSkill} />
       <AirQualityCard data={airQuality} loading={loading} />
       <ForecastUncertaintyCard report={uncertainty} loading={loading} />
       <MicroclimateCard current={current} />
