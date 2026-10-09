@@ -64,6 +64,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-premium-widget
 
+      - name: Immediate multi-widget refresh source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-widget-refresh
+
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build
@@ -124,6 +128,9 @@ jobs:
 
       - name: Verify premium 4x4 snapshot after Capacitor copy
         run: npm run android:verify-premium-widget
+
+      - name: Verify immediate multi-widget refresh after Capacitor copy
+        run: npm run android:verify-widget-refresh
 
       - name: Compile debug APK and release AAB
         working-directory: android
