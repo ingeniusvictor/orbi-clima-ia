@@ -106,6 +106,12 @@ expectContains(
   'isDelivered(applicationContext',
   'native persistent dedup gate',
 );
+expectContains(
+  'android/app/src/main/java/com/orbi/clima/alerts/OfficialAlertWorker.kt',
+  alertSource,
+  'manager.notify(notificationId, notification)',
+  'deterministic untagged native notification ID',
+);
 
 const bridgeServicePath = 'src/services/officialAlertBackgroundWatchService.ts';
 const bridgeService = read(bridgeServicePath);
@@ -116,6 +122,8 @@ const notificationServicePath = 'src/services/orbiNotificationService.ts';
 const notificationService = read(notificationServicePath);
 expectContains(notificationServicePath, notificationService, 'isOfficialAlertDeliveredNative', 'cross-runtime dedup lookup');
 expectContains(notificationServicePath, notificationService, 'markOfficialAlertDeliveredNative', 'cross-runtime delivery ledger sync');
+expectContains(notificationServicePath, notificationService, 'stableOfficialAndroidNotificationId', 'deterministic foreground notification ID');
+expectContains(notificationServicePath, notificationService, 'Math.imul(31, hash)', 'Java-compatible String.hashCode implementation');
 
 const rebuildPath = 'scripts/rebuild-android-clean.ps1';
 const rebuild = read(rebuildPath);
@@ -151,5 +159,6 @@ console.log(' - foreground-confirmed location snapshot only');
 console.log(' - no background-location / foreground-service permissions');
 console.log(' - SENAPRED verified-coverage gate present');
 console.log(' - web/native official-alert dedup synchronized');
+console.log(' - deterministic Android notification IDs aligned across runtimes');
 console.log(' - all five Android widget receivers preserved');
 console.log(' - clean Android rebuild preserves custom native sources');
