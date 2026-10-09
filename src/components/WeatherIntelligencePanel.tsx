@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CurrentWeather, WeatherLocation } from '../types/weatherTypes';
 import { AirQualitySnapshot, fetchOpenMeteoAirQuality } from '../services/openMeteoAirQualityService';
 import { ForecastUncertaintyReport, fetchForecastUncertainty } from '../services/openMeteoEnsembleService';
+import { FloodContextSnapshot, fetchOpenMeteoFloodContext } from '../services/openMeteoFloodService';
+import { HydroPrecipSnapshot, fetchHydroPrecipContext } from '../services/openMeteoHydroPrecipService';
+import { OfficialAlertsResult, fetchOfficialWeatherAlerts } from '../services/officialWeatherAlertsService';
+import { buildHydrologicRiskAssessment } from '../utils/hydrologicRiskEngine';
 import AirQualityCard from './AirQualityCard';
 import ForecastUncertaintyCard from './ForecastUncertaintyCard';
+import HydrologicRiskCard from './HydrologicRiskCard';
 import MicroclimateCard from './MicroclimateCard';
 
 interface WeatherIntelligencePanelProps {
@@ -15,7 +20,18 @@ interface WeatherIntelligencePanelProps {
 export default function WeatherIntelligencePanel({ location, current, enabled }: WeatherIntelligencePanelProps) {
   const [airQuality, setAirQuality] = useState<AirQualitySnapshot | null>(null);
   const [uncertainty, setUncertainty] = useState<ForecastUncertaintyReport | null>(null);
+  const [hydroPrecipitation, setHydroPrecipitation] = useState<HydroPrecipSnapshot | null>(null);
+  const [floodContext, setFloodContext] = useState<FloodContextSnapshot | null>(null);
+  const [officialAlerts, setOfficialAlerts] = useState<OfficialAlertsResult | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const hydrologicAssessment = useMemo(() => {
+    if (!hydroPrecipitation) return null;
+    return buildHydrologicRiskAssessment({
+      precipitation: hydroPrecipitation,
+      flood: floodContext,
+    });
+  }, [hydroPrecipitation, floodContext]);
 
   useEffect(() => {
     let active = true;
@@ -23,6 +39,9 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
     if (!enabled) {
       setAirQuality(null);
       setUncertainty(null);
+      setHydroPrecipitation(null);
+      setFloodContext(null);
+      setOfficialAlerts(null);
       setLoading(false);
       return () => {
         active = false;
@@ -37,9 +56,12 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
         timezone: location.timezone || 'auto',
       };
 
-      const [airResult, ensembleResult] = await Promise.allSettled([
+      const [airResult, ensembleResult, hydroResult, floodResult, officialResult] = await Promise.allSettled([
         fetchOpenMeteoAirQuality(params),
         fetchForecastUncertainty(params),
+        fetchHydroPrecipContext(params),
+        fetchOpenMeteoFloodContext(params),
+        fetchOfficialWeatherAlerts(location),
       ]);
 
       if (!active) return;
@@ -58,6 +80,27 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
         setUncertainty(null);
       }
 
+      if (hydroResult.status === 'fulfilled') {
+        setHydroPrecipitation(hydroResult.value);
+      } else {
+        console.warn('Hydrologic precipitation context unavailable:', hydroResult.reason);
+        setHydroPrecipitation(null);
+      }
+
+      if (floodResult.status === 'fulfilled') {
+        setFloodContext(floodResult.value);
+      } else {
+        console.warn('GloFAS flood context unavailable:', floodResult.reason);
+        setFloodContext(null);
+      }
+
+      if (officialResult.status === 'fulfilled') {
+        setOfficialAlerts(officialResult.value);
+      } else {
+        console.warn('Official weather-alert provider status unavailable:', officialResult.reason);
+        setOfficialAlerts(null);
+      }
+
       setLoading(false);
     };
 
@@ -70,7 +113,7 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
     return () => {
       active = false;
     };
-  }, [enabled, location.latitude, location.longitude, location.timezone]);
+  }, [enabled, location.latitude, location.longitude, location.timezone, location.id]);
 
   if (!enabled) return null;
 
@@ -79,14 +122,21 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">Aire · microclima · dispersión de modelos</p>
+          <p className="text-xs text-slate-400 mt-0.5">Aire · microclima · ensemble · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-02</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-03</span>
       </div>
 
       <AirQualityCard data={airQuality} loading={loading} />
       <ForecastUncertaintyCard report={uncertainty} loading={loading} />
       <MicroclimateCard current={current} />
+      <HydrologicRiskCard
+        precipitation={hydroPrecipitation}
+        flood={floodContext}
+        assessment={hydrologicAssessment}
+        officialAlerts={officialAlerts}
+        loading={loading}
+      />
     </div>
   );
 }
