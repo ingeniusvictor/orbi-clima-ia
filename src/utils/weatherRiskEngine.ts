@@ -1,94 +1,116 @@
-import { CurrentWeather, HourlyForecast, DailyForecast, WeatherProfile, ClimateRisk, RiskLevel, AdvancedSkyCoreAnalysis, SkyCoreDecision } from '../types/weatherTypes';
+import {
+  CurrentWeather,
+  HourlyForecast,
+  DailyForecast,
+  WeatherProfile,
+  ClimateRisk,
+  RiskLevel,
+  AdvancedSkyCoreAnalysis,
+} from '../types/weatherTypes';
 import { calculateSkyCoreRiskScores } from './skyCoreRiskScoring';
 import { analyzeBestWindows } from './skyCoreWindowAnalyzer';
 import { buildSkyCoreRecommendations } from './skyCoreRecommendationEngine';
 import { scoreToRiskLevel, scoreToDecision } from './skyCoreRiskLabels';
 
+type WeatherSemantics = {
+  weatherCode?: number;
+  conditionLabel?: string;
+  precipitationKind?: 'none' | 'drizzle' | 'freezing_drizzle' | 'rain' | 'freezing_rain' | 'showers' | 'snow' | 'storm' | 'unknown';
+  precipitationIntensity?: 'none' | 'trace' | 'light' | 'moderate' | 'heavy' | 'violent';
+};
+
+function getSemantics(current: CurrentWeather): WeatherSemantics {
+  return current as CurrentWeather & WeatherSemantics;
+}
+
+function isActivePrecipitation(current: CurrentWeather): boolean {
+  return Number.isFinite(current.precipitationMm) && current.precipitationMm > 0;
+}
+
+function nextHoursMaxRainProbability(hourly: HourlyForecast[], hours = 6): number {
+  if (!hourly.length) return 0;
+  return Math.max(0, ...hourly.slice(0, hours).map(h => h.precipitationProbability || 0));
+}
 
 export function buildClimateRisks(
   current: CurrentWeather,
   hourly: HourlyForecast[],
   daily: DailyForecast[],
-  activeProfile: WeatherProfile
+  activeProfile: WeatherProfile,
 ): ClimateRisk[] {
   const risks: ClimateRisk[] = [];
+  const semantics = getSemantics(current);
+  const precipKind = semantics.precipitationKind ?? (current.condition === 'rain' ? 'rain' : 'none');
+  const precipIntensity = semantics.precipitationIntensity ?? (current.precipitationMm > 0 ? 'light' : 'none');
+  const conditionLabel = semantics.conditionLabel || (current.condition === 'rain' ? 'Lluvia' : 'Condición meteorológica');
+  const activePrecip = isActivePrecipitation(current);
+  const next6hRainProbability = nextHoursMaxRainProbability(hourly, 6);
 
-  // --- ANALISIS DE CONDICIONES GENERALES Y ESPECIFICAS ---
-
-  // 1. Humedad Alta
-  if (current.humidity >= 85) {
+  // 1. Humedad: humedad relativa alta no equivale por sí sola a condensación.
+  if (current.humidity >= 90) {
     risks.push({
-      id: 'high_humidity',
-      label: 'Humedad Extrema',
-      level: 'high',
-      description: `Humedad relativa del ${current.humidity}%. Hay alta condensación en el ambiente.`,
+      id: activeProfile === 'field_tech' ? 'high_humidity' : 'high_humidity_person',
+      label: activeProfile === 'field_tech' ? 'Humedad Muy Alta' : 'Sensación de Humedad',
+      level: activeProfile === 'field_tech' ? 'medium' : 'low',
+      description: `Humedad relativa de ${current.humidity}%. Puede favorecer condensación si superficies o equipos están por debajo del punto de rocío.`,
       recommendation: activeProfile === 'field_tech'
-        ? 'Evitar apertura de tableros eléctricos o manipulación de cableado expuesto hasta que disminuya de 80%.'
-        : 'La mañana se sentirá más helada y húmeda. Evita secar ropa afuera y ventila en horas de sol.',
-      affectedProfile: 'field_tech',
+        ? 'Antes de abrir tableros, comprobar visualmente condensación y respetar el procedimiento eléctrico/HSE aplicable.'
+        : 'El ambiente puede sentirse más húmedo o frío. Ventila cuando las condiciones exteriores mejoren.',
+      affectedProfile: activeProfile,
     });
-    // Add for person too if high humidity affects daily life
-    if (activeProfile === 'person') {
-      risks.push({
-        id: 'high_humidity_person',
-        label: 'Sensación de Humedad',
-        level: 'medium',
-        description: `Humedad de ${current.humidity}%. El frío se intensifica y la ropa tarda más en secar.`,
-        recommendation: 'Usa ropa con buena barrera contra el viento y la humedad temprana.',
-        affectedProfile: 'person',
-      });
-    }
-  } else if (current.humidity >= 75) {
+  } else if (current.humidity >= 80 && activeProfile === 'person') {
     risks.push({
-      id: 'moderate_humidity',
-      label: 'Humedad Elevada',
-      level: 'medium',
-      description: `Humedad de ${current.humidity}%. Humedad considerable típica del amanecer o valles costeros.`,
-      recommendation: activeProfile === 'field_tech'
-        ? 'Tomar precauciones en tableros eléctricos. Idealmente postergar maniobras de precisión.'
-        : 'Sensación térmica fresca. Lleva abrigo que resista la humedad de la mañana.',
-      affectedProfile: 'field_tech',
+      id: 'moderate_humidity_person',
+      label: 'Ambiente Húmedo',
+      level: 'low',
+      description: `Humedad relativa de ${current.humidity}%.`,
+      recommendation: 'Considera una capa exterior que proteja de humedad y viento si estarás fuera varias horas.',
+      affectedProfile: 'person',
     });
   }
 
-  // 2. Viento Fuerte y Ráfagas
-  if (current.windSpeedKmh > 30 || current.windGustKmh > 45) {
-    const isCritical = current.windGustKmh > 55 || current.windSpeedKmh > 40;
-    const level: RiskLevel = isCritical ? 'high' : 'medium';
-    
+  // 2. Viento y ráfagas.
+  if (current.windSpeedKmh > 40 || current.windGustKmh > 55) {
     risks.push({
       id: 'high_wind',
-      label: current.windGustKmh > 45 ? 'Ráfagas de Viento Peligrosas' : 'Viento Sostenido Fuerte',
-      level: level,
+      label: current.windGustKmh > 55 ? 'Ráfagas Fuertes' : 'Viento Fuerte',
+      level: 'high',
       description: `Viento de ${current.windSpeedKmh} km/h con ráfagas de hasta ${current.windGustKmh} km/h.`,
       recommendation: activeProfile === 'field_tech'
-        ? 'Evitar trabajos en altura, izajes con grúas o manipulación de láminas ligeras. Sujeta herramientas.'
-        : 'Asegura elementos sueltos en balcones o patios. Ten precaución al caminar cerca de árboles o letreros.',
+        ? 'Evaluar suspensión de trabajos en altura, izajes y manipulación de elementos de gran superficie según procedimiento HSE.'
+        : 'Asegura objetos sueltos y ten precaución cerca de árboles, letreros o estructuras ligeras.',
       affectedProfile: activeProfile,
     });
-  } else if (current.windSpeedKmh > 20) {
+  } else if (current.windSpeedKmh >= 25 || current.windGustKmh >= 40) {
     risks.push({
       id: 'moderate_wind',
-      label: 'Brisa Firme',
-      level: 'low',
-      description: `Viento regular de ${current.windSpeedKmh} km/h.`,
+      label: 'Viento Moderado',
+      level: 'medium',
+      description: `Viento de ${current.windSpeedKmh} km/h y ráfagas de ${current.windGustKmh} km/h.`,
       recommendation: activeProfile === 'field_tech'
-        ? 'Monitorear ráfagas si se realizan trabajos de altura menor.'
-        : 'Día fresco al aire libre. Una chaqueta cortavientos es recomendable.',
+        ? 'Monitorea ráfagas y aplica los límites operacionales definidos para cada tarea.'
+        : 'Una prenda cortavientos puede resultar útil.',
       affectedProfile: activeProfile,
     });
   }
 
-  // 3. Radiación UV
-  if (current.uvIndex >= 8) {
+  // 3. Radiación UV.
+  if (current.uvIndex >= 11) {
     risks.push({
       id: 'extreme_uv',
       label: 'Radiación UV Extrema',
       level: 'high',
-      description: `Índice UV actual: ${current.uvIndex}. Exposición desprotegida altamente nociva.`,
-      recommendation: activeProfile === 'field_tech'
-        ? 'Uso obligatorio de bloqueador solar FPS 50+, protector de cuello (legionario), lentes con filtro UV y rotar personal en sombra cada 45 min.'
-        : 'Usa sombrero, lentes de sol, bloqueador solar obligatorio y evita exponerte directamente al sol entre las 11:00 y las 15:00.',
+      description: `Índice UV actual: ${current.uvIndex}.`,
+      recommendation: 'Protección solar completa, sombra y reducción de exposición directa en horas de máxima radiación.',
+      affectedProfile: activeProfile,
+    });
+  } else if (current.uvIndex >= 8) {
+    risks.push({
+      id: 'very_high_uv',
+      label: 'Radiación UV Muy Alta',
+      level: 'medium',
+      description: `Índice UV actual: ${current.uvIndex}.`,
+      recommendation: 'Usa protector solar, lentes, sombrero y busca sombra durante exposiciones prolongadas.',
       affectedProfile: activeProfile,
     });
   } else if (current.uvIndex >= 6) {
@@ -96,186 +118,187 @@ export function buildClimateRisks(
       id: 'high_uv',
       label: 'Radiación UV Alta',
       level: 'medium',
-      description: `Índice UV actual: ${current.uvIndex}. Riesgo de quemaduras rápido.`,
-      recommendation: activeProfile === 'field_tech'
-        ? 'Usar bloqueador solar de terreno y casco con visera. Mantener hidratación continua.'
-        : 'Aplica bloqueador solar de amplio espectro. Busca la sombra si vas a estar afuera por mucho tiempo.',
-      affectedProfile: activeProfile,
-    });
-  } else if (current.uvIndex >= 3 && activeProfile === 'person') {
-    risks.push({
-      id: 'moderate_uv',
-      label: 'Radiación UV Moderada',
-      level: 'low',
       description: `Índice UV actual: ${current.uvIndex}.`,
-      recommendation: 'Usa bloqueador solar básico si estarás expuesto por más de 30 minutos.',
-      affectedProfile: 'person',
+      recommendation: 'Usa protección solar si estarás al aire libre.',
+      affectedProfile: activeProfile,
     });
   }
 
-  // 4. Lluvia y Probabilidad de Lluvia
-  const rainyDay = daily[0]?.precipitationProbability > 50 || current.precipitationMm > 0;
-  if (current.condition === 'storm') {
+  // 4. Precipitación: fenómeno + intensidad, no un simple booleano lluvia/no lluvia.
+  if (current.condition === 'storm' || precipKind === 'storm') {
     risks.push({
       id: 'critical_storm',
-      label: 'Alerta de Tormenta Activa',
+      label: 'Tormenta Activa',
       level: 'critical',
-      description: 'Condiciones de tormenta eléctrica y lluvia fuerte.',
+      description: `${conditionLabel}. Se requiere atención por actividad convectiva/eléctrica.`,
       recommendation: activeProfile === 'field_tech'
-        ? 'SUSPENDER toda actividad en terreno descubierto de inmediato. Refugiarse en zonas seguras. No tocar estructuras metálicas.'
-        : 'Quédate en casa. Evita salir de no ser estrictamente necesario. Desconecta equipos electrónicos sensibles.',
+        ? 'Aplicar inmediatamente el protocolo HSE de tormenta y suspender trabajos expuestos cuando corresponda.'
+        : 'Busca refugio seguro y sigue las alertas e instrucciones oficiales vigentes.',
       affectedProfile: activeProfile,
     });
-  } else if (current.condition === 'rain' || current.precipitationMm > 1) {
+  } else if (activePrecip && (precipKind === 'drizzle' || precipKind === 'freezing_drizzle')) {
+    const freezing = precipKind === 'freezing_drizzle';
+    const level: RiskLevel = freezing ? 'high' : activeProfile === 'field_tech' ? 'medium' : 'low';
     risks.push({
-      id: 'active_rain',
-      label: 'Precipitación Activa',
-      level: 'high',
-      description: `Lluvia cayendo en terreno (${current.precipitationMm} mm/h). Superficies resbaladizas y visibilidad reducida.`,
-      recommendation: activeProfile === 'field_tech'
-        ? 'Pisos mojados, riesgo de resbalamiento y problemas con herramientas eléctricas. Detener trabajos a la intemperie.'
-        : 'Lleva paraguas y calzado impermeable. Conduce con extrema precaución por asfalto resbaladizo.',
+      id: freezing ? 'freezing_drizzle_active' : 'drizzle_active',
+      label: conditionLabel,
+      level,
+      description: `${conditionLabel} activa (${current.precipitationMm} mm/h).${freezing ? ' Puede formarse hielo sobre superficies.' : ' Precipitación débil en curso.'}`,
+      recommendation: freezing
+        ? 'Evita superficies expuestas con posible hielo y extrema precauciones de conducción y trabajo.'
+        : activeProfile === 'field_tech'
+          ? 'Superficies pueden humedecerse. Verifica adherencia y protege herramientas/equipos sensibles al agua.'
+          : 'Un impermeable ligero puede ser suficiente; conduce con precaución si el pavimento está mojado.',
       affectedProfile: activeProfile,
     });
-  } else if (rainyDay) {
+  } else if (activePrecip && (precipKind === 'rain' || precipKind === 'showers' || precipKind === 'freezing_rain' || current.condition === 'rain')) {
+    const severe = precipIntensity === 'heavy' || precipIntensity === 'violent' || current.precipitationMm >= 8;
+    const moderate = precipIntensity === 'moderate' || current.precipitationMm >= 2;
+    const freezing = precipKind === 'freezing_rain';
+    const level: RiskLevel = freezing || severe ? 'high' : moderate ? 'high' : 'medium';
+    risks.push({
+      id: freezing ? 'freezing_rain_active' : 'active_rain',
+      label: conditionLabel,
+      level,
+      description: `${conditionLabel} activa (${current.precipitationMm} mm/h).`,
+      recommendation: activeProfile === 'field_tech'
+        ? level === 'high'
+          ? 'Reevaluar trabajos a la intemperie y maniobras eléctricas expuestas según procedimiento HSE.'
+          : 'Protege herramientas y verifica superficies resbaladizas antes de continuar tareas exteriores.'
+        : level === 'high'
+          ? 'Reduce traslados innecesarios y conduce con mayor distancia de seguridad.'
+          : 'Lleva protección impermeable y considera pavimento húmedo.',
+      affectedProfile: activeProfile,
+    });
+  } else if (next6hRainProbability >= 70) {
     risks.push({
       id: 'rain_threat',
-      label: 'Probabilidad de Lluvia',
+      label: 'Precipitación Probable',
       level: 'medium',
-      description: `Probabilidad de lluvia del ${Math.max(daily[0]?.precipitationProbability || 0, current.precipitationMm > 0 ? 90 : 30)}% para la jornada.`,
+      description: `Probabilidad máxima de precipitación de ${next6hRainProbability}% durante las próximas 6 horas.`,
       recommendation: activeProfile === 'field_tech'
-        ? 'Asegurar carpas, sellar acopios de material soluble y preparar equipo impermeable para el personal.'
-        : 'Lleva un paraguas en la mochila y planifica actividades bajo techo para la tarde.',
+        ? 'Planifica tareas exteriores considerando una posible interrupción y protege materiales sensibles.'
+        : 'Lleva paraguas o impermeable si vas a estar fuera durante las próximas horas.',
+      affectedProfile: activeProfile,
+    });
+  } else if (next6hRainProbability >= 40) {
+    risks.push({
+      id: 'rain_watch',
+      label: 'Posibilidad de Precipitación',
+      level: 'low',
+      description: `Probabilidad máxima de ${next6hRainProbability}% durante las próximas 6 horas.`,
+      recommendation: 'Mantén atención al pronóstico de corto plazo antes de actividades sensibles al clima.',
       affectedProfile: activeProfile,
     });
   }
 
-  // 5. Frío Extremo o Calor Extremo
-  if (current.temperatureC < 5) {
+  // 5. Temperatura: evitar afirmar congelamiento con temperaturas positivas moderadas.
+  if (current.temperatureC < 0) {
     risks.push({
-      id: 'extreme_cold',
-      label: 'Bajas Temperaturas Severas',
+      id: 'freezing_temperature',
+      label: 'Temperatura Bajo Cero',
       level: 'high',
-      description: `Temperatura actual de ${current.temperatureC}°C. Peligro de entumecimiento y congelamiento ligero.`,
+      description: `Temperatura actual de ${current.temperatureC}°C. Existe riesgo de hielo y exposición al frío.`,
       recommendation: activeProfile === 'field_tech'
-        ? 'Uso de ropa térmica por capas (3 capas estándar), guantes de protección climática y pausas para tomar líquidos calientes.'
-        : 'Abrígate bien con primera capa térmica, bufanda y guantes. Protege a niños y mascotas.',
+        ? 'Verifica hielo en superficies, usa abrigo térmico y aplica los controles HSE de exposición al frío.'
+        : 'Abrígate por capas y extrema precaución ante hielo en superficies y rutas.',
+      affectedProfile: activeProfile,
+    });
+  } else if (current.temperatureC < 5) {
+    risks.push({
+      id: 'cold_temperature',
+      label: 'Temperatura Muy Baja',
+      level: 'medium',
+      description: `Temperatura actual de ${current.temperatureC}°C.`,
+      recommendation: 'Usa abrigo adecuado y considera el efecto adicional del viento y la humedad.',
       affectedProfile: activeProfile,
     });
   } else if (current.temperatureC < 10) {
     risks.push({
-      id: 'moderate_cold',
-      label: 'Frío Matutino/Persistente',
-      level: 'medium',
-      description: `Temperatura de ${current.temperatureC}°C con sensación térmica baja.`,
-      recommendation: activeProfile === 'field_tech'
-        ? 'Precalentar herramientas y motores de terreno antes de iniciar operaciones pesadas.'
-        : 'Lleva una buena chaqueta temprano. El aire frío se mantendrá por varias horas.',
+      id: 'cool_temperature',
+      label: 'Ambiente Frío',
+      level: 'low',
+      description: `Temperatura actual de ${current.temperatureC}°C.`,
+      recommendation: 'Una chaqueta abrigada puede ser necesaria durante las primeras horas.',
       affectedProfile: activeProfile,
     });
   }
 
-  if (current.temperatureC > 32) {
+  if (current.temperatureC >= 35) {
     risks.push({
       id: 'extreme_heat',
-      label: 'Calor Extremo y Estrés Térmico',
+      label: 'Calor Extremo',
       level: 'high',
-      description: `Temperatura ambiente de ${current.temperatureC}°C. Alto riesgo de deshidratación y fatiga térmica.`,
-      recommendation: activeProfile === 'field_tech'
-        ? 'Beber 1 vaso de agua fría cada 15-20 minutos de forma obligatoria. Pausas de 10 min en sombra por cada hora de trabajo continuo.'
-        : 'Mantente hidratado constantemente, evita actividad física intensa al aire libre y mantén ambientes ventilados.',
+      description: `Temperatura ambiente de ${current.temperatureC}°C.`,
+      recommendation: 'Reduce exposición y esfuerzo físico, mantén hidratación frecuente y busca sombra o ambientes frescos.',
+      affectedProfile: activeProfile,
+    });
+  } else if (current.temperatureC >= 30) {
+    risks.push({
+      id: 'high_heat',
+      label: 'Calor Elevado',
+      level: 'medium',
+      description: `Temperatura ambiente de ${current.temperatureC}°C.`,
+      recommendation: 'Mantén hidratación y evita sobreesfuerzo durante las horas más cálidas.',
       affectedProfile: activeProfile,
     });
   }
 
-  // 6. Condiciones Favorables
+  // 6. Condición favorable: solo si no hay precipitación activa ni riesgos relevantes.
   const hasSignificantRisks = risks.some(r => r.level === 'high' || r.level === 'critical');
-  
-  if (!hasSignificantRisks) {
-    if (activeProfile === 'person' && current.temperatureC >= 15 && current.temperatureC <= 25 && current.uvIndex < 8 && current.condition !== 'rain') {
+  if (!hasSignificantRisks && !activePrecip) {
+    if (activeProfile === 'person' && current.temperatureC >= 15 && current.temperatureC <= 25 && current.uvIndex < 8 && current.windSpeedKmh < 25) {
       risks.push({
         id: 'favorable_person',
-        label: 'Clima Altamente Favorable',
+        label: 'Condiciones Favorables',
         level: 'low',
-        description: `Temperatura ideal de ${current.temperatureC}°C, viento templado y buena visibilidad.`,
-        recommendation: '¡Excelente día para actividades al aire libre! Aprovecha de caminar, hacer deporte o pasear.',
+        description: 'Temperatura, viento y precipitación se encuentran en rangos cómodos para actividades habituales.',
+        recommendation: 'Buenas condiciones generales para actividades al aire libre; revisa igualmente el pronóstico horario.',
         affectedProfile: 'person',
       });
     }
-
-    if (activeProfile === 'field_tech' && current.temperatureC >= 10 && current.temperatureC <= 28 && current.windSpeedKmh < 25 && current.humidity < 75 && current.condition !== 'rain') {
-      risks.push({
-        id: 'favorable_tech',
-        label: 'Ventana Operativa Óptima',
-        level: 'low',
-        description: 'Parámetros de viento, temperatura y humedad perfectamente estables para tareas de precisión.',
-        recommendation: 'Aprovechar para mantenimientos preventivos complejos, trabajos en altura y calibraciones de sensores.',
-        affectedProfile: 'field_tech',
-      });
-    }
   }
 
-  // 7. Trabajos Eléctricos
+  // 7. Seguridad eléctrica: el clima aporta contexto, pero no declara una tarea "segura" por sí solo.
   if (activeProfile === 'field_tech') {
-    const isElectricSafe = current.humidity < 75 && current.precipitationMm === 0 && current.condition !== 'rain' && current.condition !== 'storm';
-    if (!isElectricSafe) {
+    const wet = activePrecip || current.condition === 'storm';
+    if (wet || current.humidity >= 90) {
       risks.push({
-        id: 'electrical_caution',
-        label: 'Restricción de Maniobras Eléctricas',
-        level: current.humidity >= 85 || current.condition === 'rain' || current.condition === 'storm' ? 'high' : 'medium',
-        description: `Humedad de ${current.humidity}% o probabilidad de chubascos activa.`,
-        recommendation: 'Restringir apertura de gabinetes o celdas de media/baja tensión. Priorizar reparaciones internas o inspecciones de software.',
-        affectedProfile: 'field_tech',
-      });
-    } else {
-      risks.push({
-        id: 'electrical_safe',
-        label: 'Trabajos Eléctricos Aptos',
-        level: 'low',
-        description: `Humedad moderada (${current.humidity}%) y ausencia de precipitaciones.`,
-        recommendation: 'Seguro abrir gabinetes de control para mantención, siguiendo protocolos estándar de bloqueo (LOTO).',
+        id: 'electrical_weather_caution',
+        label: 'Precaución Climática para Maniobras Eléctricas',
+        level: current.condition === 'storm' || precipIntensity === 'heavy' || precipIntensity === 'violent' ? 'high' : 'medium',
+        description: wet
+          ? 'Hay precipitación o tormenta que puede afectar superficies y equipos expuestos.'
+          : `Humedad relativa muy alta (${current.humidity}%).`,
+        recommendation: 'Aplicar el procedimiento eléctrico/HSE correspondiente y verificar físicamente humedad, condensación y protección IP antes de intervenir.',
         affectedProfile: 'field_tech',
       });
     }
   }
 
-  // 8. Condición Solar Fotovoltaica (FV) dentro de Perfil Técnico Terreno
+  // 8. Contexto fotovoltaico: nubosidad/precipitación, sin inferir potencia exacta desde UV.
   if (activeProfile === 'field_tech') {
-    const isPvOptimum = current.uvIndex >= 6 && current.cloudCover < 30;
-    const isPvLow = current.cloudCover > 70 || current.condition === 'rain' || current.condition === 'storm';
-    
-    if (isPvOptimum) {
+    if (activePrecip || current.cloudCover >= 80) {
       risks.push({
-        id: 'solar_pv_optimum',
-        label: 'Generación Fotovoltaica Máxima',
-        level: 'low', // low risk = good condition
-        description: `Cielos despejados (nubosidad ${current.cloudCover}%) y alta radiación (UV ${current.uvIndex}).`,
-        recommendation: 'Monitorear picos de inyección en inversores. Se prevé máxima eficiencia del parque solar.',
+        id: 'solar_resource_reduced',
+        label: 'Recurso Solar Reducido',
+        level: 'medium',
+        description: `Nubosidad ${current.cloudCover}%${activePrecip ? ' con precipitación activa' : ''}.`,
+        recommendation: 'Es esperable menor irradiancia disponible; valida la producción real con SCADA/piranómetro antes de atribuir pérdidas al clima.',
         affectedProfile: 'field_tech',
       });
-    } else if (isPvLow) {
+    } else if (current.cloudCover <= 30) {
       risks.push({
-        id: 'solar_pv_low',
-        label: 'Generación Fotovoltaica Reducida',
-        level: 'medium', // moderate risk of low yield
-        description: `Alta nubosidad (${current.cloudCover}%) o lluvia limitan el recurso solar disponible.`,
-        recommendation: 'La generación caerá hasta un 70-90% de la capacidad nominal. Ajustar proyecciones de despacho de red.',
-        affectedProfile: 'field_tech',
-      });
-    } else {
-      risks.push({
-        id: 'solar_pv_moderate',
-        label: 'Generación Fotovoltaica Estable',
+        id: 'solar_resource_favorable',
+        label: 'Recurso Solar Favorable',
         level: 'low',
-        description: `Nubosidad parcial de ${current.cloudCover}%. Radiación fluctuante pero aceptable.`,
-        recommendation: 'Generación nominal moderada. Buen momento para limpieza física de paneles gracias a temperaturas más bajas.',
+        description: `Nubosidad baja (${current.cloudCover}%) y sin precipitación activa.`,
+        recommendation: 'Condiciones atmosféricas favorables para irradiancia; confirma desempeño con medición de planta.',
         affectedProfile: 'field_tech',
       });
     }
   }
 
-  // Filter to return only risks that are useful/tagged for the active profile
-  // Note: we can show all risks but filter based on the affected profile
   return risks.filter(r => r.affectedProfile === activeProfile);
 }
 
@@ -287,33 +310,27 @@ export function buildAdvancedSkyCoreAnalysis(params: {
 }): AdvancedSkyCoreAnalysis {
   const { current, hourly, daily, profile } = params;
 
-  // 1. Calculate Risk Scores
   const riskScores = calculateSkyCoreRiskScores({ current, hourly, daily, profile });
 
-  // 2. Global Score (average of top 3 scores)
   const sortedScores = [...riskScores].map(r => r.score).sort((a, b) => b - a);
   const topScores = sortedScores.slice(0, 3);
   const globalScore = topScores.length > 0
     ? Math.round(topScores.reduce((acc, s) => acc + s, 0) / topScores.length)
     : 10;
 
-  // 3. Risk Level and Decision
   const globalRiskLevel = scoreToRiskLevel(globalScore);
   const globalDecision = scoreToDecision(globalScore);
 
-  // 4. Windows Analysis
   const { bestWindow, cautionWindows } = analyzeBestWindows({ hourly, profile });
 
-  // 5. Build Recommendations
   const recommendations = buildSkyCoreRecommendations({
     profile,
     riskScores,
     bestWindow,
     hourly,
-    current
+    current,
   });
 
-  // 6. Generate Short Text for Widgets
   let widgetShortText = '';
   if (profile === 'field_tech') {
     const criticalHazard = riskScores.find(r => r.score >= 75);
@@ -334,7 +351,6 @@ export function buildAdvancedSkyCoreAnalysis(params: {
     }
   }
 
-  // 7. Profile-specific summaries
   let personSummary = '';
   let technicalSummary = '';
 
@@ -344,22 +360,22 @@ export function buildAdvancedSkyCoreAnalysis(params: {
     const uvRisk = riskScores.find(r => r.category === 'uv');
 
     const tempPart = tempRisk && tempRisk.score >= 50 ? `${tempRisk.label}. ` : '';
-    const rainPart = rainRisk && rainRisk.score >= 40 ? `Considera probabilidad de lluvia durante el día. ` : '';
-    const uvPart = uvRisk && uvRisk.score >= 50 ? `UV alto al mediodía, usa protección. ` : 'UV controlado para actividades normales. ';
-    const windPart = current.windSpeedKmh >= 25 ? 'Brisa fresca perceptible.' : '';
+    const rainPart = rainRisk && rainRisk.score >= 40 ? 'Considera precipitación posible durante el día. ' : '';
+    const uvPart = uvRisk && uvRisk.score >= 50 ? 'UV alto, usa protección. ' : 'UV sin alerta destacada. ';
+    const windPart = current.windSpeedKmh >= 25 ? 'Viento perceptible.' : '';
 
-    personSummary = `${tempPart}${rainPart}${uvPart}${windPart}`.trim() || 'Condiciones climáticas excelentes para una jornada tranquila.';
+    personSummary = `${tempPart}${rainPart}${uvPart}${windPart}`.trim() || 'Condiciones generales estables.';
   } else {
     const elecRisk = riskScores.find(r => r.category === 'electrical_work');
     const fieldRisk = riskScores.find(r => r.category === 'field_work');
     const solarRisk = riskScores.find(r => r.category === 'solar_pv');
 
-    const elecPart = elecRisk && elecRisk.score >= 50 ? `Evitar apertura de tableros por ${elecRisk.label}. ` : 'Sin restricciones eléctricas severas. ';
-    const fieldPart = fieldRisk && fieldRisk.score >= 50 ? `Trabajos en terreno con precaución. ` : 'Condiciones operativas en exteriores favorables. ';
+    const elecPart = elecRisk && elecRisk.score >= 50 ? `Contexto eléctrico: ${elecRisk.label}. ` : 'Sin alerta meteorológica eléctrica severa. ';
+    const fieldPart = fieldRisk && fieldRisk.score >= 50 ? 'Trabajos en terreno requieren evaluación adicional. ' : 'Condiciones exteriores favorables. ';
     const solarPart = solarRisk && solarRisk.score >= 50 ? `FV: ${solarRisk.label}. ` : '';
-    const winPart = bestWindow ? `Mejor ventana técnica: ${bestWindow.startTime}–${bestWindow.endTime}.` : '';
+    const winPart = bestWindow ? `Mejor ventana estimada: ${bestWindow.startTime}–${bestWindow.endTime}.` : '';
 
-    technicalSummary = `${elecPart}${fieldPart}${solarPart}${winPart}`.trim() || 'Operaciones estándar estables sin alertas meteorológicas.';
+    technicalSummary = `${elecPart}${fieldPart}${solarPart}${winPart}`.trim() || 'Operaciones sin alerta meteorológica destacada.';
   }
 
   return {
@@ -373,6 +389,6 @@ export function buildAdvancedSkyCoreAnalysis(params: {
     recommendations,
     widgetShortText,
     personSummary,
-    technicalSummary
+    technicalSummary,
   };
 }

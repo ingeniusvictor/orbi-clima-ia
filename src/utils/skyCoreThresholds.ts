@@ -1,9 +1,9 @@
 export const SKYCORE_THRESHOLDS = {
   humidity: {
-    personNotice: 80,
-    fieldCaution: 85,
-    electricalCaution: 85,
-    electricalHigh: 90,
+    personNotice: 85,
+    fieldCaution: 90,
+    electricalCaution: 90,
+    electricalHigh: 95,
   },
   windKmh: {
     personNotice: 25,
@@ -28,13 +28,15 @@ export const SKYCORE_THRESHOLDS = {
     high: 80,
   },
   precipitationMm: {
-    light: 0.5,
-    moderate: 2,
-    heavy: 8,
+    // Approximate hourly impact bands. Exact WMO phenomenon semantics are
+    // handled separately so drizzle is not promoted to heavy "rain" by rate alone.
+    light: 1,
+    moderate: 2.5,
+    heavy: 7.5,
   },
   temperatureC: {
-    cold: 8,
-    veryCold: 3,
+    cold: 5,
+    veryCold: 0,
     heat: 30,
     extremeHeat: 35,
   },
