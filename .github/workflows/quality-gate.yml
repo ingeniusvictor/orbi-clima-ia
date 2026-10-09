@@ -56,6 +56,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-modern-target
 
+      - name: Android release identity and signing source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-release-identity
+
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build
@@ -110,6 +114,9 @@ jobs:
 
       - name: Verify Android 16 target and permissions after Capacitor copy
         run: npm run android:verify-modern-target
+
+      - name: Verify release identity after Capacitor copy
+        run: npm run android:verify-release-identity
 
       - name: Compile debug APK and release AAB
         working-directory: android
