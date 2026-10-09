@@ -24,6 +24,22 @@ export interface MultiModelSnapshot {
   maxTemperatureNext6hC: number | null;
 }
 
+export interface MultiModelForecastTarget {
+  modelId: string;
+  label: string;
+  provider: string;
+  issuedAt: string;
+  validTimeLocal: string;
+  validTimeEpochMs: number;
+  leadHours: 1 | 3 | 6;
+  temperatureC: number | null;
+  windKmh: number | null;
+  precipitationMm: number | null;
+  weatherCode: number | null;
+  conditionGroup: string;
+  predictedWet: boolean | null;
+}
+
 export interface MultiModelConsensusReport {
   provider: 'open_meteo_multi_model';
   sourceLabel: string;
@@ -42,6 +58,7 @@ export interface MultiModelConsensusReport {
   conditionGroups: string[];
   interpretation: string;
   models: MultiModelSnapshot[];
+  verificationTargets: MultiModelForecastTarget[];
   generatedAt: string;
 }
 
@@ -124,12 +141,31 @@ function conditionGroup(code: number | null): string {
   return 'otro';
 }
 
-function currentIndex(times: unknown[]): number {
+function isWetCondition(group: string): boolean {
+  return [
+    'llovizna',
+    'llovizna_engelante',
+    'lluvia',
+    'lluvia_engelante',
+    'chubascos',
+    'nieve',
+    'nieve_chubascos',
+    'tormenta',
+  ].includes(group);
+}
+
+function currentIndex(times: unknown[], utcOffsetSeconds = 0): number {
   if (!times.length) return 0;
-  const now = new Date();
-  const localKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}`;
+  const localNow = new Date(Date.now() + utcOffsetSeconds * 1000);
+  const localKey = `${localNow.getUTCFullYear()}-${String(localNow.getUTCMonth() + 1).padStart(2, '0')}-${String(localNow.getUTCDate()).padStart(2, '0')}T${String(localNow.getUTCHours()).padStart(2, '0')}`;
   const index = times.findIndex(time => String(time).slice(0, 13) >= localKey);
   return index >= 0 ? index : 0;
+}
+
+function localTimeToEpochMs(localIso: string, utcOffsetSeconds: number): number {
+  const naiveUtcMs = Date.parse(`${localIso}:00Z`);
+  if (!Number.isFinite(naiveUtcMs)) return Number.NaN;
+  return naiveUtcMs - utcOffsetSeconds * 1000;
 }
 
 function buildSnapshot(
@@ -161,6 +197,58 @@ function buildSnapshot(
     minTemperatureNext6hC: minFinite(temperature, index, 6),
     maxTemperatureNext6hC: maxFinite(temperature, index, 6),
   };
+}
+
+function buildVerificationTargets(params: {
+  model: MultiModelDefinition;
+  hourly: Record<string, unknown>;
+  times: unknown[];
+  index: number;
+  utcOffsetSeconds: number;
+  issuedAt: string;
+}): MultiModelForecastTarget[] {
+  const { model, hourly, times, index, utcOffsetSeconds, issuedAt } = params;
+  const temperature = valuesFor(hourly, 'temperature_2m', model.id);
+  const precipitation = valuesFor(hourly, 'precipitation', model.id);
+  const wind = valuesFor(hourly, 'wind_speed_10m', model.id);
+  const weatherCode = valuesFor(hourly, 'weather_code', model.id);
+  const targets: MultiModelForecastTarget[] = [];
+
+  for (const leadHours of [1, 3, 6] as const) {
+    const targetIndex = index + leadHours;
+    const validTimeLocal = String(times[targetIndex] ?? '');
+    if (!validTimeLocal) continue;
+
+    const temperatureC = finiteOrNull(temperature[targetIndex]);
+    const windKmh = finiteOrNull(wind[targetIndex]);
+    const precipitationMm = finiteOrNull(precipitation[targetIndex]);
+    const code = finiteOrNull(weatherCode[targetIndex]);
+    const group = conditionGroup(code);
+    const hasAnyValue = temperatureC !== null || windKmh !== null || precipitationMm !== null || code !== null;
+    if (!hasAnyValue) continue;
+
+    const predictedWet = precipitationMm === null && code === null
+      ? null
+      : (precipitationMm ?? 0) >= 0.1 || isWetCondition(group);
+
+    targets.push({
+      modelId: model.id,
+      label: model.label,
+      provider: model.provider,
+      issuedAt,
+      validTimeLocal,
+      validTimeEpochMs: localTimeToEpochMs(validTimeLocal, utcOffsetSeconds),
+      leadHours,
+      temperatureC,
+      windKmh,
+      precipitationMm,
+      weatherCode: code,
+      conditionGroup: group,
+      predictedWet,
+    });
+  }
+
+  return targets;
 }
 
 function precipitationConsensus(models: MultiModelSnapshot[]): {
@@ -261,8 +349,18 @@ export async function fetchTrueMultiModelConsensus(params: {
     const raw = await response.json();
     const hourly = (raw.hourly ?? {}) as Record<string, unknown>;
     const times = Array.isArray(hourly.time) ? hourly.time : [];
-    const index = currentIndex(times);
+    const utcOffsetSeconds = finiteOrNull(raw.utc_offset_seconds) ?? 0;
+    const index = currentIndex(times, utcOffsetSeconds);
+    const generatedAt = new Date().toISOString();
     const models = ORBI_GLOBAL_FORECAST_MODELS.map(model => buildSnapshot(model, hourly, index));
+    const verificationTargets = ORBI_GLOBAL_FORECAST_MODELS.flatMap(model => buildVerificationTargets({
+      model,
+      hourly,
+      times,
+      index,
+      utcOffsetSeconds,
+      issuedAt: generatedAt,
+    }));
     const available = models.filter(model => model.available);
     const precip = precipitationConsensus(models);
     const temperatureSpreadNowC = spread(available.map(model => model.currentTemperatureC));
@@ -298,7 +396,8 @@ export async function fetchTrueMultiModelConsensus(params: {
       conditionGroups,
       interpretation: agreementResult.interpretation,
       models,
-      generatedAt: new Date().toISOString(),
+      verificationTargets,
+      generatedAt,
     };
   } finally {
     clearTimeout(timeout);
