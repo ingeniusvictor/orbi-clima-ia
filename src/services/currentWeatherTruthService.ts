@@ -29,6 +29,8 @@ export interface CurrentWeatherTruthMetadata {
   resolvedWeatherCode: number;
   originalTemperatureC: number | null;
   resolvedTemperatureC: number | null;
+  originalPrecipitationMm: number;
+  resolvedPrecipitationMm: number;
   temperatureStrategy: 'dmc_observed' | 'multi_model_median' | 'primary_model';
   stationName: string | null;
   stationDistanceKm: number | null;
@@ -207,6 +209,14 @@ function observedWeatherCode(observation: DmcObservationSnapshot): number {
   return 3;
 }
 
+function dryCodeFromCloudCover(current: Record<string, any>): number {
+  const cloudCover = finiteOrNull(current.cloud_cover);
+  if (cloudCover === null) return 3;
+  if (cloudCover <= 15) return 0;
+  if (cloudCover <= 55) return 2;
+  return 3;
+}
+
 function humanLabelForCode(code: number): string {
   const labels: Record<number, string> = {
     0: 'Despejado',
@@ -249,6 +259,12 @@ function applyObservedScalarFields(current: Record<string, any>, observation: Dm
   if (observation.cloudCoverPct !== null) current.cloud_cover = observation.cloudCoverPct;
 }
 
+function clearCurrentPrecipitation(current: Record<string, any>): void {
+  current.precipitation = 0;
+  current.rain = 0;
+  current.showers = 0;
+}
+
 export function applyCurrentWeatherTruth(
   rawInput: OpenMeteoRawResponse,
   context: CurrentWeatherTruthContext,
@@ -286,12 +302,10 @@ export function applyCurrentWeatherTruth(
       if (modelWet && (multi.consensus === 'dry' || context.dmc.distanceKm <= 15)) {
         resolvedCode = multi.dryCode ?? observedWeatherCode(context.dmc);
         current.weather_code = resolvedCode;
-        current.precipitation = 0;
-        current.rain = 0;
-        current.showers = 0;
+        clearCurrentPrecipitation(current);
         band = 'observed';
         label = 'Condición seca corroborada localmente';
-        detail = `DMC no observa precipitación y el modelo de lluvia fue descartado para la lectura actual.`;
+        detail = 'DMC no observa precipitación y el modelo de lluvia fue descartado para la lectura actual.';
       } else if (!modelWet) {
         band = 'corroborated';
         label = 'Condición seca corroborada';
@@ -304,11 +318,9 @@ export function applyCurrentWeatherTruth(
     }
   } else if (modelWet && multi.consensus === 'dry') {
     if (originalPrecipitationMm <= 0.5) {
-      resolvedCode = multi.dryCode ?? 3;
+      resolvedCode = multi.dryCode ?? dryCodeFromCloudCover(current);
       current.weather_code = resolvedCode;
-      current.precipitation = 0;
-      current.rain = 0;
-      current.showers = 0;
+      clearCurrentPrecipitation(current);
     }
     band = 'conflicted';
     label = 'Precipitación modelada · consenso no la confirma';
@@ -325,12 +337,27 @@ export function applyCurrentWeatherTruth(
     band = 'conflicted';
     label = 'Precipitación modelada · sin corroboración suficiente';
     detail = 'ORBI evita tratar una señal modelada aislada como lluvia activa confirmada.';
+
+    // The protected Golden Orb intentionally has only coarse visual themes.
+    // A weak, uncorroborated model signal must therefore not be promoted to
+    // its strong "active rain" state. Keep the original amount in truth
+    // metadata while presenting current conditions conservatively.
+    if (originalPrecipitationMm <= 0.5) {
+      resolvedCode = dryCodeFromCloudCover(current);
+      current.weather_code = resolvedCode;
+      clearCurrentPrecipitation(current);
+    }
   }
 
   current.weather_code = resolvedCode;
 
   let temperatureStrategy: CurrentWeatherTruthMetadata['temperatureStrategy'] = 'primary_model';
-  if (strongObservation && context.dmc?.temperatureC !== null && context.dmc && context.dmc.distanceKm <= 15) {
+  if (
+    strongObservation
+    && context.dmc !== null
+    && context.dmc.temperatureC !== null
+    && context.dmc.distanceKm <= 15
+  ) {
     temperatureStrategy = 'dmc_observed';
   } else if (
     multi.medianTemperatureC !== null
@@ -347,6 +374,7 @@ export function applyCurrentWeatherTruth(
   }
 
   const resolvedTemperatureC = finiteOrNull(current.temperature_2m);
+  const resolvedPrecipitationMm = finiteOrNull(current.precipitation) ?? 0;
   raw.orbi_current_truth = {
     band,
     label,
@@ -356,6 +384,8 @@ export function applyCurrentWeatherTruth(
     resolvedWeatherCode: resolvedCode,
     originalTemperatureC,
     resolvedTemperatureC,
+    originalPrecipitationMm,
+    resolvedPrecipitationMm,
     temperatureStrategy,
     stationName: context.dmc?.stationName ?? null,
     stationDistanceKm: context.dmc?.distanceKm ?? null,
