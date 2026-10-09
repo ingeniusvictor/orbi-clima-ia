@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Droplets, Eye, Gauge, SunMedium } from 'lucide-react';
 import { CurrentWeather } from '../types/weatherTypes';
 
@@ -76,7 +77,7 @@ export default function MicroclimateCard({ current }: MicroclimateCardProps) {
   );
 }
 
-function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
       <div className="flex items-center gap-1 text-slate-500">{icon}<span className="text-[9px] font-mono uppercase">{label}</span></div>
