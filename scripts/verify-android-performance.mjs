@@ -24,10 +24,12 @@ requireText(store, 'LAST_DELIVERY_PRUNE_AT', 'retention-prune timestamp');
 requireText(store, 'now - lastPruneAt < DELIVERY_PRUNE_INTERVAL_MS', 'retention-prune early return');
 requireText(store, '.asSequence()', 'lazy delivered-key scan');
 
-requireText(openMeteo, 'const inFlightForecastRequests = new Map<string, Promise<OpenMeteoRawResponse>>()', 'forecast in-flight coalescing map');
+requireText(openMeteo, 'const inFlightForecastRequests = new Map<string, Promise<OpenMeteoRawResponse>>()', 'forecast HTTP coalescing map');
+requireText(openMeteo, 'const inFlightWeatherFetches = new Map<string, Promise<OpenMeteoRawResponse>>()', 'full weather coalescing map');
 requireText(openMeteo, 'const existing = inFlightForecastRequests.get(url)', 'forecast request reuse');
-requireText(openMeteo, 'inFlightForecastRequests.set(url, request)', 'forecast request registration');
 requireText(openMeteo, 'inFlightForecastRequests.delete(url)', 'forecast request cleanup');
+requireText(openMeteo, 'const existing = inFlightWeatherFetches.get(requestKey)', 'weather truth request reuse');
+requireText(openMeteo, 'inFlightWeatherFetches.delete(requestKey)', 'weather truth request cleanup');
 
 requireText(skyCoreNarrative, 'lastCurrent === current', 'SkyCore current-weather identity memoization');
 requireText(skyCoreNarrative, 'lastHourly === hourly', 'SkyCore hourly identity memoization');
@@ -46,4 +48,4 @@ if (failures.length) {
 }
 
 console.log('OC-21 Android Performance gate: PASS');
-console.log('Background retention scans, duplicate forecast requests, and repeated SkyCore summary analysis are bounded.');
+console.log('Background retention scans, duplicate weather requests, and repeated SkyCore summary analysis are bounded.');
