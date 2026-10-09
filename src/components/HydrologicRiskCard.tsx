@@ -65,7 +65,7 @@ export default function HydrologicRiskCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Metric icon={<CloudRain className="w-3 h-3" />} label="Lluvia pasada 24 h" value={`${precipitation.past24hMm} mm`} />
+        <Metric icon={<CloudRain className="w-3 h-3" />} label="Acum. modelado 24 h" value={`${precipitation.past24hMm} mm`} />
         <Metric icon={<CloudRain className="w-3 h-3" />} label="Próximas 6 h" value={`${precipitation.next6hMm} mm`} />
         <Metric icon={<Droplets className="w-3 h-3" />} label="Pico horario 24 h" value={`${precipitation.next24hMaxHourlyMm} mm/h`} />
         <Metric icon={<Waves className="w-3 h-3" />} label="Caudal GloFAS" value={formatDischarge(flood?.currentDischargeM3s)} />
@@ -119,7 +119,7 @@ export default function HydrologicRiskCard({
       <details className="group">
         <summary className="cursor-pointer text-[9px] font-mono uppercase tracking-wider text-slate-500 hover:text-slate-300">Limitaciones y fuentes</summary>
         <div className="mt-2 p-2.5 rounded-xl bg-white/5 border border-white/5 space-y-1.5 text-[9px] leading-relaxed text-slate-500">
-          <p>{precipitation.sourceLabel}.</p>
+          <p>{precipitation.sourceLabel}. El acumulado pasado es contexto meteorológico modelado, no lectura de un pluviómetro local.</p>
           {flood && <p>{flood.sourceLabel} · resolución aproximada {flood.resolutionKm} km.</p>}
           {assessment.limitations.map((item, index) => <p key={index}>• {item}</p>)}
         </div>
