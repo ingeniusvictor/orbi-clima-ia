@@ -6,6 +6,10 @@ import { FloodContextSnapshot, fetchOpenMeteoFloodContext } from '../services/op
 import { HydroPrecipSnapshot, fetchHydroPrecipContext } from '../services/openMeteoHydroPrecipService';
 import { OfficialAlertsResult, fetchOfficialWeatherAlerts } from '../services/officialWeatherAlertsService';
 import {
+  MultiModelConsensusReport,
+  fetchTrueMultiModelConsensus,
+} from '../services/openMeteoMultiModelService';
+import {
   DmcObservationSnapshot,
   compareDmcObservationToModel,
   fetchNearestDmcObservation,
@@ -21,6 +25,7 @@ import DmcObservationCard from './DmcObservationCard';
 import ForecastUncertaintyCard from './ForecastUncertaintyCard';
 import HydrologicRiskCard from './HydrologicRiskCard';
 import MicroclimateCard from './MicroclimateCard';
+import MultiModelConsensusCard from './MultiModelConsensusCard';
 
 interface WeatherIntelligencePanelProps {
   location: WeatherLocation;
@@ -44,6 +49,7 @@ export default function WeatherIntelligencePanel({
 }: WeatherIntelligencePanelProps) {
   const [airQuality, setAirQuality] = useState<AirQualitySnapshot | null>(null);
   const [uncertainty, setUncertainty] = useState<ForecastUncertaintyReport | null>(null);
+  const [multiModel, setMultiModel] = useState<MultiModelConsensusReport | null>(null);
   const [hydroPrecipitation, setHydroPrecipitation] = useState<HydroPrecipSnapshot | null>(null);
   const [floodContext, setFloodContext] = useState<FloodContextSnapshot | null>(null);
   const [officialAlerts, setOfficialAlerts] = useState<OfficialAlertsResult | null>(null);
@@ -96,6 +102,7 @@ export default function WeatherIntelligencePanel({
     if (!enabled) {
       setAirQuality(null);
       setUncertainty(null);
+      setMultiModel(null);
       setHydroPrecipitation(null);
       setFloodContext(null);
       setOfficialAlerts(null);
@@ -114,9 +121,10 @@ export default function WeatherIntelligencePanel({
         timezone: location.timezone || 'auto',
       };
 
-      const [airResult, ensembleResult, hydroResult, floodResult, officialResult, dmcResult] = await Promise.allSettled([
+      const [airResult, ensembleResult, multiModelResult, hydroResult, floodResult, officialResult, dmcResult] = await Promise.allSettled([
         fetchOpenMeteoAirQuality(params),
         fetchForecastUncertainty(params),
+        fetchTrueMultiModelConsensus(params),
         fetchHydroPrecipContext(params),
         fetchOpenMeteoFloodContext(params),
         fetchOfficialWeatherAlerts(location),
@@ -137,6 +145,13 @@ export default function WeatherIntelligencePanel({
       } else {
         console.warn('Ensemble uncertainty layer unavailable:', ensembleResult.reason);
         setUncertainty(null);
+      }
+
+      if (multiModelResult.status === 'fulfilled') {
+        setMultiModel(multiModelResult.value);
+      } else {
+        console.warn('Deterministic multi-model layer unavailable:', multiModelResult.reason);
+        setMultiModel(null);
       }
 
       if (hydroResult.status === 'fulfilled') {
@@ -188,9 +203,9 @@ export default function WeatherIntelligencePanel({
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">DMC observado · calibración local · aire · ensemble · HydroWatch</p>
+          <p className="text-xs text-slate-400 mt-0.5">DMC observado · 4 modelos · calibración · ensemble · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-05</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-06</span>
       </div>
 
       <DmcObservationCard
@@ -198,6 +213,7 @@ export default function WeatherIntelligencePanel({
         comparison={observationComparison}
         loading={loading}
       />
+      <MultiModelConsensusCard report={multiModel} loading={loading} />
       <AirQualityCard data={airQuality} loading={loading} />
       <ForecastUncertaintyCard report={uncertainty} loading={loading} />
       <MicroclimateCard current={current} />
