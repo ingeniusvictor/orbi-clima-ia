@@ -5,8 +5,14 @@ import { ForecastUncertaintyReport, fetchForecastUncertainty } from '../services
 import { FloodContextSnapshot, fetchOpenMeteoFloodContext } from '../services/openMeteoFloodService';
 import { HydroPrecipSnapshot, fetchHydroPrecipContext } from '../services/openMeteoHydroPrecipService';
 import { OfficialAlertsResult, fetchOfficialWeatherAlerts } from '../services/officialWeatherAlertsService';
+import {
+  DmcObservationSnapshot,
+  compareDmcObservationToModel,
+  fetchNearestDmcObservation,
+} from '../services/dmcObservationService';
 import { buildHydrologicRiskAssessment } from '../utils/hydrologicRiskEngine';
 import AirQualityCard from './AirQualityCard';
+import DmcObservationCard from './DmcObservationCard';
 import ForecastUncertaintyCard from './ForecastUncertaintyCard';
 import HydrologicRiskCard from './HydrologicRiskCard';
 import MicroclimateCard from './MicroclimateCard';
@@ -23,6 +29,7 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
   const [hydroPrecipitation, setHydroPrecipitation] = useState<HydroPrecipSnapshot | null>(null);
   const [floodContext, setFloodContext] = useState<FloodContextSnapshot | null>(null);
   const [officialAlerts, setOfficialAlerts] = useState<OfficialAlertsResult | null>(null);
+  const [dmcObservation, setDmcObservation] = useState<DmcObservationSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
 
   const hydrologicAssessment = useMemo(() => {
@@ -33,6 +40,11 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
     });
   }, [hydroPrecipitation, floodContext]);
 
+  const observationComparison = useMemo(
+    () => compareDmcObservationToModel(dmcObservation, current),
+    [dmcObservation, current],
+  );
+
   useEffect(() => {
     let active = true;
 
@@ -42,6 +54,7 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
       setHydroPrecipitation(null);
       setFloodContext(null);
       setOfficialAlerts(null);
+      setDmcObservation(null);
       setLoading(false);
       return () => {
         active = false;
@@ -56,12 +69,13 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
         timezone: location.timezone || 'auto',
       };
 
-      const [airResult, ensembleResult, hydroResult, floodResult, officialResult] = await Promise.allSettled([
+      const [airResult, ensembleResult, hydroResult, floodResult, officialResult, dmcResult] = await Promise.allSettled([
         fetchOpenMeteoAirQuality(params),
         fetchForecastUncertainty(params),
         fetchHydroPrecipContext(params),
         fetchOpenMeteoFloodContext(params),
         fetchOfficialWeatherAlerts(location),
+        fetchNearestDmcObservation(location),
       ]);
 
       if (!active) return;
@@ -101,6 +115,13 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
         setOfficialAlerts(null);
       }
 
+      if (dmcResult.status === 'fulfilled') {
+        setDmcObservation(dmcResult.value);
+      } else {
+        console.warn('DMC WIS2 observation layer unavailable:', dmcResult.reason);
+        setDmcObservation(null);
+      }
+
       setLoading(false);
     };
 
@@ -122,11 +143,16 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">Aire · microclima · ensemble · HydroWatch</p>
+          <p className="text-xs text-slate-400 mt-0.5">DMC observado · aire · microclima · ensemble · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-03</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-04</span>
       </div>
 
+      <DmcObservationCard
+        observation={dmcObservation}
+        comparison={observationComparison}
+        loading={loading}
+      />
       <AirQualityCard data={airQuality} loading={loading} />
       <ForecastUncertaintyCard report={uncertainty} loading={loading} />
       <MicroclimateCard current={current} />
