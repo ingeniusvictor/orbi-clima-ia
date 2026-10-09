@@ -7,6 +7,7 @@ const read = (path) => {
 
 const store = read('android/app/src/main/java/com/orbi/clima/alerts/OfficialAlertWatchStore.kt');
 const openMeteo = read('src/services/openMeteoClient.ts');
+const skyCoreNarrative = read('src/utils/orbiSkyCoreNarrative.ts');
 const protectedFiles = [
   'src/components/OrbiClimateCore.tsx',
   'src/styles/skycore-fx.css',
@@ -28,6 +29,12 @@ requireText(openMeteo, 'const existing = inFlightForecastRequests.get(url)', 'fo
 requireText(openMeteo, 'inFlightForecastRequests.set(url, request)', 'forecast request registration');
 requireText(openMeteo, 'inFlightForecastRequests.delete(url)', 'forecast request cleanup');
 
+requireText(skyCoreNarrative, 'lastCurrent === current', 'SkyCore current-weather identity memoization');
+requireText(skyCoreNarrative, 'lastHourly === hourly', 'SkyCore hourly identity memoization');
+requireText(skyCoreNarrative, 'lastDaily === daily', 'SkyCore daily identity memoization');
+requireText(skyCoreNarrative, 'lastProfile === activeProfile', 'SkyCore profile memoization');
+requireText(skyCoreNarrative, 'lastSummary = summary', 'SkyCore summary cache update');
+
 for (const path of protectedFiles) {
   if (!fs.existsSync(path)) failures.push(`Protected Golden Orb file missing: ${path}`);
 }
@@ -39,4 +46,4 @@ if (failures.length) {
 }
 
 console.log('OC-21 Android Performance gate: PASS');
-console.log('Background retention scans are throttled and duplicate in-flight forecast requests are coalesced.');
+console.log('Background retention scans, duplicate forecast requests, and repeated SkyCore summary analysis are bounded.');
