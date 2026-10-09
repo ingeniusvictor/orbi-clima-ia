@@ -18,7 +18,6 @@ import com.orbi.clima.MainActivity
 
 @Composable
 fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
-    val riskColor = OrbiWidgetTheme.getRiskColor(state.riskLevel)
     val isApt = state.globalDecisionLabel.lowercase() in listOf("óptimo", "favorable", "optimo")
     val sourceLabel = OrbiWidgetTheme.getSourceLabel(state.sourceMode)
 
@@ -32,11 +31,10 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
         verticalAlignment = Alignment.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        // Widget Header
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.SpaceBetween
+            horizontalAlignment = Alignment.Start
         ) {
             Column {
                 Text(
@@ -56,6 +54,7 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
                     )
                 )
             }
+            Spacer(modifier = GlanceModifier.defaultWeight())
             Box(
                 modifier = GlanceModifier
                     .background(ColorProvider(OrbiWidgetTheme.OrbiCardBg))
@@ -74,9 +73,7 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // Grid of status indicators
         Row(modifier = GlanceModifier.fillMaxWidth()) {
-            // Box 1: Condition
             Box(
                 modifier = GlanceModifier
                     .defaultWeight()
@@ -101,7 +98,6 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
 
             Spacer(modifier = GlanceModifier.width(6.dp))
 
-            // Box 2: Temp and Sensation
             Box(
                 modifier = GlanceModifier
                     .defaultWeight()
@@ -127,7 +123,6 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // Grid of physical variables
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             OrbiWidgetAtoms.OrbiMetricChip(
                 label = "Humedad",
@@ -156,23 +151,22 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // Active Mitigation
-        val isAlertActive = state.mainAlertTitle.isNotEmpty() && 
-                state.mainAlertTitle != "Sin alertas relevantes" && 
+        val isAlertActive = state.mainAlertTitle.isNotEmpty() &&
+                state.mainAlertTitle != "Sin alertas relevantes" &&
                 state.mainAlertTitle != "Sin alertas operativas críticas"
-        
+
         val mitigationTitle = if (isAlertActive) {
             "ALERTA ACTIVA: ${state.mainAlertTitle.uppercase()}"
         } else {
             "MITIGACIÓN ACTIVA SKYCORE"
         }
-        
+
         val mitigationText = if (isAlertActive) {
             "${state.mainAlertMessage} EPP: ${state.technicalRecommendation}"
         } else {
             state.technicalRecommendation
         }
-        
+
         val titleColor = if (isAlertActive) {
             OrbiWidgetTheme.getRiskColor(state.mainAlertSeverity)
         } else {
@@ -206,7 +200,6 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // Safety Note
         Text(
             text = "NOTA SEGURIDAD: Validar condiciones antes de abrir tableros.",
             style = TextStyle(
@@ -218,11 +211,10 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(4.dp))
 
-        // Best window footer
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.SpaceBetween
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = "Ventana segura: ${state.bestWindow}",
@@ -231,6 +223,7 @@ fun OrbiFieldCommandContent(state: OrbiWidgetContract) {
                     fontSize = 8.sp
                 )
             )
+            Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = "$sourceLabel • ${state.lastUpdated}",
                 style = TextStyle(
