@@ -2,12 +2,28 @@ import { CurrentWeather, HourlyForecast, DailyForecast, WeatherProfile, SkyCoreS
 import { buildAdvancedSkyCoreAnalysis } from './weatherRiskEngine';
 import { getDecisionLabel } from './skyCoreRiskLabels';
 
+let lastCurrent: CurrentWeather | null = null;
+let lastHourly: HourlyForecast[] | null = null;
+let lastDaily: DailyForecast[] | null = null;
+let lastProfile: WeatherProfile | null = null;
+let lastSummary: SkyCoreSummary | null = null;
+
 export function buildSkyCoreSummary(
   current: CurrentWeather,
   hourly: HourlyForecast[],
   daily: DailyForecast[],
   activeProfile: WeatherProfile
 ): SkyCoreSummary {
+  if (
+    lastSummary
+    && lastCurrent === current
+    && lastHourly === hourly
+    && lastDaily === daily
+    && lastProfile === activeProfile
+  ) {
+    return lastSummary;
+  }
+
   const analysis = buildAdvancedSkyCoreAnalysis({ current, hourly, daily, profile: activeProfile });
 
   const isPerson = activeProfile === 'person';
@@ -23,14 +39,20 @@ export function buildSkyCoreSummary(
     generalSummary = `Análisis Técnico Operativo: Nivel [${getDecisionLabel(analysis.globalDecision)}]. ${analysis.technicalSummary}`;
   }
 
-  return {
+  const summary: SkyCoreSummary = {
     generalSummary,
     mainRecommendation: mainRec ? mainRec.message : 'Siga las precauciones estándar del día.',
     warning: highRisk ? `Riesgo elevado de ${highRisk.label}: ${highRisk.reason}` : undefined,
-    bestWindow: analysis.bestWindow 
+    bestWindow: analysis.bestWindow
       ? `Mejor ventana (${analysis.bestWindow.label}): ${analysis.bestWindow.startTime} a ${analysis.bestWindow.endTime}. Motivo: ${analysis.bestWindow.reason}`
       : 'Sin ventana óptima ideal detectada en las próximas horas.',
     widgetShortText: analysis.widgetShortText,
   };
-}
 
+  lastCurrent = current;
+  lastHourly = hourly;
+  lastDaily = daily;
+  lastProfile = activeProfile;
+  lastSummary = summary;
+  return summary;
+}
