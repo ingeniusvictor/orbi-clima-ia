@@ -19,8 +19,7 @@ import com.orbi.clima.MainActivity
 @Composable
 fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
     val isApt = state.globalDecisionLabel.lowercase() in listOf("óptimo", "favorable", "optimo")
-    
-    // Determine Badge Status and associated color
+
     val badgeText = when {
         state.conditionCode.lowercase() == "setup" || state.locationName.lowercase().contains("configurar") -> "SETUP"
         state.sourceMode.lowercase() == "live" -> "LIVE"
@@ -47,11 +46,10 @@ fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
         verticalAlignment = Alignment.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        // Top Header
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.SpaceBetween
+            horizontalAlignment = Alignment.Start
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -73,7 +71,8 @@ fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
                 )
             }
 
-            // Glassmorphic status badge
+            Spacer(modifier = GlanceModifier.defaultWeight())
+
             Box(
                 modifier = GlanceModifier
                     .background(ColorProvider(badgeColor.copy(alpha = 0.15f)))
@@ -94,12 +93,10 @@ fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // Main info: Orb + Temperature + Decision + Location
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Orb
             OrbiWidgetAtoms.OrbiClimateOrb(
                 conditionCode = state.conditionCode,
                 sizeDp = 34,
@@ -143,17 +140,16 @@ fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // SkyCore Narrative / Smart Alert
-        val isAlertActive = state.mainAlertTitle.isNotEmpty() && 
-                state.mainAlertTitle != "Sin alertas relevantes" && 
+        val isAlertActive = state.mainAlertTitle.isNotEmpty() &&
+                state.mainAlertTitle != "Sin alertas relevantes" &&
                 state.mainAlertTitle != "Sin alertas operativas críticas"
-        
+
         val displayText = if (isAlertActive) {
             "Alerta: ${state.mainAlertTitle} (${state.mainAlertTimeLabel}) - ${state.mainAlertMessage}"
         } else {
             "\"${state.shortNarrative}\""
         }
-        
+
         val displayColor = if (isAlertActive) {
             OrbiWidgetTheme.getRiskColor(state.mainAlertSeverity)
         } else {
@@ -171,11 +167,10 @@ fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
 
         Spacer(modifier = GlanceModifier.height(6.dp))
 
-        // Footer Best Window and Engine Credit
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.SpaceBetween
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = "Ventana: ${state.bestWindow}",
@@ -185,6 +180,7 @@ fun OrbiSkyPanelContent(state: OrbiWidgetContract) {
                     fontWeight = FontWeight.Bold
                 )
             )
+            Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = "ORBI SkyCore™",
                 style = TextStyle(
