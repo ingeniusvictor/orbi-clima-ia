@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
 import com.orbi.clima.alerts.OrbiOfficialAlertWatchPlugin;
+import com.orbi.clima.runtime.OrbiRuntimeDiagnosticsPlugin;
 import com.orbi.clima.widget.OrbiWidgetBridgePlugin;
 
 /**
@@ -20,7 +21,7 @@ import com.orbi.clima.widget.OrbiWidgetBridgePlugin;
  *
  * Local/native-only Capacitor plugins must be registered explicitly. Keeping
  * this file in source control also makes clean Android regeneration
- * deterministic for the widget and official-alert bridges.
+ * deterministic for the widget, official-alert and runtime-diagnostics bridges.
  */
 public class MainActivity extends BridgeActivity {
     private static final int ANDROID_15_API = 35;
@@ -29,6 +30,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(OrbiWidgetBridgePlugin.class);
         registerPlugin(OrbiOfficialAlertWatchPlugin.class);
+        registerPlugin(OrbiRuntimeDiagnosticsPlugin.class);
         super.onCreate(savedInstanceState);
         configureModernSystemUi();
     }

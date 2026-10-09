@@ -56,6 +56,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-modern-target
 
+      - name: Android runtime readiness source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-runtime-readiness
+
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build
@@ -110,6 +114,9 @@ jobs:
 
       - name: Verify Android 16 target and permissions after Capacitor copy
         run: npm run android:verify-modern-target
+
+      - name: Verify runtime readiness bridge after Capacitor copy
+        run: npm run android:verify-runtime-readiness
 
       - name: Compile debug APK and release AAB
         working-directory: android

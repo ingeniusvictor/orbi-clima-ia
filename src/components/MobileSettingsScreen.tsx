@@ -11,6 +11,7 @@ import DeveloperModeGate, { isDeveloperModeEnabled } from './DeveloperModeGate';
 import CompactSectionCard from './CompactSectionCard';
 import OrbiZenSoundSettingsCard from './OrbiZenSoundSettingsCard';
 import OfficialAlertBackgroundWatchCard from './OfficialAlertBackgroundWatchCard';
+import AndroidRuntimeReadinessCard from './AndroidRuntimeReadinessCard';
 import { loadFinalReleaseSealState } from '../services/finalReleaseSealService';
 import { ORBI_APP_VERSION } from '../config/orbiAppVersion';
 
@@ -52,7 +53,6 @@ export default function MobileSettingsScreen({
         paddingTop: 'env(safe-area-inset-top)'
       }}
     >
-      {/* Tab Header */}
       <div className="flex items-center gap-2.5 px-1 pb-1">
         <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
           <Sliders className="w-5 h-5" />
@@ -63,7 +63,6 @@ export default function MobileSettingsScreen({
         </div>
       </div>
 
-      {/* 1. Preferred Location & Profile Defaults */}
       <CompactSectionCard
         title="Perfil y Estación Favorita"
         subtitle="Configurar perfil por defecto y estación de inicio"
@@ -79,7 +78,6 @@ export default function MobileSettingsScreen({
         </div>
       </CompactSectionCard>
 
-      {/* 2. Visual Layouts & Sensitive Alert Filters */}
       <CompactSectionCard
         title="Filtros y Personalización"
         subtitle="Sensibilidad de avisos y estilo de widgets preferido"
@@ -94,10 +92,9 @@ export default function MobileSettingsScreen({
         </div>
       </CompactSectionCard>
 
-      {/* 3. Local Privacy, Trust and Official Background Watch */}
       <CompactSectionCard
         title="Seguridad y Privacidad"
-        subtitle="Privacidad local y vigilancia oficial SENAPRED"
+        subtitle="Privacidad local, vigilancia SENAPRED y estado real Android"
         status="Seguro"
         icon={<Shield className="w-4 h-4 text-emerald-400" />}
       >
@@ -107,10 +104,10 @@ export default function MobileSettingsScreen({
             currentLocation={currentLocation}
             weatherSourceState={weatherSourceState}
           />
+          <AndroidRuntimeReadinessCard />
         </div>
       </CompactSectionCard>
 
-      {/* 4. Local Climate Memory Panel */}
       <CompactSectionCard
         title="Memoria Climática"
         subtitle="Lugares más buscados, perfiles y estadísticas locales"
@@ -122,10 +119,8 @@ export default function MobileSettingsScreen({
         </div>
       </CompactSectionCard>
 
-      {/* 5. Developer Mode Control */}
       <DeveloperModeGate onStateChange={setDevModeActive} />
 
-      {/* 6. Advanced Center Shortcut */}
       {devModeActive && (
         <div className="space-y-3">
           <button
@@ -144,7 +139,6 @@ export default function MobileSettingsScreen({
         </div>
       )}
 
-      {/* 7. Acerca de la aplicación */}
       <div className="p-4 rounded-2xl bg-[#0a1122]/30 border border-white/5 text-left space-y-3">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-cyan-400" />
