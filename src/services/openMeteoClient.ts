@@ -4,6 +4,10 @@ import {
   recordAdaptiveForecastRuntime,
   resolveAdaptiveForecastPolicy,
 } from './adaptiveForecastPolicyService';
+import {
+  applyCurrentWeatherTruth,
+  fetchCurrentWeatherTruthContext,
+} from './currentWeatherTruthService';
 
 async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number } = {}) {
   const { timeout = 10000 } = options;
@@ -162,6 +166,19 @@ function recordRuntime(params: {
   });
 }
 
+async function applyTruthToForecast(
+  data: OpenMeteoRawResponse,
+  truthContextPromise: ReturnType<typeof fetchCurrentWeatherTruthContext>,
+): Promise<OpenMeteoRawResponse> {
+  try {
+    const truthContext = await truthContextPromise;
+    return applyCurrentWeatherTruth(data, truthContext);
+  } catch (error) {
+    console.warn('Current-weather truth fusion unavailable; preserving primary model data.', error);
+    return data;
+  }
+}
+
 export async function fetchOpenMeteoForecast(params: {
   latitude: number;
   longitude: number;
@@ -171,6 +188,11 @@ export async function fetchOpenMeteoForecast(params: {
   const { latitude, longitude, timezone = 'auto', forecastDays = 7 } = params;
   const location = adaptiveLocation({ latitude, longitude, timezone });
   const policy = resolveAdaptiveForecastPolicy(location);
+
+  // Run independent current-condition corroboration in parallel with the
+  // primary forecast request. It is bounded internally and never blocks the
+  // forecast indefinitely.
+  const truthContextPromise = fetchCurrentWeatherTruthContext(location);
 
   if (policy.mode === 'adaptive_model' && policy.selectedModelId) {
     try {
@@ -191,7 +213,7 @@ export async function fetchOpenMeteoForecast(params: {
         fallbackUsed: false,
         fallbackReason: null,
       });
-      return data;
+      return await applyTruthToForecast(data, truthContextPromise);
     } catch (adaptiveError) {
       console.warn(`Adaptive model ${policy.selectedModelId} failed; retrying Open-Meteo Best Match.`, adaptiveError);
       const fallbackData = await requestForecast({
@@ -211,7 +233,7 @@ export async function fetchOpenMeteoForecast(params: {
         fallbackUsed: true,
         fallbackReason: adaptiveError instanceof Error ? adaptiveError.message : 'Adaptive model request failed',
       });
-      return fallbackData;
+      return await applyTruthToForecast(fallbackData, truthContextPromise);
     }
   }
 
@@ -232,7 +254,7 @@ export async function fetchOpenMeteoForecast(params: {
     fallbackUsed: false,
     fallbackReason: null,
   });
-  return data;
+  return await applyTruthToForecast(data, truthContextPromise);
 }
 
 export async function searchOpenMeteoLocations(query: string): Promise<LocationSearchResult[]> {
