@@ -332,6 +332,9 @@ export async function sendOrbiLocalNotification(
       ? stableOfficialAndroidNotificationId(candidate.dedupKey)
       : Math.floor(Math.random() * 1000000) + 1;
 
+    // These are immediate event notifications, not clock/alarm reminders. By
+    // omitting a future schedule, Android can post them without exact-alarm
+    // privileges or the special "Alarms & reminders" settings flow.
     await LocalNotifications.schedule({
       notifications: [
         {
@@ -339,7 +342,6 @@ export async function sendOrbiLocalNotification(
           title: candidate.title,
           body: candidate.body,
           channelId,
-          schedule: { at: new Date(Date.now() + 500) },
           sound: 'beep.wav',
           actionTypeId: 'OPEN_APP'
         }
@@ -350,10 +352,10 @@ export async function sendOrbiLocalNotification(
       await markOfficialAlertDeliveredNative(candidate.dedupKey);
     }
 
-    console.log(`Successfully scheduled native notification on channel "${channelId}":`, candidate.title);
+    console.log(`Successfully posted native notification on channel "${channelId}":`, candidate.title);
     return true;
   } catch (error) {
-    console.error('Error scheduling native local notification:', error);
+    console.error('Error posting native local notification:', error);
     return false;
   }
 }
