@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="orbi_skyorb_widget_name">ORBI SkyOrb Widget™</string>
+    <string name="orbi_skyorb_widget_description">Tu núcleo climático inteligente en la pantalla de inicio.</string>
+    <string name="orbi_clima_open_app">Abrir ORBI Clima IA</string>
+    <string name="orbi_skyorb_mini_widget_name">ORBI SkyOrb Mini™ (2x2)</string>
+    <string name="orbi_skyorb_mini_widget_description">La esfera climática de diseño líquido junto con la temperatura actual en 2x2.</string>
+    <string name="orbi_skyorb_panel_widget_name">ORBI SkyPanel™ (4x2)</string>
+    <string name="orbi_skyorb_panel_widget_description">Pronóstico heurístico resumido y mejor ventana horaria en 4x2.</string>
+    <string name="orbi_skyorb_command_widget_name">ORBI SkyOrb Command™ (4x4)</string>
+    <string name="orbi_skyorb_command_widget_description">Panel de control de clima premium para técnicos y operarios en 4x4.</string>
+    <string name="orbi_skyorb_command_premium_widget_name">ORBI SkyOrb Command Premium™ (4x4)</string>
+    <string name="orbi_skyorb_command_premium_widget_description">La nueva generación premium con órbita celeste radial y burbujas de estado flotantes en 4x4.</string>
+</resources>

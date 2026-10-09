@@ -1,0 +1,8 @@
+{
+  "name": "Remix: ORBI Clima IA",
+  "description": "Powered by ORBI SkyCore™. Tu núcleo climático inteligente. Transforma el pronóstico climático en decisiones simples, útiles y accionables para la vida diaria y el trabajo en terreno.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

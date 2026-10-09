@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Layer 1: Ambient Outer Glow / Halo -->
+    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="48dp"
+                android:startColor="#50FF9800"
+                android:endColor="#00FF9800" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: Medium glow halo -->
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="36dp"
+                android:startColor="#35FFC107"
+                android:endColor="#00FFC107" />
+        </shape>
+    </item>
+
+    <!-- Layer 3: Atmospheric boundary ring (thin outline circle) -->
+    <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="5dp">
+        <shape android:shape="oval">
+            <stroke
+                android:width="1.5dp"
+                android:color="#1AFFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Layer 4: Elegant Orbital Track with micro-particle (dashed circle) -->
+    <item android:left="7dp" android:top="7dp" android:right="7dp" android:bottom="7dp">
+        <shape android:shape="oval">
+            <stroke
+                android:width="1dp"
+                android:color="#33FFB703"
+                android:dashWidth="4dp"
+                android:dashGap="3dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 5: Main Core Orb Volume -->
+    <item android:left="10dp" android:top="10dp" android:right="10dp" android:bottom="10dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="linear"
+                android:angle="45"
+                android:startColor="#FFE65100"
+                android:centerColor="#FFF57C00"
+                android:endColor="#FFFFD54F" />
+            <stroke
+                android:width="1dp"
+                android:color="#40FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Layer 6: Glass Volumetric Highlight (soft 3D gradient) -->
+    <item android:left="11dp" android:top="11dp" android:right="11dp" android:bottom="24dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="linear"
+                android:angle="90"
+                android:startColor="#00FFFFFF"
+                android:endColor="#60FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Layer 7: Internal liquid-style bottom depth shadow -->
+    <item android:left="15dp" android:top="22dp" android:right="15dp" android:bottom="11dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#00000000"
+                android:endColor="#40000000" />
+        </shape>
+    </item>
+
+    <!-- Layer 8: Micro sparkle dot at the top -->
+    <item android:width="4dp" android:height="4dp" android:gravity="top|center_horizontal" android:top="4dp">
+        <shape android:shape="oval">
+            <solid android:color="#FFFFE082" />
+        </shape>
+    </item>
+</layer-list>

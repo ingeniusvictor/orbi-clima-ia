@@ -1,0 +1,43 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'com.orbi.clima'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.orbi.clima"
+        minSdk 26
+        targetSdk 34
+        versionCode 10602
+        versionName "1.0.6-final-clean"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.8'
+    }
+}
+
+dependencies {
+    // Jetpack Glance (Android Widgets with Compose DSL)
+    implementation "androidx.glance:glance-appwidget:1.1.0"
+    implementation "androidx.glance:glance-material3:1.1.0"
+
+    // Kotlin & Coroutines
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+
+    // Capacitor dependencies
+    implementation project(':capacitor-android')
+}
