@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle, CloudRain, Droplets, ShieldAlert, Waves } from 'lucide-react';
+import { AlertTriangle, CloudRain, Droplets, ShieldAlert, ShieldCheck, Waves } from 'lucide-react';
 import { FloodContextSnapshot } from '../services/openMeteoFloodService';
 import { HydroPrecipSnapshot } from '../services/openMeteoHydroPrecipService';
 import { OfficialAlertsResult } from '../services/officialWeatherAlertsService';
@@ -42,7 +42,10 @@ export default function HydrologicRiskCard({
   if (!precipitation || !assessment) return null;
 
   const officialCoverage = officialAlerts?.hasVerifiedCoverage === true;
-  const officialCount = officialAlerts?.alerts.length ?? 0;
+  const officialAlertsForPoint = officialAlerts?.alerts ?? [];
+  const officialCount = officialAlertsForPoint.length;
+  const hasOfficialAlert = officialCount > 0;
+  const coveragePartial = officialAlerts?.coveragePartial === true;
 
   return (
     <section className="p-4 rounded-2xl bg-[#090f1e]/80 border border-white/5 space-y-3" aria-label="Riesgo hidrológico inferido">
@@ -98,18 +101,47 @@ export default function HydrologicRiskCard({
         </div>
       )}
 
-      <div className={`p-2.5 rounded-xl border ${officialCoverage ? 'border-red-500/25 bg-red-500/10' : 'border-amber-500/15 bg-amber-500/5'}`}>
+      <div className={`p-2.5 rounded-xl border ${
+        hasOfficialAlert
+          ? 'border-red-500/25 bg-red-500/10'
+          : officialCoverage
+            ? 'border-emerald-500/20 bg-emerald-500/5'
+            : 'border-amber-500/15 bg-amber-500/5'
+      }`}>
         <div className="flex items-start gap-2">
-          {officialCoverage ? <ShieldAlert className="w-3.5 h-3.5 text-red-300 mt-0.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-300 mt-0.5 shrink-0" />}
+          {hasOfficialAlert
+            ? <ShieldAlert className="w-3.5 h-3.5 text-red-300 mt-0.5 shrink-0" />
+            : officialCoverage
+              ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 mt-0.5 shrink-0" />
+              : <AlertTriangle className="w-3.5 h-3.5 text-amber-300 mt-0.5 shrink-0" />}
           <div className="text-[10px] leading-relaxed">
-            <p className={officialCoverage ? 'text-red-200 font-semibold' : 'text-amber-200 font-semibold'}>
-              {officialCoverage
-                ? `Alertas oficiales verificadas: ${officialCount}`
-                : 'NO ES UNA ALERTA OFICIAL'}
+            <p className={
+              hasOfficialAlert
+                ? 'text-red-200 font-semibold'
+                : officialCoverage
+                  ? 'text-emerald-200 font-semibold'
+                  : 'text-amber-200 font-semibold'
+            }>
+              {hasOfficialAlert
+                ? `${officialCount} alerta${officialCount === 1 ? '' : 's'} oficial${officialCount === 1 ? '' : 'es'} SENAPRED coincide${officialCount === 1 ? '' : 'n'} con esta ubicación`
+                : officialCoverage
+                  ? coveragePartial
+                    ? 'SENAPRED verificado parcialmente · sin alerta coincidente en las capas disponibles'
+                    : 'SENAPRED verificado · sin alerta meteorológica coincidente'
+                  : 'HydroWatch NO ES UNA ALERTA OFICIAL'}
             </p>
-            {!officialCoverage && (
+
+            {hasOfficialAlert ? (
+              <p className="text-slate-300 mt-1">
+                HydroWatch se mantiene como análisis modelado separado. Para decisiones de seguridad, prevalece la información oficial SENAPRED mostrada arriba y cualquier instrucción vigente de la autoridad.
+              </p>
+            ) : officialCoverage ? (
               <p className="text-slate-400 mt-1">
-                ORBI aún no tiene configurado un feed oficial validado de alertas DMC/SENAPRED. Para decisiones de seguridad, consulta siempre las autoridades competentes.
+                El índice HydroWatch puede elevar vigilancia antes o sin una declaración oficial, pero no debe describirse como alerta SENAPRED.
+              </p>
+            ) : (
+              <p className="text-slate-400 mt-1">
+                La consulta oficial no pudo verificarse. ORBI no interpreta esa falla como ausencia de alertas; consulta SENAPRED si la situación es sensible a seguridad.
               </p>
             )}
           </div>
