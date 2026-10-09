@@ -26,7 +26,7 @@ object OrbiWidgetAtoms {
         weatherMood: String = "",
         visualTheme: String = "premium"
     ) {
-        val assetKey = if (!orbAssetKey.isNullOrEmpty()) orbAssetKey else conditionCode
+        val assetKey = if (orbAssetKey.isNotEmpty()) orbAssetKey else conditionCode
         val drawableResId = when (assetKey.lowercase()) {
             "sunny", "clear", "hot" -> R.drawable.orbi_widget_orb_sunny
             "rain", "drizzle" -> R.drawable.orbi_widget_orb_rain
@@ -56,7 +56,7 @@ object OrbiWidgetAtoms {
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.SpaceBetween
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = appName,
@@ -66,6 +66,7 @@ object OrbiWidgetAtoms {
                     fontWeight = FontWeight.Bold
                 )
             )
+            Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = "$sourceLabel • $lastUpdated",
                 style = TextStyle(
