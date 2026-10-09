@@ -34,6 +34,7 @@ import HydrologicRiskCard from './HydrologicRiskCard';
 import MicroclimateCard from './MicroclimateCard';
 import ModelForecastSkillCard from './ModelForecastSkillCard';
 import MultiModelConsensusCard from './MultiModelConsensusCard';
+import OfficialAlertsCard from './OfficialAlertsCard';
 
 interface WeatherIntelligencePanelProps {
   location: WeatherLocation;
@@ -239,11 +240,12 @@ export default function WeatherIntelligencePanel({
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">DMC observado · adaptativo · forecast skill · 4 modelos · HydroWatch</p>
+          <p className="text-xs text-slate-400 mt-0.5">SENAPRED oficial · DMC observado · adaptativo · forecast skill · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-08</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-09</span>
       </div>
 
+      <OfficialAlertsCard result={officialAlerts} loading={loading} />
       <DmcObservationCard
         observation={dmcObservation}
         comparison={observationComparison}
