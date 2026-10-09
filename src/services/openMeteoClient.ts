@@ -10,6 +10,7 @@ import {
 } from './currentWeatherTruthService';
 
 const inFlightForecastRequests = new Map<string, Promise<OpenMeteoRawResponse>>();
+const inFlightWeatherFetches = new Map<string, Promise<OpenMeteoRawResponse>>();
 
 async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number } = {}) {
   const { timeout = 10000 } = options;
@@ -195,13 +196,13 @@ async function applyTruthToForecast(
   }
 }
 
-export async function fetchOpenMeteoForecast(params: {
+async function fetchOpenMeteoForecastInternal(params: {
   latitude: number;
   longitude: number;
-  timezone?: string;
-  forecastDays?: number;
+  timezone: string;
+  forecastDays: number;
 }): Promise<OpenMeteoRawResponse> {
-  const { latitude, longitude, timezone = 'auto', forecastDays = 7 } = params;
+  const { latitude, longitude, timezone, forecastDays } = params;
   const location = adaptiveLocation({ latitude, longitude, timezone });
   const policy = resolveAdaptiveForecastPolicy(location);
 
@@ -271,6 +272,37 @@ export async function fetchOpenMeteoForecast(params: {
     fallbackReason: null,
   });
   return await applyTruthToForecast(data, truthContextPromise);
+}
+
+export function fetchOpenMeteoForecast(params: {
+  latitude: number;
+  longitude: number;
+  timezone?: string;
+  forecastDays?: number;
+}): Promise<OpenMeteoRawResponse> {
+  const normalized = {
+    latitude: params.latitude,
+    longitude: params.longitude,
+    timezone: params.timezone ?? 'auto',
+    forecastDays: params.forecastDays ?? 7,
+  };
+  const requestKey = [
+    normalized.latitude,
+    normalized.longitude,
+    normalized.timezone,
+    normalized.forecastDays,
+  ].join('|');
+
+  const existing = inFlightWeatherFetches.get(requestKey);
+  if (existing) return existing;
+
+  const request = fetchOpenMeteoForecastInternal(normalized);
+  inFlightWeatherFetches.set(requestKey, request);
+  return request.finally(() => {
+    if (inFlightWeatherFetches.get(requestKey) === request) {
+      inFlightWeatherFetches.delete(requestKey);
+    }
+  });
 }
 
 export async function searchOpenMeteoLocations(query: string): Promise<LocationSearchResult[]> {
