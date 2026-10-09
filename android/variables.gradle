@@ -1,10 +1,10 @@
 ext {
-    // Capacitor 8 requires a modern compile SDK. Keep the shipped app target at
-    // the existing targetSdk 34 during OC-12 so this build-gate phase does not
-    // silently change runtime behavior; target-SDK migration is a separate QA item.
+    // OC-13 aligns the shipped runtime target with Android 16 (API 36).
+    // compileSdk and targetSdk now move together; permission and system-UI
+    // readiness is enforced separately by the OC-13 source gate.
     minSdkVersion = 26
     compileSdkVersion = 36
-    targetSdkVersion = 34
+    targetSdkVersion = 36
 
     androidxActivityVersion = '1.11.0'
     androidxAppCompatVersion = '1.7.1'
