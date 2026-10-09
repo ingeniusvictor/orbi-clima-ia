@@ -14,6 +14,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 @CapacitorPlugin(name = "OrbiOfficialAlertWatch")
 class OrbiOfficialAlertWatchPlugin : Plugin() {
@@ -68,9 +69,26 @@ class OrbiOfficialAlertWatchPlugin : Plugin() {
             allowCriticalDuringQuietHours = quiet?.getBool("allowCritical") ?: true,
         )
 
+        val previous = OfficialAlertWatchStore.loadConfig(context)
+        val wasDisabled = previous?.enabled != true
+        val locationChanged = previous == null
+            || previous.locationId != config.locationId
+            || abs(previous.latitude - config.latitude) > 0.00001
+            || abs(previous.longitude - config.longitude) > 0.00001
+        val intervalChanged = previous?.intervalMinutes != config.intervalMinutes
+
         OfficialAlertWatchStore.saveConfig(context, config)
-        schedulePeriodic(config.intervalMinutes)
-        enqueueImmediateCheck()
+
+        // Do not reset/update the periodic WorkManager request on every normal
+        // foreground SENAPRED refresh. The worker reads the latest snapshot from
+        // SharedPreferences each time it runs.
+        if (wasDisabled || intervalChanged) {
+            schedulePeriodic(config.intervalMinutes)
+        }
+        if (wasDisabled || locationChanged) {
+            enqueueImmediateCheck()
+        }
+
         call.resolve(OfficialAlertWatchStore.statusJson(context).toJsObject())
     }
 
