@@ -35,10 +35,27 @@ export interface AdaptiveForecastPolicyDecision {
   };
 }
 
+export interface AdaptiveForecastRuntimeTrace {
+  requestedAt: string;
+  latitude: number;
+  longitude: number;
+  policyMode: AdaptiveForecastMode;
+  requestedModelId: string | null;
+  requestedModelLabel: string;
+  effectiveMode: 'best_match' | 'adaptive_model' | 'best_match_fallback';
+  effectiveModelId: string | null;
+  effectiveModelLabel: string;
+  fallbackUsed: boolean;
+  fallbackReason: string | null;
+  policyReason: AdaptiveForecastDecisionReason;
+  policyReasonLabel: string;
+}
+
 const MIN_SKILL_SCORE = 72;
 const MIN_SCORE_MARGIN = 6;
 const MIN_LEAD_SAMPLES = 4;
 const MAX_MEDIAN_STATION_DISTANCE_KM = 50;
+const RUNTIME_STORAGE_KEY = 'orbi_adaptive_forecast_runtime_v1';
 
 function fallbackDecision(
   summary: ModelSkillSummary,
@@ -178,4 +195,29 @@ export function resolveAdaptiveForecastPolicy(
       maxMedianStationDistanceKm: MAX_MEDIAN_STATION_DISTANCE_KM,
     },
   };
+}
+
+export function recordAdaptiveForecastRuntime(trace: AdaptiveForecastRuntimeTrace): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    localStorage.setItem(RUNTIME_STORAGE_KEY, JSON.stringify(trace));
+    window.dispatchEvent(new CustomEvent<AdaptiveForecastRuntimeTrace>('orbi-adaptive-forecast-runtime-updated', {
+      detail: trace,
+    }));
+  } catch (error) {
+    console.warn('Adaptive forecast runtime trace could not be stored:', error);
+  }
+}
+
+export function loadAdaptiveForecastRuntime(): AdaptiveForecastRuntimeTrace | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const raw = localStorage.getItem(RUNTIME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AdaptiveForecastRuntimeTrace;
+    return parsed && typeof parsed.requestedAt === 'string' ? parsed : null;
+  } catch (error) {
+    console.warn('Adaptive forecast runtime trace could not be read:', error);
+    return null;
+  }
 }
