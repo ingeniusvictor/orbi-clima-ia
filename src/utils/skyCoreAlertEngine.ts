@@ -9,6 +9,7 @@ import {
   SmartAlertCategory
 } from '../types/weatherTypes';
 import { dedupeSmartAlerts } from './skyCoreAlertDedup';
+import { precipitationIntensityRank } from './wmoWeatherCodeMapper';
 
 /**
  * Generador principal de alertas climáticas inteligentes basadas en el motor ORBI SkyCore™
@@ -63,35 +64,47 @@ export function buildSmartWeatherAlerts(params: {
   // ----------------------------------------------------
 
   if (profile === 'person') {
-    // 1. Lluvia próxima o actual
+    // 1. Precipitación próxima o actual con semántica WMO (llovizna != lluvia intensa)
     const next6HoursRain = hourly.slice(0, 6);
     const rainHour = next6HoursRain.find(h => h.precipitationProbability >= 60);
-    const hasCurrentRain = current.precipitationMm > 0 || current.condition === 'rain';
-    
-    if (hasCurrentRain) {
+    const precipPhenomena = ['drizzle', 'freezing_drizzle', 'rain', 'freezing_rain', 'showers', 'snow', 'snow_showers', 'thunderstorm', 'thunderstorm_hail'];
+    const hasCurrentPrecip = current.precipitationMm > 0 || Boolean(current.phenomenon && precipPhenomena.includes(current.phenomenon));
+
+    if (hasCurrentPrecip) {
+      const rank = precipitationIntensityRank(current.precipitationIntensity);
+      const isDrizzle = current.phenomenon === 'drizzle';
+      const isFreezing = current.phenomenon === 'freezing_drizzle' || current.phenomenon === 'freezing_rain';
+      const isStorm = current.phenomenon === 'thunderstorm' || current.phenomenon === 'thunderstorm_hail';
+      const severity: SmartAlertSeverity = isStorm || rank >= 4 || isFreezing ? 'warning' : isDrizzle || rank <= 2 ? 'info' : 'watch';
+      const amountContext = current.precipitationIntervalMinutes
+        ? `${current.precipitationMm.toFixed(1)} mm/${Math.round(current.precipitationIntervalMinutes)} min`
+        : `${current.precipitationMm.toFixed(1)} mm`;
+
       alerts.push(createAlert({
-        id: 'p_rain_now',
-        title: 'Lluvia Activa',
-        message: 'Precipitación en curso. Lleva paraguas o prefiere actividades en interiores.',
-        severity: 'warning',
+        id: 'p_precip_now',
+        title: current.conditionLabel || (isDrizzle ? 'Llovizna Activa' : 'Precipitación Activa'),
+        message: `${current.conditionLabel || 'Precipitación'} en el intervalo actual (${amountContext}).`,
+        severity,
         category: 'rain',
         timeLabel: 'Ahora',
-        actionLabel: 'Ver radar',
-        recommendation: 'Lleva paraguas, prefiere calzado impermeable y maneja con precaución.',
-        priority: 95
+        actionLabel: 'Ver detalle',
+        recommendation: isDrizzle
+          ? 'Llovizna ligera: considera impermeable liviano y pavimento húmedo.'
+          : 'Adapta tus traslados a la intensidad observada y revisa la evolución horaria.',
+        priority: isStorm ? 98 : isDrizzle ? 45 : rank >= 3 ? 82 : 60
       }));
     } else if (rainHour) {
       alerts.push(createAlert({
         id: 'p_rain_upcoming',
-        title: 'Lluvia Probable',
-        message: `Lluvia probable durante las próximas horas (${rainHour.time}). Lleva paraguas o planifica salir antes.`,
-        severity: 'watch',
+        title: 'Precipitación Probable',
+        message: `Probabilidad de precipitación de ${rainHour.precipitationProbability}% cerca de las ${rainHour.time}${rainHour.conditionLabel ? ` (${rainHour.conditionLabel.toLowerCase()})` : ''}.`,
+        severity: rainHour.precipitationProbability >= 80 ? 'watch' : 'info',
         category: 'rain',
-        startsAt: rainHour.time,
+        startsAt: rainHour.isoTime || rainHour.time,
         timeLabel: 'Próximas horas',
         actionLabel: 'Ver pronóstico',
-        recommendation: 'Lleva paraguas o impermeable y planifica tus traslados con anticipación.',
-        priority: 80
+        recommendation: 'Lleva protección para la lluvia si vas a estar fuera y revisa la actualización antes de salir.',
+        priority: rainHour.precipitationProbability >= 80 ? 72 : 55
       }));
     }
 
@@ -100,7 +113,7 @@ export function buildSmartWeatherAlerts(params: {
     if (maxUV >= 6) {
       alerts.push(createAlert({
         id: 'p_uv_high',
-        title: 'Radiación UV Extrema',
+        title: 'Radiación UV Alta',
         message: 'UV alto entre 12:00 y 15:00. Usa protección solar si estarás al aire libre.',
         severity: 'warning',
         category: 'uv',
@@ -126,7 +139,7 @@ export function buildSmartWeatherAlerts(params: {
         severity: 'watch',
         category: 'cold',
         timeLabel: 'Mañana',
-        actionLabel: 'Rebajar capas',
+        actionLabel: 'Ver evolución',
         recommendation: 'Vístete en capas. La temperatura aumentará progresivamente hacia la tarde.',
         priority: 60
       }));
@@ -181,23 +194,39 @@ export function buildSmartWeatherAlerts(params: {
         category: 'storm',
         timeLabel: 'Inmediato',
         actionLabel: 'Protocolo HSE',
-        recommendation: 'Detener de inmediato trabajos en altura y maniobras eléctricas en intemperie. Evacuar a zonas seguras.',
+        recommendation: 'Aplicar inmediatamente el protocolo HSE de tormenta de la faena. Suspender actividades cuando el procedimiento o la evaluación en terreno así lo exijan y buscar refugio seguro.',
         priority: 100
       }));
     }
 
-    // 2. Humedad Crítica (Condensación)
-    if (current.humidity >= 85) {
+    // 2. Condensación: usar margen temperatura-punto de rocío cuando esté disponible.
+    const dewPointSpread = current.dewPointC !== undefined ? current.temperatureC - current.dewPointC : undefined;
+    const condensationLikely = (dewPointSpread !== undefined && dewPointSpread <= 2) || current.humidity >= 95;
+    if (condensationLikely) {
       alerts.push(createAlert({
-        id: 't_humidity_high',
-        title: 'Riesgo Humedad de Condensación',
-        message: 'Humedad alta detectada. Para trabajos eléctricos, valida presencia de condensación antes de abrir tableros.',
+        id: 't_condensation_watch',
+        title: 'Condiciones Favorables a Condensación',
+        message: dewPointSpread !== undefined
+          ? `Margen temperatura–punto de rocío de ${dewPointSpread.toFixed(1)}°C. Verifica físicamente equipos y superficies.`
+          : `Humedad relativa muy alta (${current.humidity}%). Verifica físicamente equipos y superficies.`,
         severity: 'warning',
         category: 'humidity',
-        timeLabel: 'Mañana/Actual',
-        actionLabel: 'Verificar tablero',
-        recommendation: 'Validar exhaustivamente condensación en gabinetes, herramientas y superficies metálicas antes de operar.',
-        priority: 85
+        timeLabel: 'Actual',
+        actionLabel: 'Verificar terreno',
+        recommendation: 'El clima no autoriza una maniobra: aplicar LOTO, procedimiento HSE, inspección física y criterios del fabricante.',
+        priority: 86
+      }));
+    } else if (current.humidity >= 85) {
+      alerts.push(createAlert({
+        id: 't_humidity_high',
+        title: 'Ambiente Muy Húmedo',
+        message: `Humedad relativa de ${current.humidity}%. No confirma condensación por sí sola.`,
+        severity: 'watch',
+        category: 'humidity',
+        timeLabel: 'Actual',
+        actionLabel: 'Verificar terreno',
+        recommendation: 'Inspeccionar físicamente antes de intervenir equipos sensibles y mantener los controles HSE habituales.',
+        priority: 65
       }));
     }
 
@@ -214,7 +243,7 @@ export function buildSmartWeatherAlerts(params: {
         category: 'gusts',
         timeLabel: 'Operativo',
         actionLabel: 'Protocolo Altura',
-        recommendation: 'Suspender trabajos de izaje o en altura física. Asegurar planchas de zinc, lonas y componentes ligeros.',
+        recommendation: 'Aplicar los límites de viento definidos para izaje, altura y equipos. Asegurar componentes ligeros y confirmar ráfagas reales en terreno.',
         priority: 90
       }));
     } else if (isWindModerate) {
@@ -230,32 +259,37 @@ export function buildSmartWeatherAlerts(params: {
       }));
     }
 
-    // 4. Lluvia Operativa
+    // 4. Precipitación operativa: diferenciar llovizna, lluvia, chubascos y severidad.
     const next6HoursRainTech = hourly.slice(0, 6);
     const rainHourTech = next6HoursRainTech.find(h => h.precipitationProbability >= 60);
+    const precipPhenomenaTech = ['drizzle', 'freezing_drizzle', 'rain', 'freezing_rain', 'showers', 'snow', 'snow_showers', 'thunderstorm', 'thunderstorm_hail'];
+    const currentPrecipTech = current.precipitationMm > 0 || Boolean(current.phenomenon && precipPhenomenaTech.includes(current.phenomenon));
 
-    if (current.precipitationMm > 0) {
+    if (currentPrecipTech) {
+      const rank = precipitationIntensityRank(current.precipitationIntensity);
+      const isDrizzle = current.phenomenon === 'drizzle';
+      const severity: SmartAlertSeverity = isDrizzle ? 'watch' : rank >= 3 ? 'warning' : 'watch';
       alerts.push(createAlert({
-        id: 't_rain_active',
-        title: 'Lluvia Operativa Activa',
-        message: 'Precipitación afectando la zona de faena. Evita mantener gabinetes o componentes desprotegidos al exterior.',
-        severity: 'warning',
+        id: 't_precip_active',
+        title: current.conditionLabel ? `${current.conditionLabel} en Faena` : 'Precipitación en Faena',
+        message: `${current.conditionLabel || 'Precipitación'} detectada. La criticidad operativa depende de la tarea, superficie, IP del equipo y procedimiento HSE.`,
+        severity,
         category: 'rain',
         timeLabel: 'En curso',
-        recommendation: 'Asegurar sellos de estanqueidad IP y detener montajes expuestos que requieran condiciones secas.',
-        priority: 88
+        recommendation: 'Reevaluar tareas expuestas y aplicar el procedimiento específico. ORBI no reemplaza la inspección física ni la autorización de trabajo.',
+        priority: isDrizzle ? 68 : rank >= 3 ? 90 : 78
       }));
     } else if (rainHourTech) {
       alerts.push(createAlert({
         id: 't_rain_upcoming',
-        title: 'Precipitación Operativa Inminente',
-        message: `Probabilidad de lluvia en la ventana operativa (${rainHourTech.time}). Prioriza trabajos exteriores antes del evento.`,
-        severity: 'watch',
+        title: 'Precipitación Operativa Probable',
+        message: `Probabilidad ${rainHourTech.precipitationProbability}% cerca de ${rainHourTech.time}${rainHourTech.conditionLabel ? ` (${rainHourTech.conditionLabel.toLowerCase()})` : ''}.`,
+        severity: rainHourTech.precipitationProbability >= 80 ? 'watch' : 'info',
         category: 'rain',
-        startsAt: rainHourTech.time,
+        startsAt: rainHourTech.isoTime || rainHourTech.time,
         timeLabel: 'Próximo',
-        recommendation: 'Acelerar sellado de ductos exteriores y reprogramar pintura o vaciado de hormigón si aplica.',
-        priority: 78
+        recommendation: 'Revisar la ventana operativa, proteger equipos sensibles y revalidar el pronóstico antes de iniciar tareas expuestas.',
+        priority: 72
       }));
     }
 
@@ -285,7 +319,7 @@ export function buildSmartWeatherAlerts(params: {
         severity: 'info',
         category: 'general',
         timeLabel: 'Establecido',
-        recommendation: 'Priorizar maniobras de calibración, montajes de precisión o aperturas de tableros durante este intervalo.',
+        recommendation: 'Usar esta ventana sólo como contexto meteorológico; confirmar permisos, LOTO, condiciones físicas y criterios HSE antes de cualquier maniobra.',
         priority: 65
       }));
     }
@@ -311,8 +345,12 @@ export function buildSmartWeatherAlerts(params: {
     }
 
     // B. Lluvia útil (limpieza superficial)
-    const isRainModerate = current.precipitationMm > 0 && current.precipitationMm < 8 && current.condition !== 'storm';
-    const isRainUpcomingModerate = hourly.slice(0, 6).some(h => h.precipitationMm > 0 && h.precipitationMm < 8 && h.condition !== 'storm');
+    const isRainModerate = current.precipitationMm > 0
+      && current.condition !== 'storm'
+      && precipitationIntensityRank(current.precipitationIntensity) <= 3;
+    const isRainUpcomingModerate = hourly.slice(0, 6).some(h => h.precipitationMm > 0
+      && h.condition !== 'storm'
+      && precipitationIntensityRank(h.precipitationIntensity) <= 3);
     
     if (isRainModerate || isRainUpcomingModerate) {
       alerts.push(createAlert({
