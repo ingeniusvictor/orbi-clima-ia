@@ -77,10 +77,10 @@ class OrbiRuntimeDiagnosticsPlugin : Plugin() {
     }
 
     private fun buildStatus(): JSObject {
-        val fineLocationGranted = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-        val coarseLocationGranted = hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val fineLocationGranted = isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarseLocationGranted = isPermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION)
         val notificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            hasPermission(Manifest.permission.POST_NOTIFICATIONS)
+            isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             true
         }
@@ -176,7 +176,7 @@ class OrbiRuntimeDiagnosticsPlugin : Plugin() {
         }
     }
 
-    private fun hasPermission(permission: String): Boolean =
+    private fun isPermissionGranted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
     private fun widgetCount(receiverClass: Class<*>): Int {
