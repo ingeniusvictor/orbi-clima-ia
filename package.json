@@ -13,6 +13,7 @@
     "android:verify-background-watch": "node scripts/verify-android-background-watch.mjs",
     "android:verify-modern-target": "node scripts/verify-android-modern-target.mjs",
     "android:verify-runtime-readiness": "node scripts/verify-android-runtime-readiness.mjs",
+    "android:verify-premium-widget": "node scripts/verify-premium-widget-snapshot.mjs",
     "android:sync": "cap sync android",
     "android:doctor": "cap doctor android",
     "android:build": "cd android && gradlew.bat assembleDebug",
