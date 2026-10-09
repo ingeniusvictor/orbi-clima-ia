@@ -5,16 +5,20 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        // Capacitor's stock Android template is Java-only. ORBI owns Kotlin
-        // Glance widgets and WorkManager sources, so the module carries its
-        // Kotlin compiler classpath explicitly and remains reproducible after
-        // `npx cap add android`.
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+        // Capacitor 8 Geolocation currently publishes Kotlin 2.2 metadata.
+        // ORBI must compile with the same Kotlin toolchain or the app module
+        // cannot read plugin/runtime metadata.
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20"
+
+        // Since Kotlin 2.0, Compose Compiler ships with Kotlin and is applied
+        // through this dedicated Gradle plugin using the same Kotlin version.
+        classpath "org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:2.2.20"
     }
 }
 
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace 'com.orbi.clima'
@@ -42,11 +46,6 @@ android {
 
     buildFeatures {
         compose true
-    }
-
-    composeOptions {
-        // Compose Compiler 1.5.8 is matched to Kotlin 1.9.22.
-        kotlinCompilerExtensionVersion '1.5.8'
     }
 
     compileOptions {
@@ -82,9 +81,9 @@ dependencies {
     // OC-11 official SENAPRED background watch.
     implementation "androidx.work:work-runtime-ktx:2.9.1"
 
-    // Kotlin runtime and coroutines used by widgets / WorkManager.
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+    // Capacitor Geolocation resolves coroutines 1.10.2. Pinning ORBI to the
+    // same release avoids an unnecessary downgrade/upgrade conflict.
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
