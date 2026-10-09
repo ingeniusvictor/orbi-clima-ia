@@ -1,0 +1,90 @@
+/*
+ * OC-20B mobile Home density guard.
+ * Keeps the premium atmosphere while restoring the compact, essential-first
+ * Home experience introduced in OC-17. This stylesheet intentionally does
+ * not target OrbiClimateCore or skycore-fx internals.
+ */
+
+@media (max-width: 640px) {
+  /* Tailwind's space-y-4 is useful on desktop but too tall on a phone Home. */
+  #orbi-mobile-home-screen > * + * {
+    margin-top: 0.625rem !important;
+  }
+
+  /* Tighten only the Hero shell. The Golden Orb component remains untouched. */
+  #orbi-mobile-home-screen > #welcome-hero-section {
+    padding: 0.875rem !important;
+    gap: 0.75rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  /* Direct Home cards use a denser rhythm on phones. */
+  #orbi-mobile-home-screen > section {
+    padding: 0.75rem !important;
+    border-radius: 1.125rem !important;
+  }
+
+  /* Forecast: keep the four-hour strip but remove redundant helper copy. */
+  #orbi-mobile-home-screen > section:nth-of-type(1) > div:first-child > div:first-child > p {
+    display: none;
+  }
+
+  #orbi-mobile-home-screen > section:nth-of-type(1) {
+    row-gap: 0.5rem !important;
+  }
+
+  /* Recommendation: the summary is the Home-level answer; the three metric
+     tiles duplicate information available elsewhere and consume a full row. */
+  #orbi-mobile-home-screen > section:nth-of-type(2) > .grid {
+    display: none !important;
+  }
+
+  #orbi-mobile-home-screen > section:nth-of-type(2) > div:first-child {
+    margin-bottom: 0.5rem !important;
+  }
+
+  #orbi-mobile-home-screen > section:nth-of-type(2) > p {
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  /* Risk card: retain the actual risk and CTA, drop only explanatory duplicate
+     text that points to the Alerts tab. */
+  #orbi-mobile-home-screen > section:nth-of-type(3) p:last-of-type {
+    display: none;
+  }
+
+  #orbi-mobile-home-screen > section:nth-of-type(3) button {
+    height: 2rem !important;
+    margin-top: 0.5rem !important;
+  }
+
+  /* Advanced analysis remains opt-in and now occupies one compact disclosure row. */
+  #orbi-mobile-home-screen > section:nth-of-type(4) > button {
+    padding: 0.75rem !important;
+  }
+
+  #orbi-mobile-home-screen > section:nth-of-type(4) > button p {
+    margin-top: 0.2rem !important;
+    line-height: 1.25 !important;
+  }
+}
+
+@media (max-width: 390px) {
+  #orbi-mobile-home-screen > * + * {
+    margin-top: 0.5rem !important;
+  }
+
+  #orbi-mobile-home-screen > #welcome-hero-section {
+    padding: 0.75rem !important;
+    gap: 0.625rem !important;
+  }
+
+  #orbi-mobile-home-screen > section {
+    padding: 0.625rem !important;
+  }
+}
