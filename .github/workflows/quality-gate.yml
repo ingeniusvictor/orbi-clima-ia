@@ -60,6 +60,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-runtime-readiness
 
+      - name: Premium 4x4 snapshot source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-premium-widget
+
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build
@@ -117,6 +121,9 @@ jobs:
 
       - name: Verify runtime readiness bridge after Capacitor copy
         run: npm run android:verify-runtime-readiness
+
+      - name: Verify premium 4x4 snapshot after Capacitor copy
+        run: npm run android:verify-premium-widget
 
       - name: Compile debug APK and release AAB
         working-directory: android
