@@ -179,6 +179,7 @@ class OfficialAlertWorker(
     private fun postOfficialNotification(alert: BackgroundSenapredAlert, dedupKey: String) {
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         ensureOfficialChannel(manager)
+        val notificationId = notificationId(dedupKey)
 
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -187,7 +188,7 @@ class OfficialAlertWorker(
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
-            notificationId(dedupKey),
+            notificationId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -210,7 +211,10 @@ class OfficialAlertWorker(
             .setWhen(System.currentTimeMillis())
             .build()
 
-        manager.notify(NOTIFICATION_TAG, notificationId(dedupKey), notification)
+        // Untagged deterministic ID intentionally matches the foreground
+        // Capacitor notification ID. If both runtimes race, Android replaces
+        // the same notification instead of displaying a duplicate.
+        manager.notify(notificationId, notification)
     }
 
     private fun ensureOfficialChannel(manager: NotificationManager) {
@@ -234,6 +238,5 @@ class OfficialAlertWorker(
 
     companion object {
         const val CHANNEL_ID = "orbi_official_alerts"
-        const val NOTIFICATION_TAG = "orbi_senapred"
     }
 }
