@@ -1,6 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { WeatherLocation } from '../types/weatherTypes';
-import { loadQuietHoursSettings, QuietHoursSettings } from './quietHoursService';
+import { QuietHoursSettings, WeatherLocation } from '../types/weatherTypes';
+import { loadQuietHoursSettings } from './quietHoursService';
 
 const ENABLED_STORAGE_KEY = 'orbi_official_alert_background_watch_enabled_v1';
 const DEFAULT_INTERVAL_MINUTES = 30;
