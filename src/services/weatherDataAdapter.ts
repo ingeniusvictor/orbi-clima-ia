@@ -15,7 +15,6 @@ import {
 function formatHourlyTime(isoString: string): string {
   const rawTime = String(isoString).split('T')[1]?.slice(0, 5);
   if (!rawTime) return '--:--';
-
   const [hourText, minute = '00'] = rawTime.split(':');
   let hour = Number(hourText);
   if (!Number.isFinite(hour)) return rawTime;
@@ -40,6 +39,11 @@ function formatSunriseSunset(isoString: string): string {
 function numberOr(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function attachWeatherSemantics<T extends object>(
@@ -74,10 +78,12 @@ export function adaptOpenMeteoCurrent(raw: OpenMeteoRawResponse): CurrentWeather
   const precipitationMm = numberOr(current.precipitation, 0);
   const wmoCode = numberOr(current.weather_code, 0);
   const isDay = current.is_day !== undefined ? Boolean(current.is_day) : true;
+  const temperatureC = numberOr(current.temperature_2m, 0);
+  const dewPointC = optionalNumber(current.dew_point_2m);
 
   const result: CurrentWeather = {
-    temperatureC: Math.round(numberOr(current.temperature_2m, 0)),
-    feelsLikeC: Math.round(numberOr(current.apparent_temperature, numberOr(current.temperature_2m, 0))),
+    temperatureC: Math.round(temperatureC),
+    feelsLikeC: Math.round(numberOr(current.apparent_temperature, temperatureC)),
     humidity: Math.round(numberOr(current.relative_humidity_2m, 50)),
     windSpeedKmh: Math.round(numberOr(current.wind_speed_10m, 0)),
     windGustKmh: Math.round(numberOr(current.wind_gusts_10m, numberOr(current.wind_speed_10m, 0))),
@@ -92,6 +98,10 @@ export function adaptOpenMeteoCurrent(raw: OpenMeteoRawResponse): CurrentWeather
   return attachWeatherSemantics(result, wmoCode, precipitationMm, {
     rainMm: numberOr(current.rain, 0),
     showersMm: numberOr(current.showers, 0),
+    dewPointC,
+    dewPointDepressionC: dewPointC === undefined ? undefined : Number((temperatureC - dewPointC).toFixed(1)),
+    visibilityM: optionalNumber(current.visibility),
+    shortwaveRadiationWm2: optionalNumber(current.shortwave_radiation),
     isDay,
     sourceObservationTime: current.time ? String(current.time) : undefined,
   });
@@ -114,10 +124,12 @@ export function adaptOpenMeteoHourly(raw: OpenMeteoRawResponse): HourlyForecast[
     const wmoCode = numberOr(hourly.weather_code?.[i], 3);
     const rawHour = Number(timeVal.split('T')[1]?.slice(0, 2));
     const isDay = Number.isFinite(rawHour) ? rawHour >= 7 && rawHour < 19 : true;
+    const temperatureC = numberOr(hourly.temperature_2m?.[i], 0);
+    const dewPointC = optionalNumber(hourly.dew_point_2m?.[i]);
 
     const item: HourlyForecast = {
       time: formatHourlyTime(timeVal),
-      temperatureC: Math.round(numberOr(hourly.temperature_2m?.[i], 0)),
+      temperatureC: Math.round(temperatureC),
       precipitationProbability: Math.round(numberOr(hourly.precipitation_probability?.[i], 0)),
       precipitationMm,
       windSpeedKmh: Math.round(numberOr(hourly.wind_speed_10m?.[i], 0)),
@@ -130,6 +142,10 @@ export function adaptOpenMeteoHourly(raw: OpenMeteoRawResponse): HourlyForecast[
     list.push(attachWeatherSemantics(item, wmoCode, precipitationMm, {
       rainMm: numberOr(hourly.rain?.[i], 0),
       showersMm: numberOr(hourly.showers?.[i], 0),
+      dewPointC,
+      dewPointDepressionC: dewPointC === undefined ? undefined : Number((temperatureC - dewPointC).toFixed(1)),
+      visibilityM: optionalNumber(hourly.visibility?.[i]),
+      shortwaveRadiationWm2: optionalNumber(hourly.shortwave_radiation?.[i]),
       sourceForecastTime: timeVal,
     }));
 
@@ -163,6 +179,10 @@ export function adaptOpenMeteoDaily(raw: OpenMeteoRawResponse): DailyForecast[] 
 
     list.push(attachWeatherSemantics(item, wmoCode, precipitationMm, {
       precipitationSumMm: precipitationMm,
+      rainSumMm: optionalNumber(daily.rain_sum?.[i]),
+      showersSumMm: optionalNumber(daily.showers_sum?.[i]),
+      precipitationHours: optionalNumber(daily.precipitation_hours?.[i]),
+      shortwaveRadiationSumMjM2: optionalNumber(daily.shortwave_radiation_sum?.[i]),
     }));
   }
 
