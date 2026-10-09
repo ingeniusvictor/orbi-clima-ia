@@ -1,5 +1,6 @@
 package com.orbi.clima.alerts
 
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -7,7 +8,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.BackoffPolicy
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -41,7 +41,11 @@ class OrbiOfficialAlertWatchPlugin : Plugin() {
             return
         }
 
-        val intervalMinutes = (call.getLong("intervalMinutes") ?: OfficialAlertWatchStore.DEFAULT_INTERVAL_MINUTES)
+        val intervalMinutes = (call.getInt(
+            "intervalMinutes",
+            OfficialAlertWatchStore.DEFAULT_INTERVAL_MINUTES.toInt(),
+        ) ?: OfficialAlertWatchStore.DEFAULT_INTERVAL_MINUTES.toInt())
+            .toLong()
             .coerceAtLeast(OfficialAlertWatchStore.MIN_INTERVAL_MINUTES)
 
         val quiet = call.getObject("quietHours")
@@ -142,10 +146,7 @@ class OrbiOfficialAlertWatchPlugin : Plugin() {
         )
     }
 
-    private fun JSONObjectToJsObject(source: org.json.JSONObject): JSObject =
-        JSObject.fromJSONObject(source)
-
-    private fun org.json.JSONObject.toJsObject(): JSObject = JSONObjectToJsObject(this)
+    private fun org.json.JSONObject.toJsObject(): JSObject = JSObject.fromJSONObject(this)
 
     companion object {
         private const val UNIQUE_PERIODIC_WORK = "orbi_official_senapred_periodic_v1"
