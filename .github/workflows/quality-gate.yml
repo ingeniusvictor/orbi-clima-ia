@@ -55,3 +55,70 @@ jobs:
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build
+
+  android-native-build:
+    needs: web-quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Setup pinned Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build current web bundle
+        run: npm run build
+
+      - name: Copy current web bundle into Android
+        run: npx cap copy android
+
+      - name: Verify background-watch invariants after Capacitor copy
+        run: npm run android:verify-background-watch
+
+      - name: Compile debug APK and release AAB
+        working-directory: android
+        shell: bash
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:bundleRelease
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload unsigned release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-release-aab-unsigned
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
