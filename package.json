@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "ui:verify-mobile-home": "node scripts/verify-mobile-home-simplification.mjs",
-    "weather:verify-current-truth": "node scripts/verify-current-weather-truth.mjs",
+    "weather:verify-current-truth": "node scripts/verify-current-weather-truth.mjs && npx tsx scripts/test-current-weather-truth.ts",
     "android:verify-background-watch": "node scripts/verify-android-background-watch.mjs",
     "android:verify-modern-target": "node scripts/verify-android-modern-target.mjs",
     "android:verify-runtime-readiness": "node scripts/verify-android-runtime-readiness.mjs",
