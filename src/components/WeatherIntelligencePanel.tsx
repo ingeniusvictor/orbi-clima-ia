@@ -10,6 +10,11 @@ import {
   compareDmcObservationToModel,
   fetchNearestDmcObservation,
 } from '../services/dmcObservationService';
+import {
+  LocalVerificationSummary,
+  recordDmcVerificationSample,
+  summarizeVerificationHistory,
+} from '../services/weatherVerificationService';
 import { buildHydrologicRiskAssessment } from '../utils/hydrologicRiskEngine';
 import AirQualityCard from './AirQualityCard';
 import DmcObservationCard from './DmcObservationCard';
@@ -21,9 +26,15 @@ interface WeatherIntelligencePanelProps {
   location: WeatherLocation;
   current: CurrentWeather;
   enabled: boolean;
+  onVerificationUpdate?: (summary: LocalVerificationSummary) => void;
 }
 
-export default function WeatherIntelligencePanel({ location, current, enabled }: WeatherIntelligencePanelProps) {
+export default function WeatherIntelligencePanel({
+  location,
+  current,
+  enabled,
+  onVerificationUpdate,
+}: WeatherIntelligencePanelProps) {
   const [airQuality, setAirQuality] = useState<AirQualitySnapshot | null>(null);
   const [uncertainty, setUncertainty] = useState<ForecastUncertaintyReport | null>(null);
   const [hydroPrecipitation, setHydroPrecipitation] = useState<HydroPrecipSnapshot | null>(null);
@@ -44,6 +55,31 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
     () => compareDmcObservationToModel(dmcObservation, current),
     [dmcObservation, current],
   );
+
+  useEffect(() => {
+    if (!onVerificationUpdate) return;
+    onVerificationUpdate(summarizeVerificationHistory(location));
+  }, [location.latitude, location.longitude, location.name, onVerificationUpdate]);
+
+  useEffect(() => {
+    if (!enabled || !dmcObservation || !observationComparison) return;
+    const summary = recordDmcVerificationSample({
+      location,
+      current,
+      observation: dmcObservation,
+      comparison: observationComparison,
+    });
+    onVerificationUpdate?.(summary);
+  }, [
+    enabled,
+    dmcObservation,
+    observationComparison,
+    current.updatedAt,
+    location.latitude,
+    location.longitude,
+    location.name,
+    onVerificationUpdate,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -143,9 +179,9 @@ export default function WeatherIntelligencePanel({ location, current, enabled }:
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">DMC observado · aire · microclima · ensemble · HydroWatch</p>
+          <p className="text-xs text-slate-400 mt-0.5">DMC observado · calibración local · aire · ensemble · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-04</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-05</span>
       </div>
 
       <DmcObservationCard
