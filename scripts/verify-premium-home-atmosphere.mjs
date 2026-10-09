@@ -8,6 +8,7 @@ const mustRead = (path) => {
 const main = mustRead('src/main.tsx');
 const css = mustRead('src/styles/home-atmosphere.css');
 const density = mustRead('src/styles/home-density.css');
+const densityCode = density.replace(/\/\*[\s\S]*?\*\//g, '');
 const hero = mustRead('src/components/WelcomeHeroSection.tsx');
 const orb = mustRead('src/components/OrbiClimateCore.tsx');
 
@@ -30,8 +31,8 @@ assert(density.includes('#orbi-mobile-home-screen > * + *'), 'Compact Home inter
 assert(density.includes('#orbi-mobile-home-screen > #welcome-hero-section'), 'Hero shell density guard missing');
 assert(density.includes('#orbi-mobile-home-screen > section:nth-of-type(2) > .grid'), 'Duplicate recommendation metric-row suppression missing');
 assert(density.includes('#orbi-mobile-home-screen > section:nth-of-type(3) p:last-of-type'), 'Compact risk-card duplicate-copy suppression missing');
-assert(!density.includes('OrbiClimateCore'), 'Home density stylesheet must not target the protected Golden Orb component');
-assert(!density.includes('skycore-fx'), 'Home density stylesheet must not target protected Golden Orb CSS internals');
+assert(!densityCode.includes('OrbiClimateCore'), 'Home density stylesheet must not target the protected Golden Orb component');
+assert(!densityCode.includes('skycore-fx'), 'Home density stylesheet must not target protected Golden Orb CSS internals');
 
 assert(hero.includes('<OrbiClimateCore'), 'WelcomeHeroSection must still delegate Orb rendering to OrbiClimateCore');
 assert(orb.includes('export default function OrbiClimateCore') || orb.includes('export default'), 'Protected Orb component is not structurally present');
