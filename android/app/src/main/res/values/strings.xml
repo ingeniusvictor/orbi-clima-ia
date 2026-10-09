@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">ORBI Clima IA</string>
     <string name="orbi_skyorb_widget_name">ORBI SkyOrb Widget™</string>
     <string name="orbi_skyorb_widget_description">Tu núcleo climático inteligente en la pantalla de inicio.</string>
     <string name="orbi_clima_open_app">Abrir ORBI Clima IA</string>
