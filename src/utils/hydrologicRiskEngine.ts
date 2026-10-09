@@ -32,12 +32,12 @@ function rainScore(precip: HydroPrecipSnapshot, evidence: HydrologicEvidence[]):
     evidence.push({ id, label, value, contribution });
   };
 
-  if (precip.past24hMm >= 50) add('past24', 'Lluvia acumulada últimas 24 h', `${precip.past24hMm} mm`, 30);
-  else if (precip.past24hMm >= 30) add('past24', 'Lluvia acumulada últimas 24 h', `${precip.past24hMm} mm`, 22);
-  else if (precip.past24hMm >= 15) add('past24', 'Lluvia acumulada últimas 24 h', `${precip.past24hMm} mm`, 12);
+  if (precip.past24hMm >= 50) add('past24', 'Acumulado modelado últimas 24 h', `${precip.past24hMm} mm`, 30);
+  else if (precip.past24hMm >= 30) add('past24', 'Acumulado modelado últimas 24 h', `${precip.past24hMm} mm`, 22);
+  else if (precip.past24hMm >= 15) add('past24', 'Acumulado modelado últimas 24 h', `${precip.past24hMm} mm`, 12);
 
-  if (precip.past6hMm >= 25) add('past6', 'Lluvia reciente últimas 6 h', `${precip.past6hMm} mm`, 20);
-  else if (precip.past6hMm >= 12) add('past6', 'Lluvia reciente últimas 6 h', `${precip.past6hMm} mm`, 12);
+  if (precip.past6hMm >= 25) add('past6', 'Acumulado modelado últimas 6 h', `${precip.past6hMm} mm`, 20);
+  else if (precip.past6hMm >= 12) add('past6', 'Acumulado modelado últimas 6 h', `${precip.past6hMm} mm`, 12);
 
   if (precip.next6hMm >= 35) add('next6', 'Lluvia prevista próximas 6 h', `${precip.next6hMm} mm`, 30);
   else if (precip.next6hMm >= 20) add('next6', 'Lluvia prevista próximas 6 h', `${precip.next6hMm} mm`, 20);
@@ -135,6 +135,7 @@ export function buildHydrologicRiskAssessment(params: {
 
   const limitations = [
     'Este resultado es una inferencia de ORBI basada en modelos meteorológicos e hidrológicos; no es una alerta oficial.',
+    'Los acumulados históricos de precipitación usados aquí son contexto modelado y no sustituyen un pluviómetro local u observación certificada.',
     'No equivale a un radar de inundación repentina, sensor de calle, drenaje urbano ni evaluación hidráulica local.',
   ];
 
