@@ -11,6 +11,11 @@ import {
   getWmoPrecipitationKind,
   getWmoPrecipitationIntensity,
 } from '../utils/wmoWeatherCodeMapper';
+import type { CurrentWeatherTruthMetadata } from './currentWeatherTruthService';
+
+type OpenMeteoRawWithTruth = OpenMeteoRawResponse & {
+  orbi_current_truth?: CurrentWeatherTruthMetadata;
+};
 
 function formatHourlyTime(isoString: string): string {
   const rawTime = String(isoString).split('T')[1]?.slice(0, 5);
@@ -63,6 +68,7 @@ function attachWeatherSemantics<T extends object>(
 
 export function adaptOpenMeteoCurrent(raw: OpenMeteoRawResponse): CurrentWeather {
   const current = raw.current || {};
+  const truth = (raw as OpenMeteoRawWithTruth).orbi_current_truth;
 
   let uvIndex = 0;
   if (raw.hourly && Array.isArray(raw.hourly.time) && Array.isArray(raw.hourly.uv_index)) {
@@ -103,7 +109,23 @@ export function adaptOpenMeteoCurrent(raw: OpenMeteoRawResponse): CurrentWeather
     visibilityM: optionalNumber(current.visibility),
     shortwaveRadiationWm2: optionalNumber(current.shortwave_radiation),
     isDay,
+    // Open-Meteo's `current` block is model-derived. Keep the provider time,
+    // but expose truth provenance separately so UI/risk layers do not mistake
+    // it for a physical sensor timestamp.
     sourceObservationTime: current.time ? String(current.time) : undefined,
+    currentTruthBand: truth?.band ?? 'model_only',
+    currentTruthLabel: truth?.label ?? 'Modelo meteorológico',
+    currentTruthDetail: truth?.detail ?? 'Condición actual derivada de modelo; sin corroboración observacional local.',
+    conditionLabel: truth?.conditionLabel ?? getWmoHumanLabel(wmoCode),
+    temperatureStrategy: truth?.temperatureStrategy ?? 'primary_model',
+    truthStationName: truth?.stationName ?? undefined,
+    truthStationDistanceKm: truth?.stationDistanceKm ?? undefined,
+    truthStationAgeMinutes: truth?.stationAgeMinutes ?? undefined,
+    truthStationQuality: truth?.stationQuality ?? undefined,
+    multiModelAvailable: truth?.multiModelAvailable ?? 0,
+    multiModelWetVotes: truth?.multiModelWetVotes ?? 0,
+    multiModelDryVotes: truth?.multiModelDryVotes ?? 0,
+    multiModelCurrentConsensus: truth?.multiModelCurrentConsensus ?? 'unavailable',
   });
 }
 
