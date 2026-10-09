@@ -2,6 +2,37 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
+// Release signing is intentionally opt-in. CI and clean developer checkouts keep
+// producing an unsigned release AAB, while an authorized release workstation can
+// provide the upload-key material entirely outside Git through environment vars.
+def orbiReleaseSigning = [
+    keystorePath : System.getenv('ORBI_RELEASE_KEYSTORE_PATH'),
+    storePassword: System.getenv('ORBI_RELEASE_STORE_PASSWORD'),
+    keyAlias     : System.getenv('ORBI_RELEASE_KEY_ALIAS'),
+    keyPassword  : System.getenv('ORBI_RELEASE_KEY_PASSWORD')
+]
+def orbiSigningValues = orbiReleaseSigning.values().findAll { value ->
+    value != null && !value.trim().isEmpty()
+}
+def orbiReleaseSigningRequested = !orbiSigningValues.isEmpty()
+def orbiReleaseSigningComplete = orbiSigningValues.size() == 4
+
+if (orbiReleaseSigningRequested && !orbiReleaseSigningComplete) {
+    throw new GradleException(
+        'ORBI release signing is partially configured. Provide all four ORBI_RELEASE_* environment variables or none of them.'
+    )
+}
+
+def orbiReleaseKeystore = orbiReleaseSigningComplete
+    ? rootProject.file(orbiReleaseSigning.keystorePath)
+    : null
+
+if (orbiReleaseSigningComplete && !orbiReleaseKeystore.exists()) {
+    throw new GradleException(
+        "ORBI release keystore was not found at: ${orbiReleaseKeystore}. Keep signing material outside Git and correct ORBI_RELEASE_KEYSTORE_PATH."
+    )
+}
+
 android {
     namespace 'com.orbi.clima'
     compileSdk rootProject.ext.compileSdkVersion
@@ -10,13 +41,29 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
+        // 1.0.6 build 02. versionCode is monotonic and must never be decreased
+        // after an artifact has been uploaded to Google Play.
         versionCode 10602
-        versionName "1.0.6-final-clean"
+        versionName "1.0.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        release {
+            if (orbiReleaseSigningComplete) {
+                storeFile orbiReleaseKeystore
+                storePassword orbiReleaseSigning.storePassword
+                keyAlias orbiReleaseSigning.keyAlias
+                keyPassword orbiReleaseSigning.keyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (orbiReleaseSigningComplete) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
