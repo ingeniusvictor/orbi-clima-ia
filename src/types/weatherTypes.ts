@@ -13,6 +13,29 @@ export type WeatherCondition =
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
+export type WeatherPhenomenon =
+  | 'clear'
+  | 'cloud'
+  | 'fog'
+  | 'drizzle'
+  | 'freezing_drizzle'
+  | 'rain'
+  | 'freezing_rain'
+  | 'showers'
+  | 'snow'
+  | 'snow_showers'
+  | 'thunderstorm'
+  | 'thunderstorm_hail'
+  | 'unknown';
+
+export type PrecipitationIntensity =
+  | 'none'
+  | 'trace'
+  | 'light'
+  | 'moderate'
+  | 'heavy'
+  | 'violent';
+
 export interface WeatherLocation {
   id: string;
   name: string;
@@ -31,7 +54,23 @@ export interface CurrentWeather {
   windGustKmh: number;
   pressureHpa: number;
   cloudCover: number;
+  /** Precipitation accumulated during the provider's current interval (not automatically mm/h). */
   precipitationMm: number;
+  /** Provider aggregation interval for current precipitation. */
+  precipitationIntervalMinutes?: number;
+  /** Normalized equivalent rate for user-facing intensity context. */
+  precipitationRateMmH?: number;
+  rainMm?: number;
+  showersMm?: number;
+  snowfallCm?: number;
+  dewPointC?: number;
+  visibilityM?: number;
+  windDirectionDeg?: number;
+  weatherCode?: number;
+  conditionLabel?: string;
+  phenomenon?: WeatherPhenomenon;
+  precipitationIntensity?: PrecipitationIntensity;
+  dataTime?: string;
   uvIndex: number;
   condition: WeatherCondition;
   updatedAt: string;
@@ -42,10 +81,23 @@ export interface HourlyForecast {
   temperatureC: number;
   precipitationProbability: number;
   precipitationMm: number;
+  rainMm?: number;
+  showersMm?: number;
+  snowfallCm?: number;
+  apparentTemperatureC?: number;
+  dewPointC?: number;
+  visibilityM?: number;
   windSpeedKmh: number;
+  windGustKmh?: number;
+  windDirectionDeg?: number;
   humidity: number;
   cloudCover: number;
   uvIndex: number;
+  weatherCode?: number;
+  conditionLabel?: string;
+  phenomenon?: WeatherPhenomenon;
+  precipitationIntensity?: PrecipitationIntensity;
+  isoTime?: string;
   condition: WeatherCondition;
 }
 
@@ -54,10 +106,20 @@ export interface DailyForecast {
   minTempC: number;
   maxTempC: number;
   precipitationProbability: number;
+  precipitationSumMm?: number;
+  rainSumMm?: number;
+  showersSumMm?: number;
+  snowfallSumCm?: number;
+  precipitationHours?: number;
   windMaxKmh: number;
+  windGustMaxKmh?: number;
+  windDirectionDominantDeg?: number;
   uvMax: number;
   sunrise: string;
   sunset: string;
+  weatherCode?: number;
+  conditionLabel?: string;
+  phenomenon?: WeatherPhenomenon;
   condition: WeatherCondition;
 }
 
@@ -113,6 +175,11 @@ export interface WeatherSourceState {
   mode: WeatherDataMode;
   status: WeatherFetchStatus;
   lastUpdated?: string;
+  /** Epoch timestamp of the underlying meteorological payload when known. */
+  dataTimestamp?: number;
+  /** True when cached/model data exceeds the freshness threshold for current-condition use. */
+  isStale?: boolean;
+  ageMinutes?: number;
   errorMessage?: string;
   isLive: boolean;
 }
@@ -483,7 +550,6 @@ export interface SavedWeatherLocation {
   source: 'gps' | 'manual' | 'imported';
   isFavorite?: boolean;
 }
-
 
 
 

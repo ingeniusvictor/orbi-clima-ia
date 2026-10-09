@@ -34,33 +34,40 @@ export async function fetchOpenMeteoForecast(params: {
     current: [
       'temperature_2m',
       'relative_humidity_2m',
+      'dew_point_2m',
       'apparent_temperature',
       'is_day',
       'precipitation',
       'rain',
       'showers',
+      'snowfall',
       'weather_code',
       'cloud_cover',
       'pressure_msl',
       'surface_pressure',
       'wind_speed_10m',
       'wind_direction_10m',
-      'wind_gusts_10m'
+      'wind_gusts_10m',
+      'visibility'
     ].join(','),
     hourly: [
       'temperature_2m',
       'relative_humidity_2m',
+      'dew_point_2m',
       'apparent_temperature',
       'precipitation_probability',
       'precipitation',
       'rain',
       'showers',
+      'snowfall',
       'weather_code',
       'cloud_cover',
+      'visibility',
       'uv_index',
       'wind_speed_10m',
       'wind_direction_10m',
-      'wind_gusts_10m'
+      'wind_gusts_10m',
+      'is_day'
     ].join(','),
     daily: [
       'weather_code',
@@ -72,9 +79,14 @@ export async function fetchOpenMeteoForecast(params: {
       'sunset',
       'uv_index_max',
       'precipitation_sum',
+      'rain_sum',
+      'showers_sum',
+      'snowfall_sum',
+      'precipitation_hours',
       'precipitation_probability_max',
       'wind_speed_10m_max',
-      'wind_gusts_10m_max'
+      'wind_gusts_10m_max',
+      'wind_direction_10m_dominant'
     ].join(','),
     timezone,
     forecast_days: forecastDays.toString(),
