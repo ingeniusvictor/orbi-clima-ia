@@ -29,6 +29,13 @@ interface WeatherIntelligencePanelProps {
   onVerificationUpdate?: (summary: LocalVerificationSummary) => void;
 }
 
+function publishVerificationSummary(summary: LocalVerificationSummary): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent<LocalVerificationSummary>('orbi-weather-verification-updated', {
+    detail: summary,
+  }));
+}
+
 export default function WeatherIntelligencePanel({
   location,
   current,
@@ -57,8 +64,9 @@ export default function WeatherIntelligencePanel({
   );
 
   useEffect(() => {
-    if (!onVerificationUpdate) return;
-    onVerificationUpdate(summarizeVerificationHistory(location));
+    const summary = summarizeVerificationHistory(location);
+    publishVerificationSummary(summary);
+    onVerificationUpdate?.(summary);
   }, [location.latitude, location.longitude, location.name, onVerificationUpdate]);
 
   useEffect(() => {
@@ -69,6 +77,7 @@ export default function WeatherIntelligencePanel({
       observation: dmcObservation,
       comparison: observationComparison,
     });
+    publishVerificationSummary(summary);
     onVerificationUpdate?.(summary);
   }, [
     enabled,
