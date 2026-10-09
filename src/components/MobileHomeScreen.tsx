@@ -12,6 +12,7 @@ import ClimateRiskPanel from './ClimateRiskPanel';
 import LocationSearchPanel from './LocationSearchPanel';
 import CompactSectionCard from './CompactSectionCard';
 import SmartLocationsPanel from './SmartLocationsPanel';
+import WeatherIntelligencePanel from './WeatherIntelligencePanel';
 import { MapPin, CloudSun, RefreshCw, Shield, LayoutGrid, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface MobileHomeScreenProps {
@@ -37,8 +38,6 @@ interface MobileHomeScreenProps {
   onRefresh?: () => void;
   comparisonReport?: ComparisonReport | null;
   locationOrigin: 'gps' | 'manual' | 'saved' | 'destination' | 'demo' | 'cache' | 'setup';
-  
-  // Smart Locations Props
   savedLocations: SavedWeatherLocation[];
   onSaveLocation: (label: string, type: 'home' | 'work' | 'solar_park' | 'custom') => void;
   onDeleteLocation: (id: string) => void;
@@ -108,6 +107,9 @@ export default function MobileHomeScreen({
     }
   };
 
+  const exactConditionLabel = (currentWeather as CurrentWeather & { conditionLabel?: string }).conditionLabel
+    || getConditionNameSpanish(currentWeather.condition);
+
   const handleRefreshClick = async () => {
     if (!onRefresh || isRefreshing) return;
     setIsRefreshing(true);
@@ -123,7 +125,7 @@ export default function MobileHomeScreen({
   const handleCityChangeClick = () => {
     setIsLocationExpanded(true);
     setTimeout(() => {
-      const el = document.getElementById("location-stations-card");
+      const el = document.getElementById('location-stations-card');
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -131,22 +133,24 @@ export default function MobileHomeScreen({
   };
 
   const compactHourlyForecast = hourlyForecast.slice(0, 5);
+  const intelligenceEnabled = weatherSourceState.provider !== 'mock'
+    && weatherSourceState.mode !== 'mock'
+    && weatherSourceState.mode !== 'fallback';
 
   return (
-    <div 
-      className="space-y-5 animate-fade-in text-left" 
+    <div
+      className="space-y-5 animate-fade-in text-left"
       id="orbi-mobile-home-screen"
       style={{
         paddingBottom: 'calc(110px + env(safe-area-inset-bottom))',
         paddingTop: 'env(safe-area-inset-top)'
       }}
     >
-      {/* 1. Welcome / Weather Hero (Esfera Protegida) */}
       <WelcomeHeroSection
         location={currentLocation}
         temperature={currentWeather.temperatureC}
         feelsLike={currentWeather.feelsLikeC}
-        conditionText={getConditionNameSpanish(currentWeather.condition)}
+        conditionText={exactConditionLabel}
         conditionCode={currentWeather.condition}
         skyCoreStatus={skyCoreSummary.generalSummary || ''}
         bestWindow={skyCoreSummary.bestWindow}
@@ -162,7 +166,6 @@ export default function MobileHomeScreen({
         onRefresh={onRefresh}
       />
 
-      {/* 6. Forecast Compacto (Con opción de expandir) - Posicionado arriba de Recomendación de Hoy */}
       <div className="p-4 rounded-2xl bg-[#090f1e]/40 border border-white/5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 uppercase tracking-wider">
@@ -178,7 +181,6 @@ export default function MobileHomeScreen({
           </button>
         </div>
 
-        {/* Hourly timeline */}
         <div className="space-y-2">
           <span className="text-[9px] font-mono text-slate-500 block uppercase">Próximas Horas</span>
           <HourlyForecastStrip hourly={compactHourlyForecast} />
@@ -192,7 +194,7 @@ export default function MobileHomeScreen({
                 <HourlyForecastStrip hourly={hourlyForecast.slice(5, 12)} />
               </div>
             )}
-            
+
             <div className="space-y-2 pt-2 border-t border-white/5">
               <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 uppercase tracking-wider">
                 <CloudSun className="w-3.5 h-3.5 text-indigo-400" />
@@ -204,7 +206,12 @@ export default function MobileHomeScreen({
         )}
       </div>
 
-      {/* 2. Recomendación de Hoy 2.1 */}
+      <WeatherIntelligencePanel
+        location={currentLocation}
+        current={currentWeather}
+        enabled={intelligenceEnabled}
+      />
+
       <HomeDailyRecommendation
         current={currentWeather}
         hourly={hourlyForecast}
@@ -213,10 +220,8 @@ export default function MobileHomeScreen({
         bestWindow={skyCoreSummary.bestWindow}
       />
 
-      {/* 4. Alerta Principal (Riesgos Climáticos Detectados) */}
       <ClimateRiskPanel risks={activeRisks} />
 
-      {/* 7. Perfil Persona / Técnico Terreno & SkyCore Decision Card (Análisis Generativo) */}
       <div className="space-y-4">
         <div className="p-4 rounded-2xl bg-[#090f1e]/80 border border-white/5 space-y-3">
           <span className="text-[10px] font-mono text-cyan-400 block uppercase tracking-wider">Configuración de Perfil Heurístico</span>
@@ -233,13 +238,11 @@ export default function MobileHomeScreen({
         />
       </div>
 
-      {/* 2.5. Capa de Confianza de Datos SkyCore™ */}
-      <SkyCoreTrustCard 
+      <SkyCoreTrustCard
         sourceState={weatherSourceState}
         location={currentLocation}
       />
 
-      {/* 5. Smart Action Layer (Acciones Rápidas) */}
       <div className="p-4 rounded-2xl bg-[#090f1e]/85 border border-white/5 space-y-3" id="smart-action-layer">
         <div className="flex items-center gap-1.5">
           <LayoutGrid className="w-4 h-4 text-cyan-400" />
@@ -283,7 +286,6 @@ export default function MobileHomeScreen({
         </div>
       </div>
 
-      {/* Collapsible Location Card & Stations */}
       <div id="location-stations-card">
         <CompactSectionCard
           title="Ubicación y Estaciones"
@@ -362,7 +364,6 @@ export default function MobileHomeScreen({
         </CompactSectionCard>
       </div>
 
-      {/* Widget preview compacto enlazado */}
       <div className="p-4 rounded-2xl bg-[#090f1e]/80 border border-white/5 flex items-center justify-between gap-4">
         <div className="space-y-0.5">
           <span className="text-[9px] font-mono text-cyan-400 block uppercase tracking-wider">Widget Sincronizado</span>
