@@ -9,6 +9,8 @@ import {
   fetchCurrentWeatherTruthContext,
 } from './currentWeatherTruthService';
 
+const inFlightForecastRequests = new Map<string, Promise<OpenMeteoRawResponse>>();
+
 async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number } = {}) {
   const { timeout = 10000 } = options;
   const controller = new AbortController();
@@ -132,11 +134,25 @@ async function requestForecast(params: {
 }): Promise<OpenMeteoRawResponse> {
   const queryParams = buildForecastQuery(params);
   const url = `https://api.open-meteo.com/v1/forecast?${queryParams.toString()}`;
-  const response = await fetchWithTimeout(url, { timeout: 10000 });
-  if (!response.ok) {
-    throw new Error(`Open-Meteo API error: status ${response.status}`);
+  const existing = inFlightForecastRequests.get(url);
+  if (existing) return existing;
+
+  const request = (async () => {
+    const response = await fetchWithTimeout(url, { timeout: 10000 });
+    if (!response.ok) {
+      throw new Error(`Open-Meteo API error: status ${response.status}`);
+    }
+    return await response.json() as OpenMeteoRawResponse;
+  })();
+
+  inFlightForecastRequests.set(url, request);
+  try {
+    return await request;
+  } finally {
+    if (inFlightForecastRequests.get(url) === request) {
+      inFlightForecastRequests.delete(url);
+    }
   }
-  return await response.json() as OpenMeteoRawResponse;
 }
 
 function recordRuntime(params: {
