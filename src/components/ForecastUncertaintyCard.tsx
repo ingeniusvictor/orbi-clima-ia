@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { BarChart3, CloudRain, Thermometer, Wind } from 'lucide-react';
 import { ForecastUncertaintyReport } from '../services/openMeteoEnsembleService';
 
@@ -51,7 +52,7 @@ export default function ForecastUncertaintyCard({ report, loading = false }: For
   );
 }
 
-function Metric({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: number | null; unit: string }) {
+function Metric({ icon, label, value, unit }: { icon: ReactNode; label: string; value: number | null; unit: string }) {
   return (
     <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
       <div className="flex items-center gap-1 text-slate-500">{icon}<span className="text-[9px] font-mono uppercase">{label}</span></div>
