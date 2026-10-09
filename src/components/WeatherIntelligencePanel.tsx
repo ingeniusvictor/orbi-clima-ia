@@ -26,6 +26,7 @@ import {
   summarizeVerificationHistory,
 } from '../services/weatherVerificationService';
 import { buildHydrologicRiskAssessment } from '../utils/hydrologicRiskEngine';
+import AdaptiveForecastPolicyCard from './AdaptiveForecastPolicyCard';
 import AirQualityCard from './AirQualityCard';
 import DmcObservationCard from './DmcObservationCard';
 import ForecastUncertaintyCard from './ForecastUncertaintyCard';
@@ -238,9 +239,9 @@ export default function WeatherIntelligencePanel({
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">ORBI Weather Intelligence</p>
-          <p className="text-xs text-slate-400 mt-0.5">DMC observado · forecast skill · 4 modelos · ensemble · HydroWatch</p>
+          <p className="text-xs text-slate-400 mt-0.5">DMC observado · adaptativo · forecast skill · 4 modelos · HydroWatch</p>
         </div>
-        <span className="text-[9px] font-mono uppercase text-slate-500">OC-07</span>
+        <span className="text-[9px] font-mono uppercase text-slate-500">OC-08</span>
       </div>
 
       <DmcObservationCard
@@ -248,6 +249,7 @@ export default function WeatherIntelligencePanel({
         comparison={observationComparison}
         loading={loading}
       />
+      <AdaptiveForecastPolicyCard location={location} modelSkill={modelSkill} />
       <MultiModelConsensusCard report={multiModel} loading={loading} />
       <ModelForecastSkillCard summary={modelSkill} />
       <AirQualityCard data={airQuality} loading={loading} />
