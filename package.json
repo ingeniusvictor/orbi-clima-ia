@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "android:verify-background-watch": "node scripts/verify-android-background-watch.mjs",
+    "android:prepare-ci": "node scripts/prepare-android-ci.mjs",
     "android:sync": "cap sync android",
     "android:doctor": "cap doctor android",
     "android:build": "cd android && gradlew.bat assembleDebug",
