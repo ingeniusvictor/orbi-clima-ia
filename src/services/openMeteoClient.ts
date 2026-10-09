@@ -1,4 +1,9 @@
-import { OpenMeteoRawResponse, LocationSearchResult } from '../types/weatherTypes';
+import { OpenMeteoRawResponse, LocationSearchResult, WeatherLocation } from '../types/weatherTypes';
+import {
+  AdaptiveForecastPolicyDecision,
+  recordAdaptiveForecastRuntime,
+  resolveAdaptiveForecastPolicy,
+} from './adaptiveForecastPolicyService';
 
 async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number } = {}) {
   const { timeout = 10000 } = options;
@@ -18,14 +23,14 @@ async function fetchWithTimeout(resource: string, options: RequestInit & { timeo
   }
 }
 
-export async function fetchOpenMeteoForecast(params: {
+function buildForecastQuery(params: {
   latitude: number;
   longitude: number;
-  timezone?: string;
-  forecastDays?: number;
-}): Promise<OpenMeteoRawResponse> {
-  const { latitude, longitude, timezone = 'auto', forecastDays = 7 } = params;
-
+  timezone: string;
+  forecastDays: number;
+  modelId?: string | null;
+}): URLSearchParams {
+  const { latitude, longitude, timezone, forecastDays, modelId } = params;
   const queryParams = new URLSearchParams({
     latitude: latitude.toString(),
     longitude: longitude.toString(),
@@ -91,14 +96,143 @@ export async function fetchOpenMeteoForecast(params: {
     precipitation_unit: 'mm',
   });
 
+  if (modelId) {
+    queryParams.set('models', modelId);
+  }
+
+  return queryParams;
+}
+
+function adaptiveLocation(params: {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+}): WeatherLocation {
+  return {
+    id: 'adaptive_forecast_location',
+    name: 'Ubicación activa',
+    region: '',
+    country: 'Chile',
+    latitude: params.latitude,
+    longitude: params.longitude,
+    timezone: params.timezone,
+  };
+}
+
+async function requestForecast(params: {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  forecastDays: number;
+  modelId?: string | null;
+}): Promise<OpenMeteoRawResponse> {
+  const queryParams = buildForecastQuery(params);
   const url = `https://api.open-meteo.com/v1/forecast?${queryParams.toString()}`;
   const response = await fetchWithTimeout(url, { timeout: 10000 });
-
   if (!response.ok) {
     throw new Error(`Open-Meteo API error: status ${response.status}`);
   }
-
   return await response.json() as OpenMeteoRawResponse;
+}
+
+function recordRuntime(params: {
+  latitude: number;
+  longitude: number;
+  policy: AdaptiveForecastPolicyDecision;
+  effectiveMode: 'best_match' | 'adaptive_model' | 'best_match_fallback';
+  effectiveModelId: string | null;
+  effectiveModelLabel: string;
+  fallbackUsed: boolean;
+  fallbackReason: string | null;
+}): void {
+  recordAdaptiveForecastRuntime({
+    requestedAt: new Date().toISOString(),
+    latitude: params.latitude,
+    longitude: params.longitude,
+    policyMode: params.policy.mode,
+    requestedModelId: params.policy.selectedModelId,
+    requestedModelLabel: params.policy.selectedModelLabel,
+    effectiveMode: params.effectiveMode,
+    effectiveModelId: params.effectiveModelId,
+    effectiveModelLabel: params.effectiveModelLabel,
+    fallbackUsed: params.fallbackUsed,
+    fallbackReason: params.fallbackReason,
+    policyReason: params.policy.reason,
+    policyReasonLabel: params.policy.reasonLabel,
+  });
+}
+
+export async function fetchOpenMeteoForecast(params: {
+  latitude: number;
+  longitude: number;
+  timezone?: string;
+  forecastDays?: number;
+}): Promise<OpenMeteoRawResponse> {
+  const { latitude, longitude, timezone = 'auto', forecastDays = 7 } = params;
+  const location = adaptiveLocation({ latitude, longitude, timezone });
+  const policy = resolveAdaptiveForecastPolicy(location);
+
+  if (policy.mode === 'adaptive_model' && policy.selectedModelId) {
+    try {
+      const data = await requestForecast({
+        latitude,
+        longitude,
+        timezone,
+        forecastDays,
+        modelId: policy.selectedModelId,
+      });
+      recordRuntime({
+        latitude,
+        longitude,
+        policy,
+        effectiveMode: 'adaptive_model',
+        effectiveModelId: policy.selectedModelId,
+        effectiveModelLabel: policy.selectedModelLabel,
+        fallbackUsed: false,
+        fallbackReason: null,
+      });
+      return data;
+    } catch (adaptiveError) {
+      console.warn(`Adaptive model ${policy.selectedModelId} failed; retrying Open-Meteo Best Match.`, adaptiveError);
+      const fallbackData = await requestForecast({
+        latitude,
+        longitude,
+        timezone,
+        forecastDays,
+        modelId: null,
+      });
+      recordRuntime({
+        latitude,
+        longitude,
+        policy,
+        effectiveMode: 'best_match_fallback',
+        effectiveModelId: null,
+        effectiveModelLabel: 'Open-Meteo Best Match',
+        fallbackUsed: true,
+        fallbackReason: adaptiveError instanceof Error ? adaptiveError.message : 'Adaptive model request failed',
+      });
+      return fallbackData;
+    }
+  }
+
+  const data = await requestForecast({
+    latitude,
+    longitude,
+    timezone,
+    forecastDays,
+    modelId: null,
+  });
+  recordRuntime({
+    latitude,
+    longitude,
+    policy,
+    effectiveMode: 'best_match',
+    effectiveModelId: null,
+    effectiveModelLabel: 'Open-Meteo Best Match',
+    fallbackUsed: false,
+    fallbackReason: null,
+  });
+  return data;
 }
 
 export async function searchOpenMeteoLocations(query: string): Promise<LocationSearchResult[]> {
