@@ -137,9 +137,12 @@ export async function fetchOpenMeteoAirQuality(params: {
 
     return {
       provider: 'open_meteo_cams',
-      sourceLabel: 'Open-Meteo / CAMS · calidad del aire modelada',
+      sourceLabel: 'Open-Meteo / CAMS Global · calidad del aire modelada',
       isOfficialLocalAlert: false,
-      resolutionKm: 11,
+      // CAMS Global atmospheric composition is ~45 km. This conservative
+      // metadata is appropriate for ORBI's primary Chile deployment and avoids
+      // implying the ~11 km CAMS Europe resolution outside Europe.
+      resolutionKm: 45,
       updatedAt: String(current.time ?? new Date().toISOString()),
       usAqi,
       europeanAqi: finiteOrNull(current.european_aqi),
