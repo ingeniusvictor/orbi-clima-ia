@@ -1,7 +1,9 @@
 # scripts/patch-android-manifest.ps1
-# Script to patch AndroidManifest.xml for ORBI Clima IA v1.0.6A-FIX2
+# Security hardening for ORBI Clima IA Android manifest.
 
+$ErrorActionPreference = "Stop"
 $manifestPath = "android/app/src/main/AndroidManifest.xml"
+$androidNs = "http://schemas.android.com/apk/res/android"
 
 if (-not (Test-Path $manifestPath)) {
     Write-Error "AndroidManifest.xml not found at $manifestPath"
@@ -10,10 +12,28 @@ if (-not (Test-Path $manifestPath)) {
 
 Write-Host "Patching AndroidManifest.xml at $manifestPath..." -ForegroundColor Cyan
 
-# Read manifest content as XML
 [xml]$xml = Get-Content $manifestPath
+$manifestNode = $xml.manifest
 
-# 1. Ensure required permissions exist
+# 1. Remove permissions that violate the ORBI Clima privacy/background policy.
+# OC-11 uses a foreground-confirmed location snapshot + WorkManager. It must
+# never request hidden/background GPS or run a permanent foreground service.
+$forbiddenPermissions = @(
+    "android.permission.ACCESS_BACKGROUND_LOCATION",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_LOCATION"
+)
+
+$permissionNodes = @($manifestNode.ChildNodes | Where-Object { $_.Name -eq "uses-permission" })
+foreach ($node in $permissionNodes) {
+    $name = $node.GetAttribute("name", $androidNs)
+    if ($forbiddenPermissions -contains $name) {
+        Write-Host "Removing forbidden permission: $name" -ForegroundColor Yellow
+        $manifestNode.RemoveChild($node) | Out-Null
+    }
+}
+
+# 2. Ensure only the required foreground/network/notification permissions exist.
 $requiredPermissions = @(
     "android.permission.INTERNET",
     "android.permission.ACCESS_COARSE_LOCATION",
@@ -21,38 +41,33 @@ $requiredPermissions = @(
     "android.permission.POST_NOTIFICATIONS"
 )
 
-# Find manifest node
-$manifestNode = $xml.manifest
-
 foreach ($permName in $requiredPermissions) {
-    # Check if permission already exists
-    $exists = $manifestNode.ChildNodes | Where-Object { 
-        $_.Name -eq "uses-permission" -and $_.Attributes["android:name"].Value -eq $permName 
-    }
+    $exists = @($manifestNode.ChildNodes | Where-Object {
+        $_.Name -eq "uses-permission" -and $_.GetAttribute("name", $androidNs) -eq $permName
+    }).Count -gt 0
 
     if (-not $exists) {
         Write-Host "Adding permission: $permName" -ForegroundColor Yellow
         $newPerm = $xml.CreateElement("uses-permission")
-        $newPerm.SetAttribute("android:name", $permName)
-        $manifestNode.AppendChild($newPerm) > $null
+        $newPerm.SetAttribute("name", $androidNs, $permName)
+        $manifestNode.AppendChild($newPerm) | Out-Null
     } else {
         Write-Host "Permission already exists: $permName" -ForegroundColor Gray
     }
 }
 
-# 2. Ensure MainActivity has screenOrientation="portrait"
-$activityNode = $xml.manifest.application.activity | Where-Object {
-    $_.Attributes["android:name"].Value -eq ".MainActivity"
-}
+# 3. Ensure MainActivity remains portrait-only.
+$activityNode = @($xml.manifest.application.activity | Where-Object {
+    $_.GetAttribute("name", $androidNs) -eq ".MainActivity"
+}) | Select-Object -First 1
 
 if ($activityNode) {
     Write-Host "Setting screenOrientation='portrait' on MainActivity" -ForegroundColor Yellow
-    $activityNode.SetAttribute("android:screenOrientation", "portrait")
+    $activityNode.SetAttribute("screenOrientation", $androidNs, "portrait")
 } else {
     Write-Warning "MainActivity node not found in AndroidManifest.xml"
 }
 
-# Save modified manifest XML back safely
 $resolvedPath = (Resolve-Path $manifestPath).Path
 $xml.Save($resolvedPath)
-Write-Host "AndroidManifest.xml patched successfully!" -ForegroundColor Green
+Write-Host "AndroidManifest.xml hardened successfully." -ForegroundColor Green
