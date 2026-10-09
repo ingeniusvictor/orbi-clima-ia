@@ -9,7 +9,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="ORBI Clima IA"
+        android:label="ORBI Clima IA QA20A"
         android:supportsRtl="true">
 
         <activity
