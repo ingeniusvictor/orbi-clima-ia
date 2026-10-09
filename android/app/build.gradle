@@ -1,5 +1,6 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace 'com.orbi.clima'
@@ -23,10 +24,6 @@ android {
 
     buildFeatures {
         compose true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.8'
     }
 
     kotlinOptions {
@@ -54,9 +51,9 @@ dependencies {
     // No foreground service and no background-location permission are used.
     implementation "androidx.work:work-runtime-ktx:2.9.1"
 
-    // Kotlin & Coroutines
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+    // Kotlin & Coroutines aligned with Capacitor 8 / Geolocation 8 metadata.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.1.0"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 
     // Capacitor runtime + generated Cordova compatibility module.
     implementation project(':capacitor-android')
