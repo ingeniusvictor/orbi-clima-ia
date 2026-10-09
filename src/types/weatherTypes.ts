@@ -266,7 +266,12 @@ export type OrbiNotificationPermissionState =
 export type OrbiNotificationChannel =
   | 'weather_alerts'
   | 'field_alerts'
+  | 'official_alerts'
   | 'system_status';
+
+export type OrbiNotificationSource =
+  | 'skycore_alert'
+  | 'official_senapred';
 
 export interface OrbiNotificationCandidate {
   id: string;
@@ -280,7 +285,7 @@ export interface OrbiNotificationCandidate {
   createdAt: string;
   scheduledFor?: string;
   dedupKey: string;
-  source: 'skycore_alert';
+  source: OrbiNotificationSource;
 }
 
 export interface OrbiNotificationHistoryItem {
@@ -294,6 +299,7 @@ export interface OrbiNotificationHistoryItem {
   createdAt: string;
   sentAt: string;
   dedupKey: string;
+  source?: OrbiNotificationSource;
 }
 
 export type QuietHoursMode =
@@ -483,10 +489,3 @@ export interface SavedWeatherLocation {
   source: 'gps' | 'manual' | 'imported';
   isFavorite?: boolean;
 }
-
-
-
-
-
-
-

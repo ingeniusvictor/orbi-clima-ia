@@ -45,6 +45,17 @@ export function canSendByFrequency({
   settings: NotificationFrequencySettings;
   now?: Date;
 }): FrequencyDecision {
+  // Authority-issued SENAPRED alerts are intentionally outside the generic
+  // model-alert daily caps and spacing windows. Exact official-alert replay is
+  // blocked persistently before delivery by dedupKey. This allows a distinct
+  // escalation (for example Amarilla -> Roja) to reach the user immediately.
+  if (candidate.source === 'official_senapred') {
+    return {
+      allowed: true,
+      reason: 'Alerta oficial SENAPRED distinta: exenta de límites de frecuencia de alertas modeladas.',
+    };
+  }
+
   const isCritical = candidate.severity === 'critical';
 
   // 1. Daily cap check
@@ -59,9 +70,6 @@ export function canSendByFrequency({
 
   const maxPerDay = candidate.profile === 'person' ? settings.maxPersonPerDay : settings.maxFieldPerDay;
   if (profileHistoryToday.length >= maxPerDay) {
-    // If it's critical, we might let it pass only if it is completely different from anything sent today, 
-    // but the system spec says to block if limit is exceeded. Let's enforce the daily cap strictly, 
-    // unless critical and there is a safety bypass. Let's block to stay compliant with max limit rules.
     return {
       allowed: false,
       reason: `Límite diario de notificaciones alcanzado (${profileHistoryToday.length}/${maxPerDay} para perfil ${candidate.profile}).`,
@@ -84,12 +92,11 @@ export function canSendByFrequency({
   if (minSinceLast < settings.minMinutesBetweenAny) {
     if (isCritical) {
       // Check if last sent was the exact same critical alert
-      const isSameCritical = lastSentItem.severity === 'critical' && 
+      const isSameCritical = lastSentItem.severity === 'critical' &&
         (lastSentItem.title === candidate.title || lastSentItem.body === candidate.body);
-      
+
       if (!isSameCritical) {
-        // "Permitir critical si es nueva y realmente distinta"
-        // Bypass interval cap because it's a new critical alert
+        // A distinct critical model alert may bypass the interval cap.
       } else {
         return {
           allowed: false,
@@ -116,7 +123,7 @@ export function canSendByFrequency({
     const minutesSinceSimilar = minutesBetween(now, new Date(mostRecentSimilar.sentAt));
     if (minutesSinceSimilar < settings.minMinutesBetweenSimilar) {
       if (isCritical) {
-        // If candidate is critical, check if the similar one was also critical. 
+        // If candidate is critical, check if the similar one was also critical.
         // If the similar one was not critical, let the critical override it.
         if (mostRecentSimilar.severity !== 'critical') {
           // Allowed: Critical overriding warning/info of same category
