@@ -36,8 +36,8 @@ html.android-webview .living-weather-atmosphere .lwa-sky {
   will-change: auto !important;
 }
 
-/* Cloud gradients are already feathered by radial transparency. On Android the
-   large blur filter is unnecessary and was the strongest tile-bleed suspect. */
+/* Cloud artwork is pre-shaped and contains its own tonal softness. On Android
+   it must never gain a runtime blur/filter or child-level transform. */
 html.capacitor-android .living-weather-atmosphere .lwa-cloud,
 html.android-webview .living-weather-atmosphere .lwa-cloud {
   filter: none !important;
@@ -47,12 +47,12 @@ html.android-webview .living-weather-atmosphere .lwa-cloud {
   -webkit-transform: none !important;
 }
 
-/* Keep the moving field smaller than the desktop/Web version. One simple
-   transform per field is considerably safer than several blurred child layers. */
+/* Natural V3 banks need enough off-screen margin that the slow drift never
+   exposes a hard edge. The bank itself remains one simple, unfiltered surface. */
 html.capacitor-android .living-weather-atmosphere .lwa-cloud-field,
 html.android-webview .living-weather-atmosphere .lwa-cloud-field {
-  left: -30% !important;
-  width: 160% !important;
+  left: -60% !important;
+  width: 220% !important;
   will-change: auto !important;
 }
 
