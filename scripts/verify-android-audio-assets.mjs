@@ -1,6 +1,14 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
+const VERIFIED_CRYSTAL_ARCH = {
+  size: 744_609,
+  sha256: '7717bd6f5461f6ab3a0e4a297fd9db4288656a183039d3d08f833ec167ff0341',
+};
+
+// Keep both legacy asset names byte-identical for backward compatibility with
+// already-shipped runtime/controller ids. Both must contain the verified
+// Beneath the Crystal Arch source, never the historical corrupt payloads.
 const pairs = [
   [
     'public/audio/orbi-zen-ambient.mp3',
@@ -12,7 +20,6 @@ const pairs = [
   ],
 ];
 
-const MIN_AUDIO_BYTES = 1_000_000;
 const MAX_UTF8_REPLACEMENT_TRIPLETS = 8;
 const MIN_MPEG_FRAME_CANDIDATES = 3;
 
@@ -92,6 +99,21 @@ function assertDecodableMp3Shape(path) {
   }
 }
 
+function assertVerifiedCrystalArch(path) {
+  const size = statSync(path).size;
+  const hash = sha256(path);
+
+  if (size !== VERIFIED_CRYSTAL_ARCH.size || hash !== VERIFIED_CRYSTAL_ARCH.sha256) {
+    throw new Error(
+      [
+        `${path} is not the verified Beneath the Crystal Arch source`,
+        `expected: ${VERIFIED_CRYSTAL_ARCH.size} bytes sha256=${VERIFIED_CRYSTAL_ARCH.sha256}`,
+        `actual:   ${size} bytes sha256=${hash}`,
+      ].join('\n'),
+    );
+  }
+}
+
 for (const [source, androidCopy] of pairs) {
   if (!existsSync(source)) {
     throw new Error(`Missing source Zen audio: ${source}`);
@@ -102,18 +124,13 @@ for (const [source, androidCopy] of pairs) {
     );
   }
 
-  const sourceSize = statSync(source).size;
-  const androidSize = statSync(androidCopy).size;
-
-  if (sourceSize < MIN_AUDIO_BYTES) {
-    throw new Error(
-      `${source} is unexpectedly small (${sourceSize} bytes); refusing to package a truncated Zen track`,
-    );
-  }
-
   assertDecodableMp3Shape(source);
   assertDecodableMp3Shape(androidCopy);
+  assertVerifiedCrystalArch(source);
+  assertVerifiedCrystalArch(androidCopy);
 
+  const sourceSize = statSync(source).size;
+  const androidSize = statSync(androidCopy).size;
   const sourceHash = sha256(source);
   const androidHash = sha256(androidCopy);
 
@@ -132,4 +149,4 @@ for (const [source, androidCopy] of pairs) {
   console.log(`     ${sourceSize} bytes sha256=${sourceHash}`);
 }
 
-console.log('ORBI Zen bundled audio integrity: PASS');
+console.log('ORBI Zen bundled audio integrity: PASS (verified Beneath the Crystal Arch binary)');
