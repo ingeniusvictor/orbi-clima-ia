@@ -4,7 +4,10 @@ declare global {
   }
 }
 
-const ORIGINAL_ORBI_ZEN_PATH = '/audio/Beneath_the_Crystal_Arch.mp3';
+// Keep the long-standing bundled asset path so existing controller/runtime code
+// remains compatible. The bytes at this path are now the verified original
+// Beneath the Crystal Arch track.
+const ORIGINAL_ORBI_ZEN_PATH = '/audio/orbi-zen-ambient.mp3';
 
 const BUILT_IN_TRACKS: Record<string, string> = {
   crystal_arch: ORIGINAL_ORBI_ZEN_PATH,
