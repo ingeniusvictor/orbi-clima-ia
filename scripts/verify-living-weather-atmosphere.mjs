@@ -17,6 +17,7 @@ const engine = read('src/services/weatherAtmosphereEngine.ts');
 const cache = read('src/services/weatherCacheService.ts');
 const coreCss = read('src/styles/living-weather-atmosphere.css');
 const effectsCss = read('src/styles/living-weather-effects.css');
+const visibilityCss = read('src/styles/living-weather-visibility.css');
 const css = `${coreCss}\n${effectsCss}`;
 const hostCss = read('src/styles/living-weather-host.css');
 const compositorCss = read('src/styles/android-compositor-guard.css');
@@ -46,6 +47,7 @@ expect(host.includes('applyAtmosphereDebugPreset'), 'Atmosphere host must suppor
 expect(cache.includes("orbi-weather-bundle-updated"), 'Weather cache must publish same-tab atmosphere refresh events.');
 expect(main.includes('<LivingWeatherAtmosphereHost />'), 'Atmosphere host is not mounted at application root.');
 expect(main.includes('<AtmosphereLabOverlay />'), 'Developer Atmosphere Lab is not mounted.');
+expect(main.includes("./styles/living-weather-visibility.css"), 'Physical-device atmosphere visibility tuning is not loaded.');
 expect(lab.includes('isDeveloperModeEnabled()'), 'Atmosphere Lab must be hidden unless developer mode is unlocked and enabled.');
 expect(lab.includes('no modifica el clima guardado'), 'Atmosphere Lab must explain that presets are visual-only.');
 expect(debugService.includes("localStorage.removeItem(ATMOSPHERE_DEBUG_KEY)"), 'LIVE reset must remove the visual override cleanly.');
@@ -55,6 +57,15 @@ expect(css.includes("prefers-reduced-motion: reduce"), 'Reduced-motion accessibi
 expect(css.includes("data-quality='static'"), 'Static performance fallback is missing.');
 expect(effectsCss.includes("data-quality='low'"), 'Extended cinematic effects must degrade on LOW quality.');
 
+// Physical-device visibility contract: the weather must be visually observable,
+// not merely mounted behind opaque legacy glass.
+expect(visibilityCss.includes('#orbi-mobile-home-screen > #welcome-hero-section'), 'Hero transparency override is missing.');
+expect(visibilityCss.includes('.lwa-readable-veil'), 'Global readability veil must be explicitly tuned for physical visibility.');
+expect(visibilityCss.includes('.lwa-vignette'), 'Atmosphere vignette must be explicitly tuned for physical visibility.');
+expect(visibilityCss.includes('backdrop-filter: none !important'), 'Android Hero backdrop blur must be disabled to reveal cloud detail and prevent scroll ghosting.');
+expect(!visibilityCss.includes('rgba(5, 10, 24, 0.84)'), 'Do not reintroduce the nearly opaque Hero surface that hid Living Weather.');
+expect(!visibilityCss.includes('rgba(2, 6, 18, 0.82)'), 'Do not reintroduce the nearly opaque Home surface that hid Living Weather.');
+
 expect(main.includes("isAndroidNativeRuntime()"), 'Native Android runtime must be detected before rendering.');
 expect(main.includes("classList.add('capacitor-android', 'android-webview')"), 'Android compositor guard classes are not activated before first React paint.');
 expect(compositorCss.includes('#first-launch-onboarding'), 'Android onboarding compositor guard is missing.');
@@ -62,8 +73,8 @@ expect(compositorCss.includes('#orbi-mobile-home-screen'), 'Android Home composi
 expect(compositorCss.includes('backdrop-filter: none'), 'Android compositor guard must disable backdrop-filter on risky surfaces.');
 
 const forbiddenCss = [
-  ['backdrop-filter', 'Do not use backdrop-filter in OC-22: Android WebView compositing/scroll bleed risk.'],
-  ['mix-blend-mode', 'Do not use mix-blend-mode in OC-22: keep weather layers isolated from Golden Orb compositing.'],
+  ['backdrop-filter', 'Do not use backdrop-filter in OC-22 atmosphere layers: Android WebView compositing/scroll bleed risk.'],
+  ['mix-blend-mode', 'Do not use mix-blend-mode in OC-22 atmosphere layers: keep weather layers isolated from Golden Orb compositing.'],
   ['background-attachment: fixed', 'Do not use fixed backgrounds inside Android WebView.'],
 ];
 
