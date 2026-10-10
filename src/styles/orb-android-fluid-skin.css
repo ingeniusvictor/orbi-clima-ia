@@ -1,0 +1,98 @@
+/*
+ * Android Golden Orb fluid companion skin.
+ *
+ * The protected Orb core keeps a stable circular clip so icon/temperature never
+ * live inside a deforming overflow surface. This decorative sibling replays the
+ * original fluid silhouette behind the core using the same five border-radius
+ * geometries and the same weather-dependent duration.
+ */
+
+html.android-webview .orbi-android-fluid-skin,
+html.capacitor-android .orbi-android-fluid-skin {
+  --orbi-fluid-duration: 7s;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  transform-origin: 50% 50%;
+  z-index: 8;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  opacity: 0.78;
+  scale: 1.035;
+  animation:
+    orbi-fluid-skin-morph var(--orbi-fluid-duration) ease-in-out infinite,
+    orbi-fluid-skin-depth calc(var(--orbi-fluid-duration) * 1.35) ease-in-out infinite;
+}
+
+html.android-webview .orbi-android-fluid-skin::before,
+html.capacitor-android .orbi-android-fluid-skin::before {
+  content: '';
+  position: absolute;
+  inset: 7%;
+  border-radius: inherit;
+  border: 1px solid rgba(255,255,255,0.11);
+  background:
+    radial-gradient(circle at 27% 22%, rgba(255,255,255,0.22), transparent 32%),
+    radial-gradient(circle at 70% 74%, rgba(125,211,252,0.10), transparent 36%);
+  opacity: 0.72;
+  animation: orbi-fluid-skin-sheen calc(var(--orbi-fluid-duration) * 1.18) ease-in-out infinite;
+}
+
+@keyframes orbi-fluid-skin-morph {
+  0%, 100% {
+    border-radius: 48% 52% 55% 45% / 48% 54% 46% 52%;
+  }
+  25% {
+    border-radius: 53% 47% 43% 57% / 55% 45% 55% 45%;
+  }
+  50% {
+    border-radius: 45% 55% 58% 42% / 42% 58% 42% 58%;
+  }
+  75% {
+    border-radius: 51% 49% 46% 54% / 53% 47% 53% 47%;
+  }
+}
+
+@keyframes orbi-fluid-skin-depth {
+  0%, 100% {
+    scale: 1.028;
+    opacity: 0.66;
+  }
+  28% {
+    scale: 1.055;
+    opacity: 0.84;
+  }
+  52% {
+    scale: 1.018;
+    opacity: 0.72;
+  }
+  76% {
+    scale: 1.046;
+    opacity: 0.80;
+  }
+}
+
+@keyframes orbi-fluid-skin-sheen {
+  0%, 100% {
+    background-position: 14% 18%, 84% 78%;
+    opacity: 0.58;
+  }
+  38% {
+    background-position: 54% 30%, 66% 62%;
+    opacity: 0.82;
+  }
+  70% {
+    background-position: 72% 60%, 30% 48%;
+    opacity: 0.64;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.android-webview .orbi-android-fluid-skin,
+  html.capacitor-android .orbi-android-fluid-skin,
+  html.android-webview .orbi-android-fluid-skin::before,
+  html.capacitor-android .orbi-android-fluid-skin::before {
+    animation: none !important;
+  }
+}

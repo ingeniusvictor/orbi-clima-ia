@@ -1,0 +1,250 @@
+/*
+ * OC-22B Natural Atmosphere v3
+ *
+ * Physical-device feedback: shaped cloud sprites were more stable than the first
+ * blurred ellipses, but still read as individual artificial objects. V3 renders
+ * wide, irregular cloud banks so the eye perceives an atmosphere rather than a
+ * sequence of icons. It also removes overly graphic wind/sun/heat cues.
+ */
+
+/* --- Cloud banks --------------------------------------------------------- */
+.living-weather-atmosphere .lwa-cloud-field {
+  left: -52%;
+  width: 204%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  animation-name: lwa-cloud-drift-natural;
+  animation-direction: normal;
+  animation-timing-function: linear;
+}
+
+/* Individual cloud sprites from V2 remain in markup only for backward-safe
+   structure; V3 paints the whole atmospheric bank on the field itself. */
+.living-weather-atmosphere .lwa-cloud-field .lwa-cloud {
+  display: none !important;
+}
+
+.living-weather-atmosphere .lwa-cloud-field-far {
+  top: -1%;
+  height: 33%;
+  opacity: var(--lwa-cloud-far-opacity);
+  background-image: url('/weather/clouds/cloud-bank-high-v3.svg');
+  animation-duration: var(--lwa-cloud-speed-far);
+}
+
+.living-weather-atmosphere .lwa-cloud-field-mid {
+  top: 7%;
+  height: 42%;
+  opacity: var(--lwa-cloud-mid-opacity);
+  background-image: url('/weather/clouds/cloud-bank-mid-v3.svg');
+  animation-duration: var(--lwa-cloud-speed-mid);
+}
+
+.living-weather-atmosphere .lwa-cloud-field-near {
+  top: 17%;
+  height: 47%;
+  opacity: var(--lwa-cloud-near-opacity);
+  background-image: url('/weather/clouds/cloud-bank-low-v3.svg');
+  animation-duration: var(--lwa-cloud-speed-near);
+}
+
+.living-weather-atmosphere[data-scene='partly-cloudy'] .lwa-cloud-field-near {
+  opacity: 0.2;
+}
+
+.living-weather-atmosphere[data-scene='clear'] .lwa-cloud-field-mid,
+.living-weather-atmosphere[data-scene='hot'] .lwa-cloud-field-mid {
+  opacity: 0.08;
+}
+
+.living-weather-atmosphere[data-scene='clear'] .lwa-cloud-field-near,
+.living-weather-atmosphere[data-scene='hot'] .lwa-cloud-field-near {
+  opacity: 0.025;
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field,
+.living-weather-atmosphere[data-scene='rain'] .lwa-cloud-field-near {
+  background-image: url('/weather/clouds/cloud-bank-storm-v3.svg');
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-far {
+  opacity: 0.58;
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-mid {
+  opacity: 0.86;
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-near {
+  opacity: 0.92;
+}
+
+.living-weather-atmosphere[data-scene='rain'] .lwa-cloud-field-mid {
+  opacity: 0.76;
+}
+
+.living-weather-atmosphere[data-scene='rain'] .lwa-cloud-field-near {
+  opacity: 0.82;
+}
+
+/* --- More meteorological, less synthetic sky palette -------------------- */
+.living-weather-atmosphere[data-phase='day'] .lwa-sky {
+  background:
+    radial-gradient(ellipse at 73% 12%, rgba(231, 244, 251, 0.18), transparent 39%),
+    linear-gradient(180deg, #426f92 0%, #759db8 48%, #4d718a 100%);
+}
+
+.living-weather-atmosphere[data-scene='partly-cloudy'][data-phase='day'] .lwa-sky {
+  background:
+    radial-gradient(ellipse at 72% 12%, rgba(238, 246, 250, 0.15), transparent 38%),
+    linear-gradient(180deg, #4b708b 0%, #8299a9 50%, #526a7b 100%);
+}
+
+.living-weather-atmosphere[data-scene='cloudy'] .lwa-sky {
+  background: linear-gradient(180deg, #596b79 0%, #7f8e98 44%, #4d5d69 100%);
+}
+
+.living-weather-atmosphere[data-scene='rain'] .lwa-sky {
+  background: linear-gradient(180deg, #354654 0%, #63717b 46%, #34434e 100%);
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-sky {
+  background: linear-gradient(180deg, #202935 0%, #3c4753 46%, #1c242d 100%);
+}
+
+.living-weather-atmosphere[data-scene='cold'] .lwa-sky {
+  background: linear-gradient(180deg, #607789 0%, #93a5b0 48%, #536a7b 100%);
+}
+
+.living-weather-atmosphere[data-scene='hot'][data-phase='day'] .lwa-sky {
+  background:
+    radial-gradient(ellipse at 76% 10%, rgba(255, 238, 195, 0.28), transparent 36%),
+    linear-gradient(180deg, #527fa0 0%, #9eb2b4 55%, #7e7767 100%);
+}
+
+.living-weather-atmosphere[data-phase='night'] .lwa-sky {
+  background: linear-gradient(180deg, #07111e 0%, #132131 48%, #09111b 100%);
+}
+
+/* --- Natural light ------------------------------------------------------- */
+.living-weather-atmosphere .lwa-sun-rays {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 72%;
+  transform: none;
+  filter: none;
+  animation: lwa-daylight-breathe 13s ease-in-out infinite alternate;
+  background: radial-gradient(
+    ellipse at 78% 4%,
+    rgba(255, 247, 221, 0.3) 0%,
+    rgba(255, 239, 196, 0.1) 27%,
+    transparent 61%
+  );
+}
+
+.living-weather-atmosphere[data-scene='clear'][data-phase='day'] .lwa-sun-rays,
+.living-weather-atmosphere[data-scene='hot'][data-phase='day'] .lwa-sun-rays {
+  opacity: 0.32;
+}
+
+.living-weather-atmosphere[data-scene='partly-cloudy'][data-phase='day'] .lwa-sun-rays {
+  opacity: 0.17;
+}
+
+/* Wind is primarily communicated by cloud advection. Avoid visible white
+   ribbons that make the weather feel like a UI effect. */
+.living-weather-atmosphere .lwa-wind-streams {
+  opacity: 0.06;
+}
+
+html.capacitor-android .living-weather-atmosphere .lwa-wind-streams,
+html.android-webview .living-weather-atmosphere .lwa-wind-streams {
+  display: none !important;
+}
+
+/* Heat becomes a lower-atmosphere colour shimmer, not vertical capsules. */
+.living-weather-atmosphere .lwa-heat-waves {
+  opacity: 0.16;
+}
+
+html.capacitor-android .living-weather-atmosphere .lwa-heat-waves,
+html.android-webview .living-weather-atmosphere .lwa-heat-waves {
+  display: none !important;
+}
+
+.living-weather-atmosphere[data-scene='hot'] .lwa-depth-haze {
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(171, 121, 74, 0.05) 58%, rgba(111, 75, 47, 0.18) 100%),
+    radial-gradient(ellipse at 50% 90%, rgba(235, 184, 113, 0.09), transparent 64%);
+}
+
+/* --- Rain: depth variation ---------------------------------------------- */
+.living-weather-atmosphere .lwa-rain span {
+  width: 0.8px;
+  border-radius: 0;
+  opacity: 0.54;
+  background: linear-gradient(180deg, transparent 0%, rgba(214, 234, 244, 0.72) 42%, rgba(162, 198, 216, 0.18) 100%);
+}
+
+.living-weather-atmosphere .lwa-rain span:nth-child(3n) {
+  width: 1.15px;
+  opacity: 0.7;
+}
+
+.living-weather-atmosphere .lwa-rain span:nth-child(4n) {
+  width: 0.55px;
+  opacity: 0.34;
+}
+
+.living-weather-atmosphere[data-scene='rain'] .lwa-depth-haze,
+.living-weather-atmosphere[data-scene='storm'] .lwa-depth-haze {
+  background:
+    linear-gradient(180deg, rgba(17, 27, 35, 0.04) 0%, rgba(24, 36, 44, 0.08) 48%, rgba(13, 21, 27, 0.3) 100%),
+    radial-gradient(ellipse at 50% 80%, rgba(174, 193, 202, 0.08), transparent 64%);
+}
+
+/* Lightning should read as distant sky illumination rather than a UI flash. */
+.living-weather-atmosphere .lwa-lightning {
+  background: radial-gradient(ellipse at 64% 18%, rgba(220, 230, 241, 0.28), transparent 46%);
+}
+
+.living-weather-atmosphere[data-scene='storm'][data-quality='ultra'] .lwa-lightning,
+.living-weather-atmosphere[data-scene='storm'][data-quality='high'] .lwa-lightning {
+  animation-duration: 13.6s;
+}
+
+/* Cold/frost particles are sparse atmospheric specks, not decorative sparkles. */
+.living-weather-atmosphere .lwa-cold-particles span {
+  width: 2px;
+  height: 2px;
+  box-shadow: none;
+  opacity: 0.34;
+}
+
+/* Atmospheric readability stays local and subtle. */
+.living-weather-atmosphere .lwa-vignette {
+  background: radial-gradient(ellipse at center, transparent 46%, rgba(9, 15, 21, 0.08) 74%, rgba(7, 12, 18, 0.26) 100%);
+}
+
+.living-weather-atmosphere .lwa-readable-veil {
+  background: linear-gradient(180deg, rgba(8, 15, 22, 0.02), rgba(8, 15, 22, 0.08) 62%, rgba(7, 13, 20, 0.2));
+}
+
+@keyframes lwa-cloud-drift-natural {
+  from { transform: translate3d(-5%, 0, 0); }
+  to { transform: translate3d(23%, -0.8%, 0); }
+}
+
+@keyframes lwa-daylight-breathe {
+  from { opacity: 0.76; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .living-weather-atmosphere .lwa-cloud-field,
+  .living-weather-atmosphere .lwa-sun-rays {
+    animation: none !important;
+  }
+}

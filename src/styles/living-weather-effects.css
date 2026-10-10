@@ -1,0 +1,146 @@
+.living-weather-atmosphere .lwa-sun-rays,
+.living-weather-atmosphere .lwa-wind-streams,
+.living-weather-atmosphere .lwa-heat-waves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lwa-sun-rays {
+  left: 35%;
+  top: -28%;
+  width: 92%;
+  height: 78%;
+  opacity: 0;
+  transform: rotate(-14deg) translateZ(0);
+  transform-origin: 58% 12%;
+  background: repeating-conic-gradient(
+    from 202deg at 58% 12%,
+    rgba(255, 245, 214, 0.16) 0deg 3deg,
+    transparent 3deg 12deg
+  );
+  filter: blur(10px);
+  transition: opacity 900ms ease;
+  animation: lwa-rays-breathe 10s ease-in-out infinite alternate;
+}
+
+[data-scene='clear'][data-phase='day'] .lwa-sun-rays,
+[data-scene='hot'][data-phase='day'] .lwa-sun-rays {
+  opacity: 0.26;
+}
+
+[data-scene='partly-cloudy'][data-phase='day'] .lwa-sun-rays {
+  opacity: 0.14;
+}
+
+[data-phase='dawn'] .lwa-sun-rays,
+[data-phase='dusk'] .lwa-sun-rays {
+  opacity: 0.12;
+  background: repeating-conic-gradient(
+    from 202deg at 58% 12%,
+    rgba(255, 204, 148, 0.18) 0deg 3deg,
+    transparent 3deg 13deg
+  );
+}
+
+[data-phase='night'] .lwa-sun-rays,
+[data-scene='cloudy'] .lwa-sun-rays,
+[data-scene='rain'] .lwa-sun-rays,
+[data-scene='storm'] .lwa-sun-rays {
+  opacity: 0;
+}
+
+.lwa-wind-streams {
+  overflow: hidden;
+  opacity: var(--lwa-wind-opacity);
+  transition: opacity 800ms ease;
+}
+
+.lwa-wind-streams span {
+  position: absolute;
+  left: -42%;
+  height: 22px;
+  border-top: 1px solid rgba(209, 238, 250, 0.44);
+  border-radius: 50%;
+  box-shadow: 0 -4px 14px rgba(125, 211, 252, 0.06);
+  transform: rotate(-4deg) translate3d(0, 0, 0);
+  animation-name: lwa-wind-sweep;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.lwa-wind-streams span:nth-child(even) {
+  border-color: rgba(191, 219, 254, 0.28);
+  transform: rotate(3deg) translate3d(0, 0, 0);
+}
+
+.lwa-heat-waves {
+  overflow: hidden;
+  opacity: 0.52;
+}
+
+.lwa-heat-waves span {
+  position: absolute;
+  bottom: -10%;
+  width: 9%;
+  height: 44%;
+  border-radius: 50%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 225, 164, 0.05) 28%,
+    rgba(255, 198, 112, 0.12) 66%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  transform: translate3d(0, 18%, 0) scaleX(0.8);
+  animation: lwa-heat-rise 5.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+[data-quality='balanced'] .lwa-sun-rays {
+  filter: blur(12px);
+  opacity: 0.11;
+}
+
+[data-quality='low'] .lwa-sun-rays,
+[data-quality='low'] .lwa-wind-streams,
+[data-quality='low'] .lwa-heat-waves,
+[data-quality='static'] .lwa-sun-rays,
+[data-quality='static'] .lwa-wind-streams,
+[data-quality='static'] .lwa-heat-waves {
+  display: none;
+}
+
+.living-weather-atmosphere.is-paused .lwa-wind-streams span,
+.living-weather-atmosphere.is-paused .lwa-heat-waves span,
+.living-weather-atmosphere.is-paused .lwa-sun-rays {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lwa-sun-rays,
+  .lwa-wind-streams span,
+  .lwa-heat-waves span {
+    animation: none !important;
+  }
+}
+
+@keyframes lwa-rays-breathe {
+  from { transform: rotate(-15deg) scale(0.98) translateZ(0); }
+  to { transform: rotate(-12deg) scale(1.04) translateZ(0); }
+}
+
+@keyframes lwa-wind-sweep {
+  0% { transform: translate3d(-8vw, 0, 0) rotate(-4deg); opacity: 0; }
+  16% { opacity: 0.75; }
+  78% { opacity: 0.5; }
+  100% { transform: translate3d(158vw, -14px, 0) rotate(-4deg); opacity: 0; }
+}
+
+@keyframes lwa-heat-rise {
+  0%, 100% { transform: translate3d(0, 18%, 0) scaleX(0.78); opacity: 0.12; }
+  42% { transform: translate3d(5px, -7%, 0) scaleX(1.16); opacity: 0.52; }
+  72% { transform: translate3d(-4px, -20%, 0) scaleX(0.9); opacity: 0.24; }
+}
