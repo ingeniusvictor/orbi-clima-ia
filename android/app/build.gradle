@@ -27,6 +27,7 @@ android {
         versionCode 10603
         versionName "1.0.6-OC21"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
 
     signingConfigs {
@@ -47,6 +48,18 @@ android {
             }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        // Temporary physical-device validation build. It installs alongside the
+        // canonical com.orbi.clima package, so an old ephemeral debug signature
+        // cannot block OC-21 testing and the currently installed app stays intact.
+        oc21Preview {
+            initWith debug
+            applicationIdSuffix ".oc21preview"
+            versionNameSuffix "-preview"
+            debuggable true
+            matchingFallbacks = ['debug']
+            manifestPlaceholders = [appLabel: "ORBI Clima IA OC-21"]
         }
     }
 
