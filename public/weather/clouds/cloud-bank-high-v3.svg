@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420" aria-hidden="true">
+  <defs>
+    <linearGradient id="hBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7fbfd" stop-opacity="0.46"/>
+      <stop offset="0.58" stop-color="#dbe5ea" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#9aaab5" stop-opacity="0.14"/>
+    </linearGradient>
+    <linearGradient id="hShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b8c5ce" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#6d7e8b" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+  <path d="M-92 246C-48 211 6 202 55 220c25-47 78-72 132-56 31-56 100-80 161-48 40-36 101-45 151-15 28-20 68-27 103-12 34 14 57 43 63 74 43-10 92 3 118 38 35-32 91-38 134-12 29-50 94-70 149-38 24-20 58-30 89-21 35 10 59 40 62 72 46-17 100-2 125 39 28-22 70-30 105-10 28 16 43 45 39 74H-92z" fill="url(#hBody)"/>
+  <path d="M-54 282c103-31 212-27 312-7 112 22 206 17 306-6 109-25 208-26 324-2 123 25 221 21 341-9 96-24 195-21 296 7v67H-54z" fill="url(#hShade)"/>
+  <path d="M74 179c58-24 114-21 166 7 54-40 126-48 189-18 51-31 117-35 174-8-53-10-105 0-147 31-55-23-117-18-165 17-70-25-142-20-217 12z" fill="#ffffff" fill-opacity="0.08"/>
+  <path d="M872 188c49-29 107-31 158-8 47-42 116-52 174-24 45-27 101-31 151-11-45-7-87 4-121 31-52-20-109-14-150 21-66-24-137-17-212 15z" fill="#ffffff" fill-opacity="0.07"/>
+</svg>
