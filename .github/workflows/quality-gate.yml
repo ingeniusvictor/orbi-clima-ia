@@ -64,6 +64,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-background-watch
 
+      - name: Android performance source gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run android:verify-performance
+
       - name: Android 16 target and permission source gate
         if: steps.typecheck.outcome == 'success'
         run: npm run android:verify-modern-target
@@ -88,6 +92,12 @@ jobs:
     needs: web-quality
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      ORBI_ANDROID_KEYSTORE_B64: ${{ secrets.ORBI_ANDROID_KEYSTORE_B64 }}
+      ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_ANDROID_KEYSTORE_PASSWORD }}
+      ORBI_KEY_ALIAS: ${{ secrets.ORBI_ANDROID_KEY_ALIAS }}
+      ORBI_KEY_PASSWORD: ${{ secrets.ORBI_ANDROID_KEY_PASSWORD }}
+      ORBI_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-release.jks
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -129,6 +139,9 @@ jobs:
       - name: Copy current web bundle into Android
         run: npx cap copy android
 
+      - name: Verify bundled Zen audio integrity after Capacitor copy
+        run: npm run android:verify-audio-assets
+
       - name: Verify Mobile Home Experience after Capacitor copy
         run: npm run ui:verify-mobile-home
 
@@ -140,6 +153,9 @@ jobs:
 
       - name: Verify background-watch invariants after Capacitor copy
         run: npm run android:verify-background-watch
+
+      - name: Verify Android performance after Capacitor copy
+        run: npm run android:verify-performance
 
       - name: Verify Android 16 target and permissions after Capacitor copy
         run: npm run android:verify-modern-target
@@ -153,23 +169,47 @@ jobs:
       - name: Verify immediate multi-widget refresh after Capacitor copy
         run: npm run android:verify-widget-refresh
 
-      - name: Compile debug APK and release AAB
+      - name: Restore persistent ORBI signing keystore
+        if: ${{ env.ORBI_ANDROID_KEYSTORE_B64 != '' }}
+        shell: bash
+        run: |
+          printf '%s' "$ORBI_ANDROID_KEYSTORE_B64" | base64 --decode > "$ORBI_KEYSTORE_PATH"
+          chmod 600 "$ORBI_KEYSTORE_PATH"
+
+      - name: Compile CI debug, OC-21 preview and release artifacts
         working-directory: android
         shell: bash
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:bundleRelease
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleOc21Preview :app:assembleRelease :app:bundleRelease
 
-      - name: Upload debug APK
+      - name: Upload CI-only debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-debug-apk
+          name: orbi-clima-ci-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload unsigned release AAB
+      - name: Upload OC-21 side-by-side preview APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-release-aab-unsigned
+          name: orbi-clima-oc21-side-by-side-apk
+          path: android/app/build/outputs/apk/oc21Preview/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload stable signed release APK
+        if: ${{ env.ORBI_ANDROID_KEYSTORE_B64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-stable-signed-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 7

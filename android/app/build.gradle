@@ -2,6 +2,20 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
+// OC-21 signing policy:
+// - Debug builds keep the normal ephemeral Android debug key and are CI-only.
+// - Distributable APK/AAB artifacts must use the persistent ORBI release key.
+// - The release key itself never lives in the repository; CI injects it through secrets.
+def orbiKeystorePath = System.getenv('ORBI_KEYSTORE_PATH')
+def orbiKeystorePassword = System.getenv('ORBI_KEYSTORE_PASSWORD')
+def orbiKeyAlias = System.getenv('ORBI_KEY_ALIAS')
+def orbiKeyPassword = System.getenv('ORBI_KEY_PASSWORD')
+def hasOrbiReleaseSigning = orbiKeystorePath &&
+        file(orbiKeystorePath).exists() &&
+        orbiKeystorePassword &&
+        orbiKeyAlias &&
+        orbiKeyPassword
+
 android {
     namespace 'com.orbi.clima'
     compileSdk rootProject.ext.compileSdkVersion
@@ -10,15 +24,42 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10602
-        versionName "1.0.6-final-clean"
+        versionCode 10604
+        versionName "1.0.6-OC21"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders = [appLabel: "ORBI Clima IA"]
+    }
+
+    signingConfigs {
+        release {
+            if (hasOrbiReleaseSigning) {
+                storeFile file(orbiKeystorePath)
+                storePassword orbiKeystorePassword
+                keyAlias orbiKeyAlias
+                keyPassword orbiKeyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (hasOrbiReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        // Temporary physical-device validation build. It installs alongside the
+        // canonical com.orbi.clima package, so an old ephemeral debug signature
+        // cannot block OC-21 testing and the currently installed app stays intact.
+        oc21Preview {
+            initWith debug
+            applicationIdSuffix ".oc21preview"
+            versionNameSuffix "-preview"
+            debuggable true
+            matchingFallbacks = ['debug']
+            manifestPlaceholders = [appLabel: "ORBI Clima IA OC-21"]
         }
     }
 

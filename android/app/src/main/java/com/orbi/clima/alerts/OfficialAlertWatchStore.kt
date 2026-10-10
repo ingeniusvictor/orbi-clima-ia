@@ -28,7 +28,9 @@ object OfficialAlertWatchStore {
     const val DEFAULT_INTERVAL_MINUTES = 30L
     const val MIN_INTERVAL_MINUTES = 15L
     private val DELIVERY_RETENTION_MS = TimeUnit.DAYS.toMillis(180)
+    private val DELIVERY_PRUNE_INTERVAL_MS = TimeUnit.DAYS.toMillis(1)
     private const val DELIVERED_PREFIX = "delivered_"
+    private const val LAST_DELIVERY_PRUNE_AT = "delivered_prune_at"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -153,15 +155,20 @@ object OfficialAlertWatchStore {
 
     private fun pruneDelivered(context: Context) {
         val p = prefs(context)
-        val cutoff = System.currentTimeMillis() - DELIVERY_RETENTION_MS
+        val now = System.currentTimeMillis()
+        val lastPruneAt = p.getLong(LAST_DELIVERY_PRUNE_AT, 0L)
+        if (lastPruneAt > 0L && now - lastPruneAt < DELIVERY_PRUNE_INTERVAL_MS) return
+
+        val cutoff = now - DELIVERY_RETENTION_MS
         val stale = p.all.entries
+            .asSequence()
             .filter { (key, value) ->
                 key.startsWith(DELIVERED_PREFIX) && value is Long && value < cutoff
             }
             .map { it.key }
+            .toList()
 
-        if (stale.isEmpty()) return
-        val edit = p.edit()
+        val edit = p.edit().putLong(LAST_DELIVERY_PRUNE_AT, now)
         stale.forEach(edit::remove)
         edit.apply()
     }
