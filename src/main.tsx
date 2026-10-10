@@ -1,6 +1,7 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import LivingWeatherAtmosphereHost from './components/LivingWeatherAtmosphereHost';
 import { initializeFirstLaunchLocationBootstrap } from './services/firstLaunchLocationBootstrap';
 import { initializeZenSoundBootstrap } from './services/zenSoundBootstrap';
 import './index.css';
@@ -13,6 +14,7 @@ initializeZenSoundBootstrap();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <LivingWeatherAtmosphereHost />
     <App />
   </StrictMode>,
 );
