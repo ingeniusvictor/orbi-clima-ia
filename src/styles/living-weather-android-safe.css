@@ -1,0 +1,90 @@
+/*
+ * OC-22 Android WebView safe compositor profile.
+ *
+ * Physical-device screen recording showed transient rectangular GPU tiles from
+ * Living Weather being painted above the Golden Orb even though the atmosphere
+ * sits below app content by z-index. Large blurred + transformed layers are a
+ * known trigger class for stale WebView compositor surfaces.
+ *
+ * Keep the atmosphere alive on Android, but do not promote its large layers to
+ * independent GPU surfaces. Golden Orb internals remain untouched.
+ */
+
+html.capacitor-android .orbi-living-weather-host,
+html.android-webview .orbi-living-weather-host {
+  isolation: auto !important;
+  contain: none !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  -webkit-backface-visibility: visible !important;
+  backface-visibility: visible !important;
+}
+
+html.capacitor-android .living-weather-atmosphere,
+html.android-webview .living-weather-atmosphere {
+  isolation: auto !important;
+  contain: none !important;
+  will-change: auto !important;
+}
+
+/* Never promote the full-screen sky to a 3D compositor layer. */
+html.capacitor-android .living-weather-atmosphere .lwa-sky,
+html.android-webview .living-weather-atmosphere .lwa-sky {
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+}
+
+/* Cloud gradients are already feathered by radial transparency. On Android the
+   large blur filter is unnecessary and was the strongest tile-bleed suspect. */
+html.capacitor-android .living-weather-atmosphere .lwa-cloud,
+html.android-webview .living-weather-atmosphere .lwa-cloud {
+  filter: none !important;
+  -webkit-filter: none !important;
+  will-change: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+/* Keep the moving field smaller than the desktop/Web version. One simple
+   transform per field is considerably safer than several blurred child layers. */
+html.capacitor-android .living-weather-atmosphere .lwa-cloud-field,
+html.android-webview .living-weather-atmosphere .lwa-cloud-field {
+  left: -30% !important;
+  width: 160% !important;
+  will-change: auto !important;
+}
+
+/* Mist remains visible as a soft radial gradient but static and unfiltered. */
+html.capacitor-android .living-weather-atmosphere .lwa-mist,
+html.android-webview .living-weather-atmosphere .lwa-mist {
+  filter: none !important;
+  -webkit-filter: none !important;
+  animation: none !important;
+  will-change: auto !important;
+}
+
+/* Small precipitation/particle elements may animate, but do not request their
+   own persistent compositor surfaces. */
+html.capacitor-android .living-weather-atmosphere .lwa-rain span,
+html.capacitor-android .living-weather-atmosphere .lwa-cold-particles span,
+html.capacitor-android .living-weather-atmosphere .lwa-wind-streams span,
+html.capacitor-android .living-weather-atmosphere .lwa-heat-waves span,
+html.android-webview .living-weather-atmosphere .lwa-rain span,
+html.android-webview .living-weather-atmosphere .lwa-cold-particles span,
+html.android-webview .living-weather-atmosphere .lwa-wind-streams span,
+html.android-webview .living-weather-atmosphere .lwa-heat-waves span {
+  will-change: auto !important;
+}
+
+/* Avoid transitions that can create temporary full-screen intermediate layers
+   when the weather model changes while the Orb is visible. */
+html.capacitor-android .living-weather-atmosphere,
+html.capacitor-android .living-weather-atmosphere .lwa-sky,
+html.capacitor-android .living-weather-atmosphere .lwa-celestial,
+html.android-webview .living-weather-atmosphere,
+html.android-webview .living-weather-atmosphere .lwa-sky,
+html.android-webview .living-weather-atmosphere .lwa-celestial {
+  transition-property: opacity, background !important;
+}
