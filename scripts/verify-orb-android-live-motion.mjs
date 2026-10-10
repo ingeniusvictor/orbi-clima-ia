@@ -29,6 +29,14 @@ expect(contourService.includes('MAX_FPS = 24'), 'Android contour animation must 
 expect(contourService.includes("pointerEvents: 'none'"), 'Canvas contour must never intercept touches.');
 expect(contourService.includes("zIndex: '9'"), 'Canvas contour must stay behind the protected z-10 Orb core.');
 
+// 10615: make the contour visibly lava-like while preserving the punched-out center.
+expect(contourService.includes('widthScale = 1.075'), 'Lava contour must visibly extend beyond the stable Orb horizontally.');
+expect(contourService.includes('heightScale = 1.065'), 'Lava contour must visibly extend beyond the stable Orb vertically.');
+expect(contourService.includes('driftX ='), 'Lava contour must retain slow horizontal viscous drift.');
+expect(contourService.includes('driftY ='), 'Lava contour must retain slow vertical viscous drift.');
+expect(contourService.includes('stableRadius * 0.972'), 'Lava contour must keep the real Orb interior punched out with the approved safety inset.');
+expect(contourService.includes('pad = Math.ceil(cssSize * 0.17)'), 'Canvas must reserve enough space for larger fluid lobes without clipping.');
+
 for (const geometry of [
   '48% 52% 55% 45% / 48% 54% 46% 52%',
   '53% 47% 43% 57% / 55% 45% 55% 45%',
@@ -47,4 +55,4 @@ expect(!clipCss.includes('.blur-2xl'), 'Golden Orb Android guard must not disabl
 expect(!clipCss.includes('.mix-blend-screen'), 'Golden Orb Android guard must not target the internal blend layer.');
 expect(!clipCss.includes('.mix-blend-overlay'), 'Golden Orb Android guard must not target storm blend FX.');
 
-console.log('Android Golden Orb live-motion gate: PASS (single stable Orb + punched-out Canvas fluid contour)');
+console.log('Android Golden Orb live-motion gate: PASS (single stable Orb + pronounced lava-like punched-out Canvas contour)');
