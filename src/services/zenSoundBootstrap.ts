@@ -4,13 +4,10 @@ declare global {
   }
 }
 
-// Stable bundled path. OC-21 pins its bytes to the verified original
-// Beneath the Crystal Arch track through the audio-integrity gate.
 const ORIGINAL_ORBI_ZEN_PATH = '/audio/orbi-zen-ambient.mp3';
 
 const BUILT_IN_TRACKS: Record<string, string> = {
   crystal_arch: ORIGINAL_ORBI_ZEN_PATH,
-  // Legacy ids are intentionally migrated to the verified original track.
   classic_ambient: ORIGINAL_ORBI_ZEN_PATH,
   zen_loop: ORIGINAL_ORBI_ZEN_PATH,
 };
@@ -38,7 +35,6 @@ function primeSelectedBuiltInTrack(): void {
     localStorage.setItem(TRACK_KEY, selectedTrackId);
   }
 
-  // The controller owns custom IndexedDB Blob URLs. Do not replace them here.
   if (selectedTrackId === 'custom') return;
 
   const audio = window._orbiZenAudio ?? new Audio();
@@ -62,11 +58,8 @@ function primeSelectedBuiltInTrack(): void {
 }
 
 /**
- * Prepares the bundled ORBI Zen track even while Zen is OFF.
- *
- * The existing controller starts playback synchronously from the user's first tap.
- * Priming the verified original source here keeps the first tap inside
- * Android/WebView's allowed user gesture and migrates deprecated built-in ids.
+ * Prepares the bundled ORBI Zen track even while Zen is OFF and migrates
+ * deprecated built-in track ids to the verified Crystal Arch source.
  */
 export function initializeZenSoundBootstrap(): () => void {
   if (typeof window === 'undefined' || typeof Audio === 'undefined') {
