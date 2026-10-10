@@ -94,13 +94,23 @@ jobs:
     timeout-minutes: 35
     env:
       ORBI_ANDROID_KEYSTORE_B64: ${{ secrets.ORBI_ANDROID_KEYSTORE_B64 }}
-      ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_KEYSTORE_PASSWORD }}
-      ORBI_KEY_ALIAS: ${{ secrets.ORBI_KEY_ALIAS }}
+      ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_ANDROID_KEYSTORE_PASSWORD }}
+      ORBI_KEY_ALIAS: ${{ secrets.ORBI_ANDROID_KEY_ALIAS }}
       ORBI_KEY_PASSWORD: ${{ secrets.ORBI_KEY_PASSWORD }}
       ORBI_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-release.jks
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Preserve pre-Capacitor Zen audio recovery candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-legacy-zen-audio-candidate
+          path: |
+            android/app/src/main/assets/public/audio/orbi-zen-ambient.mp3
+            android/app/src/main/assets/public/audio/orbi-zen-loop-v1.mp3
+          if-no-files-found: error
+          retention-days: 2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
