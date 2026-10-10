@@ -96,7 +96,7 @@ jobs:
       ORBI_ANDROID_KEYSTORE_B64: ${{ secrets.ORBI_ANDROID_KEYSTORE_B64 }}
       ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_ANDROID_KEYSTORE_PASSWORD }}
       ORBI_KEY_ALIAS: ${{ secrets.ORBI_ANDROID_KEY_ALIAS }}
-      ORBI_KEY_PASSWORD: ${{ secrets.ORBI_KEY_PASSWORD }}
+      ORBI_KEY_PASSWORD: ${{ secrets.ORBI_ANDROID_KEY_PASSWORD }}
       ORBI_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-release.jks
     steps:
       - name: Checkout
@@ -124,18 +124,6 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-
-      - name: Upload Android signing tools for one-time OC-21 audio recovery
-        uses: actions/upload-artifact@v4
-        with:
-          name: orbi-clima-temporary-android-signing-tools
-          path: |
-            /usr/local/lib/android/sdk/build-tools/36.0.0/apksigner
-            /usr/local/lib/android/sdk/build-tools/36.0.0/lib/apksigner.jar
-            /usr/local/lib/android/sdk/build-tools/36.0.0/zipalign
-            /usr/local/lib/android/sdk/build-tools/36.0.0/lib64/libc++.so
-          if-no-files-found: error
-          retention-days: 1
 
       - name: Setup pinned Gradle
         uses: gradle/actions/setup-gradle@v4
