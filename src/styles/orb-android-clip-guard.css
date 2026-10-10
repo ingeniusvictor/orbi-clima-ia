@@ -1,0 +1,27 @@
+/*
+ * Android WebView-specific Golden Orb clipping guard.
+ *
+ * Physical recordings show stale rectangular compositor tiles and temporary loss
+ * of the icon/temperature while the living sphere animates BOTH transform scale
+ * and a multi-value border-radius under overflow:hidden. Keep all original
+ * Motion transforms, halos, rings, particles and visual FX alive; only replace
+ * the animated clip shape with a stable circular clip on Android.
+ *
+ * This file intentionally does NOT use transform:none, animation:none,
+ * display:none, filter:none, or target halo/ring layers.
+ */
+
+html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10,
+html.capacitor-android #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  border-radius: 50% !important;
+  clip-path: circle(50% at 50% 50%);
+}
+
+/* Android has shown intermittent raster loss when backdrop blur is nested inside
+ * the animated clipped sphere. The chip keeps its translucent glass appearance
+ * without sampling pixels behind itself every frame. */
+html.android-webview #orbi-climate-core-container .backdrop-blur-sm,
+html.capacitor-android #orbi-climate-core-container .backdrop-blur-sm {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
