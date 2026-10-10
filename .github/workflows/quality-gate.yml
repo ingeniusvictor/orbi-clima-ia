@@ -173,16 +173,24 @@ jobs:
           printf '%s' "$ORBI_ANDROID_KEYSTORE_B64" | base64 --decode > "$ORBI_KEYSTORE_PATH"
           chmod 600 "$ORBI_KEYSTORE_PATH"
 
-      - name: Compile CI debug APK and release artifacts
+      - name: Compile CI debug, OC-21 preview and release artifacts
         working-directory: android
         shell: bash
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease :app:bundleRelease
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleOc21Preview :app:assembleRelease :app:bundleRelease
 
       - name: Upload CI-only debug APK
         uses: actions/upload-artifact@v4
         with:
           name: orbi-clima-ci-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload OC-21 side-by-side preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-oc21-side-by-side-apk
+          path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 7
 
