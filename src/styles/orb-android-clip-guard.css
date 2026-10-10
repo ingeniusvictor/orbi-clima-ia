@@ -4,8 +4,8 @@
  * Physical recordings showed stale rectangular compositor tiles and temporary
  * loss of the icon/temperature while the living sphere animated BOTH transform
  * scale and a multi-value border-radius under overflow:hidden. Keep the clip
- * geometry circular/stable on Android, but restore a clearly living Orb through
- * motion that does not mutate the clipped shape.
+ * geometry circular/stable on Android. Fluid silhouette motion is rendered by
+ * a separate decorative companion skin that contains no text/icon content.
  *
  * Protected Golden Orb source files remain untouched.
  */
@@ -16,18 +16,6 @@ html.capacitor-android #orbi-climate-core-container > div.relative > div.relativ
   clip-path: circle(50% at 50% 50%);
   background-size: 165% 165%;
   animation: orbi-android-liquid-light 8.4s ease-in-out infinite;
-}
-
-/*
- * The original cloudy pulse is only ~2%, so once border-radius morphing is
- * removed it is visually easy to miss. Animate the unclipped parent wrapper
- * instead of the clipped core. The independent `scale`/`translate` properties
- * compose outside the inner Motion transform and avoid re-rasterizing the clip.
- */
-html.android-webview #orbi-climate-core-container > div.relative.flex.items-center.justify-center,
-html.capacitor-android #orbi-climate-core-container > div.relative.flex.items-center.justify-center {
-  transform-origin: 50% 50%;
-  animation: orbi-android-safe-breathe 7.2s ease-in-out infinite;
 }
 
 /* A soft optical highlight drifts inside the stable circular clip. No blur,
@@ -58,13 +46,6 @@ html.capacitor-android #orbi-climate-core-container .backdrop-blur-sm {
   backdrop-filter: none !important;
 }
 
-@keyframes orbi-android-safe-breathe {
-  0%, 100% { scale: 1; translate: 0 0; }
-  28% { scale: 1.026; translate: 0 -1px; }
-  52% { scale: 0.994; translate: 0 1px; }
-  76% { scale: 1.018; translate: 0 -0.5px; }
-}
-
 @keyframes orbi-android-liquid-light {
   0%, 100% { background-position: 0% 52%; }
   28% { background-position: 38% 34%; }
@@ -88,8 +69,6 @@ html.capacitor-android #orbi-climate-core-container .backdrop-blur-sm {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html.android-webview #orbi-climate-core-container > div.relative.flex.items-center.justify-center,
-  html.capacitor-android #orbi-climate-core-container > div.relative.flex.items-center.justify-center,
   html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10,
   html.capacitor-android #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10,
   html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10::after,
