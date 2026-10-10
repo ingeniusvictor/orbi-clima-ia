@@ -102,7 +102,7 @@ function interpolate(a: number, b: number, t: number) {
 }
 
 function fallbackRadius(now: number, width: number, height: number): RadiusSet {
-  const duration = 8200;
+  const duration = 7800;
   const phase = ((now % duration) / duration) * fallbackKeyframes.length;
   const index = Math.floor(phase) % fallbackKeyframes.length;
   const next = (index + 1) % fallbackKeyframes.length;
@@ -157,7 +157,8 @@ function attachContour(): (() => void) | null {
 
   const syncGeometry = () => {
     cssSize = Math.max(1, orb.offsetWidth);
-    pad = Math.ceil(cssSize * 0.12);
+    // Wider pad than 10614 so the viscous contour has room to bulge without clipping.
+    pad = Math.ceil(cssSize * 0.17);
     const cssCanvasSize = cssSize + pad * 2;
     dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
@@ -183,9 +184,6 @@ function attachContour(): (() => void) | null {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssCanvasSize, cssCanvasSize);
 
-    const radius = currentFluidRadius(orb, now, cssSize, cssSize);
-    const x = pad;
-    const y = pad;
     const center = pad + cssSize / 2;
     const stableRadius = cssSize / 2;
     const computed = window.getComputedStyle(orb);
@@ -194,32 +192,48 @@ function attachContour(): (() => void) | null {
       extractFirstRgb(computed.borderColor) ||
       ([226, 232, 240] as [number, number, number]);
 
-    // Draw the organic silhouette, then punch out the stable real Orb. The
-    // canvas therefore contains only the changing outer contour — never a
-    // second full sphere that could cover icon/temperature.
+    // Viscous/lava-like drift. The blob grows and leans slowly while the real
+    // Orb remains the only complete sphere. All motion lives outside the punched core.
+    const slowPhase = (now / 8200) * Math.PI * 2;
+    const secondaryPhase = (now / 11700) * Math.PI * 2;
+    const widthScale = 1.075 + Math.sin(slowPhase) * 0.016 + Math.sin(secondaryPhase * 0.7) * 0.008;
+    const heightScale = 1.065 + Math.cos(slowPhase * 0.86) * 0.020 + Math.sin(secondaryPhase) * 0.007;
+    const driftX = Math.sin(slowPhase * 0.72) * cssSize * 0.018 + Math.sin(secondaryPhase * 1.13) * cssSize * 0.008;
+    const driftY = Math.cos(slowPhase * 0.61) * cssSize * 0.015 + Math.sin(secondaryPhase * 0.83) * cssSize * 0.008;
+
+    const blobWidth = cssSize * widthScale;
+    const blobHeight = cssSize * heightScale;
+    const x = center - blobWidth / 2 + driftX;
+    const y = center - blobHeight / 2 + driftY;
+    const radius = currentFluidRadius(orb, now, blobWidth, blobHeight);
+
     ctx.save();
-    drawRoundedBlob(ctx, x, y, cssSize, cssSize, radius);
+    drawRoundedBlob(ctx, x, y, blobWidth, blobHeight, radius);
+
     const gradient = ctx.createRadialGradient(
-      center - cssSize * 0.12,
-      center - cssSize * 0.14,
-      stableRadius * 0.72,
-      center,
-      center,
-      stableRadius * 1.08,
+      center - cssSize * (0.18 + Math.sin(slowPhase) * 0.025),
+      center - cssSize * (0.18 + Math.cos(secondaryPhase) * 0.022),
+      stableRadius * 0.62,
+      center + driftX * 0.35,
+      center + driftY * 0.35,
+      stableRadius * 1.18,
     );
-    gradient.addColorStop(0, withAlpha(tint, 0.02));
-    gradient.addColorStop(0.72, withAlpha(tint, 0.11));
-    gradient.addColorStop(1, withAlpha(tint, 0.22));
+    gradient.addColorStop(0, withAlpha(tint, 0.015));
+    gradient.addColorStop(0.58, withAlpha(tint, 0.09));
+    gradient.addColorStop(0.82, withAlpha(tint, 0.19));
+    gradient.addColorStop(1, withAlpha(tint, 0.34));
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = `rgba(255,255,255,${0.14 + (Math.sin(slowPhase) + 1) * 0.025})`;
+    ctx.lineWidth = 1.15;
     ctx.stroke();
 
+    // Punch out the real Orb plus a very small safety inset. The visible result
+    // is a thicker, asymmetric living contour — never a second filled Orb.
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
-    ctx.arc(center, center, stableRadius * 0.988, 0, Math.PI * 2);
+    ctx.arc(center, center, stableRadius * 0.972, 0, Math.PI * 2);
     ctx.fillStyle = '#000';
     ctx.fill();
     ctx.restore();
@@ -239,8 +253,8 @@ function attachContour(): (() => void) | null {
  * Android-only fluid contour for the Golden Orb.
  *
  * The real Orb remains one stable clipped surface. This canvas mirrors the
- * original morph geometry but only paints the tiny contour outside the stable
- * circle, avoiding both the duplicate-Orb look and WebView border-radius tiles.
+ * original morph geometry and adds a slow viscous drift, but paints only the
+ * outer contour beyond the stable circle. Icon/temperature can never be covered.
  */
 export function initializeAndroidGoldenOrbFluidContour(): () => void {
   if (!isAndroidNativeRuntime() || typeof window === 'undefined') {
