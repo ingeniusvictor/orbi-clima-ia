@@ -12,6 +12,8 @@ import './styles/home-density.css';
 import './styles/android-compositor-guard.css';
 import './styles/living-weather-visibility.css';
 import './styles/living-weather-android-safe.css';
+import './styles/living-weather-clouds-v2.css';
+import './styles/orb-android-stability.css';
 
 // Activate the Android compositor guard before React's first paint. App also
 // re-checks platform after mount; this early class closes the first-frame gap.
