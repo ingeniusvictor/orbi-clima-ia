@@ -1,20 +1,52 @@
 /*
  * Android WebView-specific Golden Orb clipping guard.
  *
- * Physical recordings show stale rectangular compositor tiles and temporary loss
- * of the icon/temperature while the living sphere animates BOTH transform scale
- * and a multi-value border-radius under overflow:hidden. Keep all original
- * Motion transforms, halos, rings, particles and visual FX alive; only replace
- * the animated clip shape with a stable circular clip on Android.
+ * Physical recordings showed stale rectangular compositor tiles and temporary
+ * loss of the icon/temperature while the living sphere animated BOTH transform
+ * scale and a multi-value border-radius under overflow:hidden. Keep the clip
+ * geometry circular/stable on Android, but restore a clearly living Orb through
+ * motion that does not mutate the clipped shape.
  *
- * This file intentionally does NOT use transform:none, animation:none,
- * display:none, filter:none, or target halo/ring layers.
+ * Protected Golden Orb source files remain untouched.
  */
 
 html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10,
 html.capacitor-android #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
   border-radius: 50% !important;
   clip-path: circle(50% at 50% 50%);
+  background-size: 165% 165%;
+  animation: orbi-android-liquid-light 8.4s ease-in-out infinite;
+}
+
+/*
+ * The original cloudy pulse is only ~2%, so once border-radius morphing is
+ * removed it is visually easy to miss. Animate the unclipped parent wrapper
+ * instead of the clipped core. The independent `scale`/`translate` properties
+ * compose outside the inner Motion transform and avoid re-rasterizing the clip.
+ */
+html.android-webview #orbi-climate-core-container > div.relative.flex.items-center.justify-center,
+html.capacitor-android #orbi-climate-core-container > div.relative.flex.items-center.justify-center {
+  transform-origin: 50% 50%;
+  animation: orbi-android-safe-breathe 7.2s ease-in-out infinite;
+}
+
+/* A soft optical highlight drifts inside the stable circular clip. No blur,
+ * mix-blend mode, backdrop sampling or 3D transform is used. */
+html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10::after,
+html.capacitor-android #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  z-index: 4;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255,255,255,0.20) 0 8%, rgba(255,255,255,0.06) 22%, transparent 44%),
+    radial-gradient(circle at 72% 72%, rgba(125,211,252,0.10) 0 10%, transparent 38%);
+  background-size: 145% 145%, 155% 155%;
+  background-position: 18% 20%, 82% 78%;
+  opacity: 0.68;
+  animation: orbi-android-optical-drift 9.6s ease-in-out infinite;
 }
 
 /* Android has shown intermittent raster loss when backdrop blur is nested inside
@@ -24,4 +56,44 @@ html.android-webview #orbi-climate-core-container .backdrop-blur-sm,
 html.capacitor-android #orbi-climate-core-container .backdrop-blur-sm {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+}
+
+@keyframes orbi-android-safe-breathe {
+  0%, 100% { scale: 1; translate: 0 0; }
+  28% { scale: 1.026; translate: 0 -1px; }
+  52% { scale: 0.994; translate: 0 1px; }
+  76% { scale: 1.018; translate: 0 -0.5px; }
+}
+
+@keyframes orbi-android-liquid-light {
+  0%, 100% { background-position: 0% 52%; }
+  28% { background-position: 38% 34%; }
+  58% { background-position: 82% 62%; }
+  78% { background-position: 56% 82%; }
+}
+
+@keyframes orbi-android-optical-drift {
+  0%, 100% {
+    background-position: 18% 20%, 82% 78%;
+    opacity: 0.58;
+  }
+  32% {
+    background-position: 54% 30%, 62% 68%;
+    opacity: 0.78;
+  }
+  64% {
+    background-position: 74% 58%, 32% 44%;
+    opacity: 0.62;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.android-webview #orbi-climate-core-container > div.relative.flex.items-center.justify-center,
+  html.capacitor-android #orbi-climate-core-container > div.relative.flex.items-center.justify-center,
+  html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10,
+  html.capacitor-android #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10,
+  html.android-webview #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10::after,
+  html.capacitor-android #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10::after {
+    animation: none !important;
+  }
 }
