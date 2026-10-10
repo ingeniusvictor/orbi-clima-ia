@@ -17,11 +17,15 @@ expect(css.includes('orbi-android-optical-drift'), 'Android Orb must retain movi
 for (const forbidden of [
   'transform: none',
   'display: none',
-  'filter: none',
   'opacity: 0 !important',
 ]) {
   expect(!css.includes(forbidden), `Orb live-motion guard must not contain ${forbidden}.`);
 }
+
+// `backdrop-filter: none` is intentionally allowed for the SENS chip because
+// WebView showed nested raster loss there. What must never be added is a direct
+// `filter: none` declaration that would flatten Orb halos/effects.
+expect(!/(^|\n)\s*filter\s*:\s*none\b/m.test(css), 'Orb live-motion guard must not disable direct CSS filter effects.');
 
 expect(!css.includes('.blur-3xl'), 'Android Orb live-motion guard must not disable the outer halo selectively.');
 expect(!css.includes('.blur-2xl'), 'Android Orb live-motion guard must not disable the secondary halo selectively.');
