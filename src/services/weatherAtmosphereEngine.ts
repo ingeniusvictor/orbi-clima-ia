@@ -159,11 +159,12 @@ export function buildWeatherAtmosphereModel(params: {
   const luminanceBase = phase === 'night' ? 0.18 : phase === 'dawn' || phase === 'dusk' ? 0.55 : 0.82;
   const luminance = Math.max(0.12, luminanceBase - cloudOpacity * 0.24 - precipitationStrength * 0.12);
 
+  const severeCoolScene = scene === 'cold' || scene === 'rain' || scene === 'storm';
   const accentTemperature: AtmosphereModel['accentTemperature'] =
-    scene === 'hot' || phase === 'dawn' || phase === 'dusk'
-      ? 'warm'
-      : scene === 'cold' || scene === 'rain' || scene === 'storm' || phase === 'night'
-        ? 'cool'
+    severeCoolScene || phase === 'night'
+      ? 'cool'
+      : scene === 'hot' || phase === 'dawn' || phase === 'dusk'
+        ? 'warm'
         : 'neutral';
 
   return {
