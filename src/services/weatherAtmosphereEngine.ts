@@ -41,19 +41,18 @@ function parseClock(value?: string): number | null {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function getLocalMinutes(timezone?: string): number {
+function getLocalMinutes(timezone?: string, now: Date = new Date()): number {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: timezone || undefined,
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-    }).formatToParts(new Date());
+    }).formatToParts(now);
     const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '12');
     const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
     return hour * 60 + minute;
   } catch {
-    const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   }
 }
@@ -61,14 +60,15 @@ function getLocalMinutes(timezone?: string): number {
 export function resolveAtmospherePhase(
   timezone?: string,
   daily?: DailyForecast,
+  now?: Date,
 ): AtmospherePhase {
-  const now = getLocalMinutes(timezone);
+  const localMinutes = getLocalMinutes(timezone, now);
   const sunrise = parseClock(daily?.sunrise) ?? 7 * 60;
   const sunset = parseClock(daily?.sunset) ?? 19 * 60;
 
-  if (now >= sunrise - 45 && now < sunrise + 55) return 'dawn';
-  if (now >= sunset - 55 && now < sunset + 45) return 'dusk';
-  if (now >= sunrise + 55 && now < sunset - 55) return 'day';
+  if (localMinutes >= sunrise - 45 && localMinutes < sunrise + 55) return 'dawn';
+  if (localMinutes >= sunset - 55 && localMinutes < sunset + 45) return 'dusk';
+  if (localMinutes >= sunrise + 55 && localMinutes < sunset - 55) return 'day';
   return 'night';
 }
 
@@ -120,12 +120,13 @@ export function buildWeatherAtmosphereModel(params: {
   daily?: DailyForecast;
   timezone?: string;
   quality?: AtmosphereQuality;
+  now?: Date;
 }): AtmosphereModel {
-  const { current, daily, timezone } = params;
+  const { current, daily, timezone, now } = params;
   const scene = resolveAtmosphereScene(current.condition as WeatherCondition | 'setup');
   const phase = current.condition === 'night'
     ? 'night'
-    : resolveAtmospherePhase(timezone, daily);
+    : resolveAtmospherePhase(timezone, daily, now);
   const quality = params.quality ?? resolveAtmosphereQuality();
 
   const cloudFraction = Math.min(1, Math.max(0, current.cloudCover / 100));
