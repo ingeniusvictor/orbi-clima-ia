@@ -18,6 +18,7 @@ const cache = read('src/services/weatherCacheService.ts');
 const coreCss = read('src/styles/living-weather-atmosphere.css');
 const effectsCss = read('src/styles/living-weather-effects.css');
 const visibilityCss = read('src/styles/living-weather-visibility.css');
+const androidSafeCss = read('src/styles/living-weather-android-safe.css');
 const css = `${coreCss}\n${effectsCss}`;
 const hostCss = read('src/styles/living-weather-host.css');
 const compositorCss = read('src/styles/android-compositor-guard.css');
@@ -48,6 +49,7 @@ expect(cache.includes("orbi-weather-bundle-updated"), 'Weather cache must publis
 expect(main.includes('<LivingWeatherAtmosphereHost />'), 'Atmosphere host is not mounted at application root.');
 expect(main.includes('<AtmosphereLabOverlay />'), 'Developer Atmosphere Lab is not mounted.');
 expect(main.includes("./styles/living-weather-visibility.css"), 'Physical-device atmosphere visibility tuning is not loaded.');
+expect(main.includes("./styles/living-weather-android-safe.css"), 'Android-safe Living Weather compositor profile is not loaded.');
 expect(lab.includes('isDeveloperModeEnabled()'), 'Atmosphere Lab must be hidden unless developer mode is unlocked and enabled.');
 expect(lab.includes('no modifica el clima guardado'), 'Atmosphere Lab must explain that presets are visual-only.');
 expect(debugService.includes("localStorage.removeItem(ATMOSPHERE_DEBUG_KEY)"), 'LIVE reset must remove the visual override cleanly.');
@@ -71,6 +73,16 @@ expect(main.includes("classList.add('capacitor-android', 'android-webview')"), '
 expect(compositorCss.includes('#first-launch-onboarding'), 'Android onboarding compositor guard is missing.');
 expect(compositorCss.includes('#orbi-mobile-home-screen'), 'Android Home compositor guard is missing.');
 expect(compositorCss.includes('backdrop-filter: none'), 'Android compositor guard must disable backdrop-filter on risky surfaces.');
+
+// Physical recording exposed stale rectangular GPU tiles from large blurred/
+// transformed atmosphere layers. Android keeps the scene alive but forbids those
+// promotion hints and heavy filters on full-screen/oversized layers.
+expect(androidSafeCss.includes('.lwa-cloud'), 'Android-safe profile must explicitly cover cloud layers.');
+expect(androidSafeCss.includes('.lwa-mist'), 'Android-safe profile must explicitly cover mist layers.');
+expect(androidSafeCss.includes('filter: none !important'), 'Android-safe profile must remove heavy blur filters.');
+expect(androidSafeCss.includes('will-change: auto !important'), 'Android-safe profile must remove persistent GPU promotion hints.');
+expect(androidSafeCss.includes('contain: none !important'), 'Android-safe profile must not isolate the weather into stale compositor tiles.');
+expect(androidSafeCss.includes('transform: none !important'), 'Android-safe profile must remove forced 3D promotion on full-screen layers.');
 
 const forbiddenCss = [
   ['backdrop-filter', 'Do not use backdrop-filter in OC-22 atmosphere layers: Android WebView compositing/scroll bleed risk.'],
