@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import LivingWeatherAtmosphereHost from './components/LivingWeatherAtmosphereHost';
+import ImmersiveWeatherForegroundHost from './components/ImmersiveWeatherForegroundHost';
 import AtmosphereLabOverlay from './components/AtmosphereLabOverlay';
 import { initializeFirstLaunchLocationBootstrap } from './services/firstLaunchLocationBootstrap';
 import { initializeZenSoundBootstrap } from './services/zenSoundBootstrap';
@@ -29,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LivingWeatherAtmosphereHost />
     <App />
+    <ImmersiveWeatherForegroundHost />
     <AtmosphereLabOverlay />
   </StrictMode>,
 );
