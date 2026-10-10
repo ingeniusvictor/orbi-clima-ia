@@ -2,6 +2,26 @@ import { isAndroidNativeRuntime } from './androidRuntimeDiagnosticsService';
 
 const SKIN_CLASS = 'orbi-android-fluid-skin';
 const ORB_SELECTOR = '#orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10';
+const ATMOSPHERE_SELECTOR = '#orbi-living-weather-atmosphere';
+
+const durationByScene: Record<string, number> = {
+  storm: 3,
+  hot: 4,
+  rain: 5,
+  wind: 5.5,
+  sunny: 6,
+  clear: 6,
+  partly_cloudy: 7,
+  cloudy: 7,
+  cold: 8,
+  night: 9,
+  fog: 10,
+};
+
+function resolveFluidDurationSeconds() {
+  const scene = document.querySelector<HTMLElement>(ATMOSPHERE_SELECTOR)?.dataset.scene || 'cloudy';
+  return durationByScene[scene] ?? 7;
+}
 
 function syncSkinFromOrb(orb: HTMLElement, skin: HTMLDivElement) {
   const style = window.getComputedStyle(orb);
@@ -12,11 +32,9 @@ function syncSkinFromOrb(orb: HTMLElement, skin: HTMLDivElement) {
   skin.style.backgroundColor = style.backgroundColor;
   skin.style.boxShadow = style.boxShadow;
   skin.style.borderColor = style.borderColor;
-
-  const duration = style.getPropertyValue('--orbi-fluid-duration').trim();
-  if (duration) {
-    skin.style.setProperty('--orbi-fluid-duration', duration);
-  }
+  skin.style.width = `${orb.offsetWidth}px`;
+  skin.style.height = `${orb.offsetHeight}px`;
+  skin.style.setProperty('--orbi-fluid-duration', `${resolveFluidDurationSeconds()}s`);
 }
 
 function attachSkin(): (() => void) | null {
@@ -36,24 +54,28 @@ function attachSkin(): (() => void) | null {
 
   syncSkinFromOrb(orb, skin);
 
-  const resizeObserver = new ResizeObserver(() => {
-    skin!.style.width = `${orb.offsetWidth}px`;
-    skin!.style.height = `${orb.offsetHeight}px`;
-  });
+  const resizeObserver = new ResizeObserver(() => syncSkinFromOrb(orb, skin!));
   resizeObserver.observe(orb);
 
-  skin.style.width = `${orb.offsetWidth}px`;
-  skin.style.height = `${orb.offsetHeight}px`;
-
-  const mutationObserver = new MutationObserver(() => syncSkinFromOrb(orb, skin!));
-  mutationObserver.observe(orb, {
+  const orbObserver = new MutationObserver(() => syncSkinFromOrb(orb, skin!));
+  orbObserver.observe(orb, {
     attributes: true,
     attributeFilter: ['class', 'style'],
   });
 
+  const atmosphere = document.querySelector<HTMLElement>(ATMOSPHERE_SELECTOR);
+  const atmosphereObserver = atmosphere
+    ? new MutationObserver(() => syncSkinFromOrb(orb, skin!))
+    : null;
+  atmosphereObserver?.observe(atmosphere!, {
+    attributes: true,
+    attributeFilter: ['data-scene'],
+  });
+
   return () => {
     resizeObserver.disconnect();
-    mutationObserver.disconnect();
+    orbObserver.disconnect();
+    atmosphereObserver?.disconnect();
     skin?.remove();
   };
 }
@@ -71,19 +93,30 @@ export function initializeAndroidGoldenOrbFluidSkin(): () => void {
   }
 
   let detachSkin: (() => void) | null = null;
-  let raf = 0;
 
   const ensureSkin = () => {
-    if (!document.hidden && !document.querySelector(`.${SKIN_CLASS}`)) {
+    const orbExists = Boolean(document.querySelector(ORB_SELECTOR));
+    const skinExists = Boolean(document.querySelector(`.${SKIN_CLASS}`));
+
+    if (orbExists && !skinExists) {
+      detachSkin?.();
       detachSkin = attachSkin();
+    } else if (!orbExists && skinExists) {
+      detachSkin?.();
+      detachSkin = null;
     }
-    raf = window.requestAnimationFrame(ensureSkin);
   };
 
-  raf = window.requestAnimationFrame(ensureSkin);
+  const root = document.getElementById('root');
+  const rootObserver = root ? new MutationObserver(ensureSkin) : null;
+  rootObserver?.observe(root!, { childList: true, subtree: true });
+
+  // React has not necessarily committed Home yet when bootstrap runs.
+  const firstAttach = window.requestAnimationFrame(ensureSkin);
 
   return () => {
-    window.cancelAnimationFrame(raf);
+    window.cancelAnimationFrame(firstAttach);
+    rootObserver?.disconnect();
     detachSkin?.();
   };
 }
