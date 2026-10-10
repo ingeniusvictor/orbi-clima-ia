@@ -102,16 +102,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preserve pre-Capacitor Zen audio recovery candidates
-        uses: actions/upload-artifact@v4
-        with:
-          name: orbi-clima-legacy-zen-audio-candidate
-          path: |
-            android/app/src/main/assets/public/audio/orbi-zen-ambient.mp3
-            android/app/src/main/assets/public/audio/orbi-zen-loop-v1.mp3
-          if-no-files-found: error
-          retention-days: 2
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
