@@ -15,11 +15,14 @@ interface LivingWeatherAtmosphereProps {
 }
 
 type AtmosphereStyle = CSSProperties & {
-  '--lwa-cloud-opacity': number;
+  '--lwa-cloud-far-opacity': number;
+  '--lwa-cloud-mid-opacity': number;
+  '--lwa-cloud-near-opacity': number;
   '--lwa-cloud-speed': string;
   '--lwa-rain-opacity': number;
-  '--lwa-mist-opacity': number;
-  '--lwa-wind': number;
+  '--lwa-mist-a-opacity': number;
+  '--lwa-mist-b-opacity': number;
+  '--lwa-wind-shift': string;
   '--lwa-luminance': number;
 };
 
@@ -55,11 +58,14 @@ export default function LivingWeatherAtmosphere({
   }), [currentWeather, dailyForecast, timezone, quality]);
 
   const style: AtmosphereStyle = {
-    '--lwa-cloud-opacity': Number(model.cloudOpacity.toFixed(3)),
+    '--lwa-cloud-far-opacity': Number((model.cloudOpacity * 0.56).toFixed(3)),
+    '--lwa-cloud-mid-opacity': Number((model.cloudOpacity * 0.76).toFixed(3)),
+    '--lwa-cloud-near-opacity': Number((model.cloudOpacity * 0.88).toFixed(3)),
     '--lwa-cloud-speed': `${Math.round(model.cloudSpeed)}s`,
     '--lwa-rain-opacity': Number(model.precipitationStrength.toFixed(3)),
-    '--lwa-mist-opacity': Number(model.mistStrength.toFixed(3)),
-    '--lwa-wind': Number(model.windStrength.toFixed(3)),
+    '--lwa-mist-a-opacity': Number((model.mistStrength * 0.72).toFixed(3)),
+    '--lwa-mist-b-opacity': Number((model.mistStrength * 0.42).toFixed(3)),
+    '--lwa-wind-shift': `${Math.round(model.windStrength * 24)}px`,
     '--lwa-luminance': Number(model.luminance.toFixed(3)),
   };
 
@@ -108,7 +114,16 @@ export default function LivingWeatherAtmosphere({
       {showRain && (
         <div className="lwa-rain" aria-hidden="true">
           {rainDrops.map((drop) => (
-            <span key={drop} style={{ '--drop-index': drop } as CSSProperties} />
+            <span
+              key={drop}
+              style={{
+                left: `${(drop * 5.7) % 100}%`,
+                top: `${-12 - ((drop * 7) % 24)}%`,
+                height: `${48 + (drop % 5) * 10}px`,
+                animationDuration: `${0.72 + (drop % 4) * 0.11}s`,
+                animationDelay: `${drop * -0.13}s`,
+              }}
+            />
           ))}
         </div>
       )}
@@ -116,7 +131,15 @@ export default function LivingWeatherAtmosphere({
       {showColdParticles && (
         <div className="lwa-cold-particles" aria-hidden="true">
           {coldParticles.map((particle) => (
-            <span key={particle} style={{ '--particle-index': particle } as CSSProperties} />
+            <span
+              key={particle}
+              style={{
+                left: `${(particle * 8.4) % 100}%`,
+                top: `${(particle % 5) * 16}%`,
+                animationDuration: `${6 + (particle % 4) * 1.5}s`,
+                animationDelay: `${particle * -0.35}s`,
+              }}
+            />
           ))}
         </div>
       )}
