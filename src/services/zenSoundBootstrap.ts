@@ -4,9 +4,8 @@ declare global {
   }
 }
 
-// Keep the long-standing bundled asset path so existing controller/runtime code
-// remains compatible. The bytes at this path are the verified original
-// Beneath the Crystal Arch track once the binary source restoration lands.
+// Long-standing bundled path; OC-21 pins its bytes to the verified original
+// Beneath the Crystal Arch track through the audio-integrity gate.
 const ORIGINAL_ORBI_ZEN_PATH = '/audio/orbi-zen-ambient.mp3';
 
 const BUILT_IN_TRACKS: Record<string, string> = {
