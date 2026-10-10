@@ -36,8 +36,7 @@
     radial-gradient(circle at 72% 18%, rgba(103, 232, 249, 0.12), transparent 28%),
     linear-gradient(180deg, #071525 0%, #0b1830 43%, #08101e 100%);
   transform: translateZ(0);
-  transition: background 1100ms ease, filter 1100ms ease;
-  filter: brightness(calc(0.72 + var(--lwa-luminance) * 0.45));
+  transition: background 1100ms ease;
 }
 
 [data-phase='day'] .lwa-sky {
@@ -179,14 +178,34 @@
 .lwa-cloud-field {
   left: -55%;
   width: 210%;
-  animation: lwa-cloud-drift var(--lwa-cloud-speed) linear infinite;
+  animation-name: lwa-cloud-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
   animation-play-state: running;
-  opacity: var(--lwa-cloud-opacity);
+  will-change: transform;
 }
 
-.lwa-cloud-field-far { top: 1%; height: 40%; opacity: calc(var(--lwa-cloud-opacity) * 0.56); animation-duration: calc(var(--lwa-cloud-speed) * 1.65); }
-.lwa-cloud-field-mid { top: 9%; height: 48%; opacity: calc(var(--lwa-cloud-opacity) * 0.76); animation-direction: reverse; animation-duration: calc(var(--lwa-cloud-speed) * 1.18); }
-.lwa-cloud-field-near { top: 21%; height: 52%; opacity: calc(var(--lwa-cloud-opacity) * 0.88); }
+.lwa-cloud-field-far {
+  top: 1%;
+  height: 40%;
+  opacity: var(--lwa-cloud-far-opacity);
+  animation-duration: var(--lwa-cloud-speed-far);
+}
+
+.lwa-cloud-field-mid {
+  top: 9%;
+  height: 48%;
+  opacity: var(--lwa-cloud-mid-opacity);
+  animation-duration: var(--lwa-cloud-speed-mid);
+  animation-direction: reverse;
+}
+
+.lwa-cloud-field-near {
+  top: 21%;
+  height: 52%;
+  opacity: var(--lwa-cloud-near-opacity);
+  animation-duration: var(--lwa-cloud-speed-near);
+}
 
 .lwa-cloud {
   position: absolute;
@@ -227,15 +246,19 @@
 .lwa-mist {
   inset: auto -22% 0 -22%;
   height: 44%;
-  opacity: calc(var(--lwa-mist-opacity) * 0.72);
   background: radial-gradient(ellipse at center, rgba(215, 230, 239, 0.22), rgba(136, 163, 181, 0.06) 48%, transparent 72%);
   filter: blur(26px);
   animation: lwa-mist-drift 15s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.lwa-mist-a {
+  opacity: var(--lwa-mist-a-opacity);
 }
 
 .lwa-mist-b {
   bottom: 17%;
-  opacity: calc(var(--lwa-mist-opacity) * 0.42);
+  opacity: var(--lwa-mist-b-opacity);
   animation-delay: -7s;
   animation-direction: alternate-reverse;
 }
@@ -246,31 +269,27 @@
 }
 
 .lwa-rain span {
-  --i: var(--drop-index);
   position: absolute;
-  left: calc((var(--i) * 5.7%));
-  top: calc(-12% - (var(--i) * 2.3%));
   width: 1px;
-  height: calc(48px + (var(--i) % 5) * 10px);
   border-radius: 999px;
   background: linear-gradient(180deg, transparent, rgba(190, 226, 246, 0.68));
   transform: rotate(8deg);
-  animation: lwa-rain-fall calc(0.72s + (var(--i) % 4) * 0.11s) linear infinite;
-  animation-delay: calc(var(--i) * -0.13s);
+  animation-name: lwa-rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
 }
 
 .lwa-cold-particles span {
-  --i: var(--particle-index);
   position: absolute;
-  left: calc((var(--i) * 8.4%));
-  top: calc((var(--i) % 5) * 16%);
   width: 3px;
   height: 3px;
   border-radius: 999px;
   background: rgba(226, 242, 255, 0.7);
   box-shadow: 0 0 7px rgba(186, 230, 253, 0.42);
-  animation: lwa-cold-float calc(6s + (var(--i) % 4) * 1.5s) ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.35s);
+  animation-name: lwa-cold-float;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 .lwa-lightning {
@@ -294,7 +313,7 @@
 }
 
 .lwa-readable-veil {
-  background: linear-gradient(180deg, rgba(3, 8, 17, 0.12), rgba(3, 8, 17, 0.28) 62%, rgba(3, 8, 17, 0.52));
+  background: linear-gradient(180deg, rgba(3, 8, 17, 0.1), rgba(3, 8, 17, 0.26) 62%, rgba(3, 8, 17, 0.5));
 }
 
 [data-quality='low'] .lwa-cloud-field-far,
@@ -310,7 +329,9 @@
   display: none;
 }
 
-[data-quality='balanced'] .lwa-cloud-field-far { display: none; }
+[data-quality='balanced'] .lwa-cloud-field-far {
+  display: none;
+}
 
 .living-weather-atmosphere.is-paused *,
 [data-quality='static'] * {
@@ -335,7 +356,7 @@
 
 @keyframes lwa-rain-fall {
   from { transform: translate3d(0, -12vh, 0) rotate(8deg); }
-  to { transform: translate3d(calc(-10px - var(--lwa-wind) * 24px), 118vh, 0) rotate(8deg); }
+  to { transform: translate3d(calc(-10px - var(--lwa-wind-shift)), 118vh, 0) rotate(8deg); }
 }
 
 @keyframes lwa-cold-float {
