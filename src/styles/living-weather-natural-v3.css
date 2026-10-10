@@ -28,15 +28,15 @@
 .living-weather-atmosphere .lwa-cloud-field-far {
   top: -1%;
   height: 33%;
-  opacity: calc(var(--lwa-cloud-far-opacity) * 0.66);
+  opacity: var(--lwa-cloud-far-opacity);
   background-image: url('/weather/clouds/cloud-bank-high-v3.svg');
-  animation-duration: calc(var(--lwa-cloud-speed-far) * 1.35);
+  animation-duration: var(--lwa-cloud-speed-far);
 }
 
 .living-weather-atmosphere .lwa-cloud-field-mid {
   top: 7%;
   height: 42%;
-  opacity: calc(var(--lwa-cloud-mid-opacity) * 0.9);
+  opacity: var(--lwa-cloud-mid-opacity);
   background-image: url('/weather/clouds/cloud-bank-mid-v3.svg');
   animation-duration: var(--lwa-cloud-speed-mid);
 }
@@ -44,23 +44,23 @@
 .living-weather-atmosphere .lwa-cloud-field-near {
   top: 17%;
   height: 47%;
-  opacity: calc(var(--lwa-cloud-near-opacity) * 0.78);
+  opacity: var(--lwa-cloud-near-opacity);
   background-image: url('/weather/clouds/cloud-bank-low-v3.svg');
-  animation-duration: calc(var(--lwa-cloud-speed-near) * 0.88);
+  animation-duration: var(--lwa-cloud-speed-near);
 }
 
 .living-weather-atmosphere[data-scene='partly-cloudy'] .lwa-cloud-field-near {
-  opacity: calc(var(--lwa-cloud-near-opacity) * 0.34);
+  opacity: 0.2;
 }
 
 .living-weather-atmosphere[data-scene='clear'] .lwa-cloud-field-mid,
 .living-weather-atmosphere[data-scene='hot'] .lwa-cloud-field-mid {
-  opacity: calc(var(--lwa-cloud-mid-opacity) * 0.22);
+  opacity: 0.08;
 }
 
 .living-weather-atmosphere[data-scene='clear'] .lwa-cloud-field-near,
 .living-weather-atmosphere[data-scene='hot'] .lwa-cloud-field-near {
-  opacity: calc(var(--lwa-cloud-near-opacity) * 0.08);
+  opacity: 0.025;
 }
 
 .living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field,
@@ -69,17 +69,23 @@
 }
 
 .living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-far {
-  opacity: calc(var(--lwa-cloud-far-opacity) * 0.8);
+  opacity: 0.58;
 }
 
-.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-mid,
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-mid {
+  opacity: 0.86;
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-near {
+  opacity: 0.92;
+}
+
 .living-weather-atmosphere[data-scene='rain'] .lwa-cloud-field-mid {
-  opacity: calc(var(--lwa-cloud-mid-opacity) * 0.96);
+  opacity: 0.76;
 }
 
-.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-near,
 .living-weather-atmosphere[data-scene='rain'] .lwa-cloud-field-near {
-  opacity: calc(var(--lwa-cloud-near-opacity) * 0.9);
+  opacity: 0.82;
 }
 
 /* --- More meteorological, less synthetic sky palette -------------------- */
