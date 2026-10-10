@@ -5,6 +5,7 @@ import {
   buildWeatherAtmosphereModel,
   resolveAtmosphereQuality,
 } from '../services/weatherAtmosphereEngine';
+import NaturalCloudCanvas from './NaturalCloudCanvas';
 import '../styles/living-weather-atmosphere.css';
 import '../styles/living-weather-effects.css';
 
@@ -106,17 +107,14 @@ export default function LivingWeatherAtmosphere({
         <div className="lwa-celestial-disc" />
       </div>
 
-      <div className="lwa-cloud-field lwa-cloud-field-far">
-        <span className="lwa-cloud lwa-cloud-a" />
-        <span className="lwa-cloud lwa-cloud-b" />
-      </div>
-      <div className="lwa-cloud-field lwa-cloud-field-mid">
-        <span className="lwa-cloud lwa-cloud-c" />
-        <span className="lwa-cloud lwa-cloud-d" />
-      </div>
-      <div className="lwa-cloud-field lwa-cloud-field-near">
-        <span className="lwa-cloud lwa-cloud-e" />
-      </div>
+      <NaturalCloudCanvas
+        scene={model.scene}
+        quality={quality}
+        cloudOpacity={model.cloudOpacity}
+        cloudSpeedSeconds={model.cloudSpeed}
+        windStrength={model.windStrength}
+        active={!paused}
+      />
 
       <div className="lwa-mist lwa-mist-a" />
       <div className="lwa-mist lwa-mist-b" />
