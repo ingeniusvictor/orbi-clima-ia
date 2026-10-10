@@ -6,6 +6,7 @@ import {
   resolveAtmosphereQuality,
 } from '../services/weatherAtmosphereEngine';
 import '../styles/living-weather-atmosphere.css';
+import '../styles/living-weather-effects.css';
 
 interface LivingWeatherAtmosphereProps {
   currentWeather: CurrentWeather;
