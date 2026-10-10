@@ -13,7 +13,9 @@ const renderer = read('src/components/LivingWeatherAtmosphere.tsx');
 const host = read('src/components/LivingWeatherAtmosphereHost.tsx');
 const engine = read('src/services/weatherAtmosphereEngine.ts');
 const cache = read('src/services/weatherCacheService.ts');
-const css = read('src/styles/living-weather-atmosphere.css');
+const coreCss = read('src/styles/living-weather-atmosphere.css');
+const effectsCss = read('src/styles/living-weather-effects.css');
+const css = `${coreCss}\n${effectsCss}`;
 const hostCss = read('src/styles/living-weather-host.css');
 const main = read('src/main.tsx');
 
@@ -27,13 +29,19 @@ for (const scene of ['clear', 'partly-cloudy', 'cloudy', 'rain', 'storm', 'wind'
 
 expect(renderer.includes('document.visibilityState'), 'Animations must pause when the page is hidden.');
 expect(renderer.includes("quality !== 'static'"), 'Static/reduced-motion mode must suppress particle animation.');
+expect(renderer.includes('lwa-sun-rays'), 'Clear/hot weather must have a distinct sunlight signature.');
+expect(renderer.includes('lwa-wind-streams'), 'Wind weather must have a distinct motion signature.');
+expect(renderer.includes('lwa-heat-waves'), 'Hot weather must have a distinct heat signature.');
 expect(host.includes("orbi_clima_first_launch_completed_v1"), 'Atmosphere host must stay out of first-launch onboarding.');
+expect(host.includes('MutationObserver'), 'Atmosphere host must observe Home visibility and stop work outside Home.');
+expect(host.includes('active={homeVisible}'), 'Atmosphere renderer must pause/mute outside Home.');
 expect(cache.includes("orbi-weather-bundle-updated"), 'Weather cache must publish same-tab atmosphere refresh events.');
 expect(main.includes('<LivingWeatherAtmosphereHost />'), 'Atmosphere host is not mounted at application root.');
 expect(hostCss.includes('pointer-events: none'), 'Atmosphere host must never intercept gestures.');
 expect(hostCss.includes('z-index: 2'), 'Atmosphere host must remain below the existing z-10 mobile content.');
 expect(css.includes("prefers-reduced-motion: reduce"), 'Reduced-motion accessibility fallback is missing.');
 expect(css.includes("data-quality='static'"), 'Static performance fallback is missing.');
+expect(effectsCss.includes("data-quality='low'"), 'Extended cinematic effects must degrade on LOW quality.');
 
 const forbiddenCss = [
   ['backdrop-filter', 'Do not use backdrop-filter in OC-22: Android WebView compositing/scroll bleed risk.'],
