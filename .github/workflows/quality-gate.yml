@@ -94,9 +94,9 @@ jobs:
     timeout-minutes: 35
     env:
       ORBI_ANDROID_KEYSTORE_B64: ${{ secrets.ORBI_ANDROID_KEYSTORE_B64 }}
-      ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_ANDROID_KEYSTORE_PASSWORD }}
-      ORBI_KEY_ALIAS: ${{ secrets.ORBI_ANDROID_KEY_ALIAS }}
-      ORBI_KEY_PASSWORD: ${{ secrets.ORBI_ANDROID_KEY_PASSWORD }}
+      ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_KEYSTORE_PASSWORD }}
+      ORBI_KEY_ALIAS: ${{ secrets.ORBI_KEY_ALIAS }}
+      ORBI_KEY_PASSWORD: ${{ secrets.ORBI_KEY_PASSWORD }}
       ORBI_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-release.jks
     steps:
       - name: Checkout
@@ -138,6 +138,9 @@ jobs:
 
       - name: Copy current web bundle into Android
         run: npx cap copy android
+
+      - name: Verify bundled Zen audio integrity after Capacitor copy
+        run: npm run android:verify-audio-assets
 
       - name: Verify Mobile Home Experience after Capacitor copy
         run: npm run ui:verify-mobile-home
