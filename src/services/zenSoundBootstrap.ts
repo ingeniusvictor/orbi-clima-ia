@@ -4,22 +4,37 @@ declare global {
   }
 }
 
+const ORIGINAL_ORBI_ZEN_PATH = '/audio/Beneath_the_Crystal_Arch.mp3';
+
 const BUILT_IN_TRACKS: Record<string, string> = {
-  crystal_arch: '/audio/orbi-zen-ambient.mp3',
-  classic_ambient: '/audio/orbi-zen-ambient.mp3',
-  zen_loop: '/audio/orbi-zen-loop-v1.mp3',
+  crystal_arch: ORIGINAL_ORBI_ZEN_PATH,
+  // Legacy ids are intentionally migrated to the verified original track.
+  classic_ambient: ORIGINAL_ORBI_ZEN_PATH,
+  zen_loop: ORIGINAL_ORBI_ZEN_PATH,
 };
 
 const TRACK_KEY = 'orbiZenSoundTrackId';
 
+function normalizeBuiltInTrackId(trackId: string): string {
+  if (trackId === 'classic_ambient' || trackId === 'zen_loop') {
+    return 'crystal_arch';
+  }
+  return trackId;
+}
+
 function resolveBuiltInUrl(trackId: string): string | null {
-  const path = BUILT_IN_TRACKS[trackId];
+  const path = BUILT_IN_TRACKS[normalizeBuiltInTrackId(trackId)];
   if (!path) return null;
   return new URL(path, document.baseURI).href;
 }
 
 function primeSelectedBuiltInTrack(): void {
-  const selectedTrackId = localStorage.getItem(TRACK_KEY) || 'crystal_arch';
+  const storedTrackId = localStorage.getItem(TRACK_KEY) || 'crystal_arch';
+  const selectedTrackId = normalizeBuiltInTrackId(storedTrackId);
+
+  if (selectedTrackId !== storedTrackId) {
+    localStorage.setItem(TRACK_KEY, selectedTrackId);
+  }
 
   // The controller owns custom IndexedDB Blob URLs. Do not replace them here.
   if (selectedTrackId === 'custom') return;
@@ -48,10 +63,8 @@ function primeSelectedBuiltInTrack(): void {
  * Prepares the bundled ORBI Zen track even while Zen is OFF.
  *
  * The existing controller starts playback synchronously from the user's first tap.
- * Previously the built-in source was assigned only after React observed the enabled
- * state, so that first tap could call play() on an empty Audio element. A custom file
- * worked because selecting it assigned a Blob source first. Priming the built-in source
- * here keeps the first tap inside Android/WebView's allowed user gesture.
+ * Priming the verified original source here keeps the first tap inside
+ * Android/WebView's allowed user gesture and migrates deprecated built-in ids.
  */
 export function initializeZenSoundBootstrap(): () => void {
   if (typeof window === 'undefined' || typeof Audio === 'undefined') {
