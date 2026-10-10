@@ -18,12 +18,13 @@ type AtmosphereStyle = CSSProperties & {
   '--lwa-cloud-far-opacity': number;
   '--lwa-cloud-mid-opacity': number;
   '--lwa-cloud-near-opacity': number;
-  '--lwa-cloud-speed': string;
+  '--lwa-cloud-speed-far': string;
+  '--lwa-cloud-speed-mid': string;
+  '--lwa-cloud-speed-near': string;
   '--lwa-rain-opacity': number;
   '--lwa-mist-a-opacity': number;
   '--lwa-mist-b-opacity': number;
   '--lwa-wind-shift': string;
-  '--lwa-luminance': number;
 };
 
 const rainDrops = Array.from({ length: 18 }, (_, index) => index);
@@ -61,12 +62,13 @@ export default function LivingWeatherAtmosphere({
     '--lwa-cloud-far-opacity': Number((model.cloudOpacity * 0.56).toFixed(3)),
     '--lwa-cloud-mid-opacity': Number((model.cloudOpacity * 0.76).toFixed(3)),
     '--lwa-cloud-near-opacity': Number((model.cloudOpacity * 0.88).toFixed(3)),
-    '--lwa-cloud-speed': `${Math.round(model.cloudSpeed)}s`,
+    '--lwa-cloud-speed-far': `${Math.round(model.cloudSpeed * 1.65)}s`,
+    '--lwa-cloud-speed-mid': `${Math.round(model.cloudSpeed * 1.18)}s`,
+    '--lwa-cloud-speed-near': `${Math.round(model.cloudSpeed)}s`,
     '--lwa-rain-opacity': Number(model.precipitationStrength.toFixed(3)),
     '--lwa-mist-a-opacity': Number((model.mistStrength * 0.72).toFixed(3)),
     '--lwa-mist-b-opacity': Number((model.mistStrength * 0.42).toFixed(3)),
     '--lwa-wind-shift': `${Math.round(model.windStrength * 24)}px`,
-    '--lwa-luminance': Number(model.luminance.toFixed(3)),
   };
 
   const paused = !active || !pageVisible;
