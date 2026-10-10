@@ -1,0 +1,107 @@
+/*
+ * OC-21 physical-device compositor guard.
+ *
+ * Android WebView can retain filtered/backdrop-filtered layers while a transformed
+ * child is moving or while the page is scrolling. On physical devices this showed
+ * up as a stale translucent background passing over onboarding slides and the Home
+ * hero. Keep the premium colour atmosphere, but remove the compositor-heavy effects
+ * only on Android. The protected Golden Orb component and its FX stylesheet are not
+ * targeted here.
+ */
+
+.capacitor-android #first-launch-onboarding,
+.android-webview #first-launch-onboarding {
+  background: rgba(2, 6, 23, 0.985) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  isolation: isolate !important;
+  contain: paint !important;
+}
+
+.capacitor-android #first-launch-onboarding > div,
+.android-webview #first-launch-onboarding > div {
+  isolation: isolate !important;
+  contain: paint !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+}
+
+/* The two decorative onboarding glow nodes use blur-3xl. Static low-opacity
+   colour keeps the premium look without allocating independent filtered layers. */
+.capacitor-android #first-launch-onboarding .blur-3xl,
+.android-webview #first-launch-onboarding .blur-3xl {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 0.12 !important;
+}
+
+/* Stabilise each animated onboarding slide as a single paint unit. */
+.capacitor-android #first-launch-onboarding [style*="transform"],
+.android-webview #first-launch-onboarding [style*="transform"] {
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+}
+
+.capacitor-android #orbi-mobile-home-screen,
+.android-webview #orbi-mobile-home-screen {
+  isolation: isolate !important;
+  contain: paint !important;
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+}
+
+/* Premium Home atmosphere has very large blurred pseudo-elements. Android WebView
+   may composite those above child content while the scroll layer is moving.
+   Preserve their gradients, but render them as static non-filtered background paint. */
+.capacitor-android #orbi-mobile-home-screen::before,
+.capacitor-android #orbi-mobile-home-screen::after,
+.android-webview #orbi-mobile-home-screen::before,
+.android-webview #orbi-mobile-home-screen::after {
+  filter: none !important;
+  -webkit-filter: none !important;
+  animation: none !important;
+  opacity: 0.20 !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+/* The hero atmosphere is outside the protected Orb itself. Keeping it static avoids
+   an extra filtered layer crossing the Orb during fast vertical scrolling. */
+.capacitor-android #orbi-mobile-home-screen > #welcome-hero-section::before,
+.capacitor-android #orbi-mobile-home-screen > #welcome-hero-section::after,
+.android-webview #orbi-mobile-home-screen > #welcome-hero-section::before,
+.android-webview #orbi-mobile-home-screen > #welcome-hero-section::after {
+  filter: none !important;
+  -webkit-filter: none !important;
+  animation: none !important;
+  opacity: 0.14 !important;
+}
+
+/* Backdrop blur and blend layers are attractive on desktop but are the most common
+   source of stale WebView tiles during scroll. Android gets an equivalent solid-glass
+   surface instead. */
+.capacitor-android #orbi-mobile-home-screen > section,
+.capacitor-android #orbi-mobile-home-screen .orbi-premium-glass,
+.android-webview #orbi-mobile-home-screen > section,
+.android-webview #orbi-mobile-home-screen .orbi-premium-glass {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.capacitor-android #orbi-mobile-home-screen > section::before,
+.capacitor-android #orbi-mobile-home-screen .orbi-premium-glass::before,
+.android-webview #orbi-mobile-home-screen > section::before,
+.android-webview #orbi-mobile-home-screen .orbi-premium-glass::before {
+  mix-blend-mode: normal !important;
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capacitor-android #first-launch-onboarding *,
+  .android-webview #first-launch-onboarding * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
