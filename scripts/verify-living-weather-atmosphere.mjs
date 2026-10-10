@@ -17,6 +17,7 @@ const coreCss = read('src/styles/living-weather-atmosphere.css');
 const effectsCss = read('src/styles/living-weather-effects.css');
 const css = `${coreCss}\n${effectsCss}`;
 const hostCss = read('src/styles/living-weather-host.css');
+const compositorCss = read('src/styles/android-compositor-guard.css');
 const main = read('src/main.tsx');
 
 for (const quality of ['ultra', 'high', 'balanced', 'low', 'static']) {
@@ -42,6 +43,12 @@ expect(hostCss.includes('z-index: 2'), 'Atmosphere host must remain below the ex
 expect(css.includes("prefers-reduced-motion: reduce"), 'Reduced-motion accessibility fallback is missing.');
 expect(css.includes("data-quality='static'"), 'Static performance fallback is missing.');
 expect(effectsCss.includes("data-quality='low'"), 'Extended cinematic effects must degrade on LOW quality.');
+
+expect(main.includes("isAndroidNativeRuntime()"), 'Native Android runtime must be detected before rendering.');
+expect(main.includes("classList.add('capacitor-android', 'android-webview')"), 'Android compositor guard classes are not activated on the document root.');
+expect(compositorCss.includes('#first-launch-onboarding'), 'Android onboarding compositor guard is missing.');
+expect(compositorCss.includes('#orbi-mobile-home-screen'), 'Android Home compositor guard is missing.');
+expect(compositorCss.includes('backdrop-filter: none'), 'Android compositor guard must disable backdrop-filter on risky surfaces.');
 
 const forbiddenCss = [
   ['backdrop-filter', 'Do not use backdrop-filter in OC-22: Android WebView compositing/scroll bleed risk.'],
