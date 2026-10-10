@@ -28,7 +28,6 @@ html.android-webview .living-weather-atmosphere {
   will-change: auto !important;
 }
 
-/* Never promote the full-screen sky to a 3D compositor layer. */
 html.capacitor-android .living-weather-atmosphere .lwa-sky,
 html.android-webview .living-weather-atmosphere .lwa-sky {
   transform: none !important;
@@ -36,8 +35,6 @@ html.android-webview .living-weather-atmosphere .lwa-sky {
   will-change: auto !important;
 }
 
-/* Cloud artwork is pre-shaped and contains its own tonal softness. On Android
-   it must never gain a runtime blur/filter or child-level transform. */
 html.capacitor-android .living-weather-atmosphere .lwa-cloud,
 html.android-webview .living-weather-atmosphere .lwa-cloud {
   filter: none !important;
@@ -47,8 +44,6 @@ html.android-webview .living-weather-atmosphere .lwa-cloud {
   -webkit-transform: none !important;
 }
 
-/* Natural V3 banks need enough off-screen margin that the slow drift never
-   exposes a hard edge. The bank itself remains one simple, unfiltered surface. */
 html.capacitor-android .living-weather-atmosphere .lwa-cloud-field,
 html.android-webview .living-weather-atmosphere .lwa-cloud-field {
   left: -60% !important;
@@ -56,7 +51,6 @@ html.android-webview .living-weather-atmosphere .lwa-cloud-field {
   will-change: auto !important;
 }
 
-/* Mist remains visible as a soft radial gradient but static and unfiltered. */
 html.capacitor-android .living-weather-atmosphere .lwa-mist,
 html.android-webview .living-weather-atmosphere .lwa-mist {
   filter: none !important;
@@ -65,8 +59,26 @@ html.android-webview .living-weather-atmosphere .lwa-mist {
   will-change: auto !important;
 }
 
-/* Small precipitation/particle elements may animate, but do not request their
-   own persistent compositor surfaces. */
+/* V6 foreground Canvas now owns the expressive near/mid precipitation. Keep a
+   restrained rear rain sheet only for depth so the old DOM streaks never read
+   as the primary effect. */
+html.capacitor-android .living-weather-atmosphere[data-scene='rain'] .lwa-rain,
+html.android-webview .living-weather-atmosphere[data-scene='rain'] .lwa-rain {
+  opacity: 0.14 !important;
+}
+
+html.capacitor-android .living-weather-atmosphere[data-scene='storm'] .lwa-rain,
+html.android-webview .living-weather-atmosphere[data-scene='storm'] .lwa-rain {
+  opacity: 0.2 !important;
+}
+
+/* Storm exposure flashes are painted in the foreground Canvas on Android so a
+   second full-screen animated DOM flash cannot compete with WebView tiles. */
+html.capacitor-android .living-weather-atmosphere .lwa-lightning,
+html.android-webview .living-weather-atmosphere .lwa-lightning {
+  display: none !important;
+}
+
 html.capacitor-android .living-weather-atmosphere .lwa-rain span,
 html.capacitor-android .living-weather-atmosphere .lwa-cold-particles span,
 html.capacitor-android .living-weather-atmosphere .lwa-wind-streams span,
@@ -78,8 +90,6 @@ html.android-webview .living-weather-atmosphere .lwa-heat-waves span {
   will-change: auto !important;
 }
 
-/* Avoid transitions that can create temporary full-screen intermediate layers
-   when the weather model changes while the Orb is visible. */
 html.capacitor-android .living-weather-atmosphere,
 html.capacitor-android .living-weather-atmosphere .lwa-sky,
 html.capacitor-android .living-weather-atmosphere .lwa-celestial,
