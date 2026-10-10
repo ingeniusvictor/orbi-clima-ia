@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Headphones, ShieldCheck, Music, CheckCircle2, Upload, Play, Pause, Trash2 } from 'lucide-react';
+import { Headphones, ShieldCheck, Music, CheckCircle2, Upload, Download, Play, Pause, Trash2 } from 'lucide-react';
 import { saveCustomAudioTrack, getCustomAudioTrack, deleteCustomAudioTrack } from '../utils/audioDb';
 
 export default function OrbiZenSoundSettingsCard() {
@@ -88,7 +88,7 @@ export default function OrbiZenSoundSettingsCard() {
       localStorage.setItem('orbiZenSoundCustomName', file.name);
       localStorage.setItem('orbiZenSoundTrackId', 'custom');
       setSelectedTrackId('custom');
-      
+
       // Dispatch event to notify controller on the main screen to update the track source immediately
       window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
     } catch (err) {
@@ -105,15 +105,64 @@ export default function OrbiZenSoundSettingsCard() {
       await deleteCustomAudioTrack();
       setCustomFileName('');
       localStorage.removeItem('orbiZenSoundCustomName');
-      
+
       if (selectedTrackId === 'custom') {
         setSelectedTrackId('crystal_arch');
         localStorage.setItem('orbiZenSoundTrackId', 'crystal_arch');
       }
-      
+
       window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
     } catch (err) {
       console.error('Error deleting custom track:', err);
+    }
+  };
+
+  const handleExportCustomTrack = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUploadError(null);
+
+    try {
+      const track = await getCustomAudioTrack();
+      if (!track?.blob) {
+        setUploadError('No se encontró la copia local de esta pista para respaldarla.');
+        return;
+      }
+
+      const fileName = track.name || customFileName || `ORBI-Zen-backup-${Date.now()}.mp3`;
+      const type = track.type || track.blob.type || 'audio/mpeg';
+      const file = new File([track.blob], fileName, {
+        type,
+        lastModified: track.updatedAt || Date.now(),
+      });
+
+      const shareData: ShareData = {
+        files: [file],
+        title: 'Respaldo ORBI Zen Sound',
+      };
+
+      if (
+        typeof navigator.share === 'function' &&
+        (typeof navigator.canShare !== 'function' || navigator.canShare(shareData))
+      ) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
+      console.error('Error exporting custom track:', err);
+      setUploadError('No fue posible crear el respaldo de la pista. Inténtalo nuevamente.');
     }
   };
 
@@ -159,7 +208,7 @@ export default function OrbiZenSoundSettingsCard() {
               Sonido de Fondo en la Esfera
             </span>
             <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${
-              isEnabled 
+              isEnabled
                 ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/15'
                 : 'text-slate-500 bg-white/5 border-white/5'
             }`}>
@@ -167,15 +216,15 @@ export default function OrbiZenSoundSettingsCard() {
             </span>
           </div>
           <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed font-sans">
-            {isEnabled 
-              ? 'Sonando de forma sutil mientras contemplas el clima en tiempo real.' 
+            {isEnabled
+              ? 'Sonando de forma sutil mientras contemplas el clima en tiempo real.'
               : 'Silenciado. Toca aquí para activar y comenzar la reproducción ambiental.'}
           </p>
         </div>
 
         <div className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
-          isEnabled 
-            ? 'border-cyan-400 bg-cyan-500/20 text-cyan-400' 
+          isEnabled
+            ? 'border-cyan-400 bg-cyan-500/20 text-cyan-400'
             : 'border-white/10 bg-black/40 text-slate-600'
         }`}>
           {isEnabled && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -219,16 +268,16 @@ export default function OrbiZenSoundSettingsCard() {
 
         {/* Custom Track option */}
         <div className="space-y-2">
-          <input 
-            type="file" 
+          <input
+            type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
             accept="audio/*"
-            className="hidden" 
+            className="hidden"
           />
 
           {customFileName ? (
-            <div 
+            <div
               onClick={() => handleSelectTrack('custom')}
               className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
                 selectedTrackId === 'custom'
@@ -251,6 +300,14 @@ export default function OrbiZenSoundSettingsCard() {
                 {selectedTrackId === 'custom' && (
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
                 )}
+                <button
+                  onClick={handleExportCustomTrack}
+                  className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 active:scale-95 transition-all cursor-pointer"
+                  title="Guardar copia de la música importada"
+                  aria-label="Guardar copia de la música importada"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={handleDeleteCustomTrack}
                   className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-95 transition-all cursor-pointer"
@@ -295,11 +352,10 @@ export default function OrbiZenSoundSettingsCard() {
             Garantía de Privacidad y UX
           </span>
           <p className="text-[10.5px] text-slate-400 leading-normal font-sans">
-            La música importada se guarda directamente en la memoria local de la aplicación dentro de tu dispositivo. No se sube a internet ni se comparte con ningún servidor.
+            La música importada se guarda directamente en la memoria local de la aplicación dentro de tu dispositivo. No se sube a internet ni se comparte con ningún servidor. Puedes guardar una copia desde el botón de respaldo antes de reinstalar o cambiar de dispositivo.
           </p>
         </div>
       </div>
     </div>
   );
 }
-
