@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "ui:verify-mobile-home": "node scripts/verify-mobile-home-simplification.mjs",
     "ui:verify-premium-home": "node scripts/verify-premium-home-atmosphere.mjs",
-    "ui:verify-living-atmosphere": "node scripts/verify-living-weather-atmosphere.mjs && node scripts/verify-natural-atmosphere-v3.mjs && node scripts/verify-oc22-v4-cloud-canvas.mjs && npx tsx scripts/test-living-weather-atmosphere.ts",
+    "ui:verify-living-atmosphere": "node scripts/verify-living-weather-atmosphere.mjs && node scripts/verify-natural-atmosphere-v3.mjs && node scripts/verify-oc22-v4-cloud-canvas.mjs && node scripts/verify-immersive-precipitation-v5.mjs && npx tsx scripts/test-living-weather-atmosphere.ts",
     "weather:verify-current-truth": "node scripts/verify-current-weather-truth.mjs && npx tsx scripts/test-current-weather-truth.ts",
     "android:verify-background-watch": "node scripts/verify-android-background-watch.mjs",
     "android:verify-performance": "node scripts/verify-android-performance.mjs",
