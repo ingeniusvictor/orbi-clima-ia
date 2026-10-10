@@ -44,6 +44,7 @@ expect(css.includes("html.capacitor-android .living-weather-atmosphere .lwa-heat
 expect(css.includes("[data-scene='cloudy'] .lwa-sky"), 'Cloudy scene needs its own natural sky palette.');
 expect(css.includes("[data-scene='rain'] .lwa-sky"), 'Rain scene needs its own natural sky palette.');
 expect(css.includes("[data-scene='storm'] .lwa-sky"), 'Storm scene needs its own natural sky palette.');
+expect(!/calc\([^)]*\*/.test(css), 'Avoid CSS calc multiplication: Android WebView support is not reliable enough.');
 
 for (const forbidden of ['backdrop-filter', 'mix-blend-mode', 'translateZ(0)', 'blur(']) {
   expect(!css.includes(forbidden), `Natural Atmosphere V3 must not use compositor-heavy/artificial token: ${forbidden}`);
