@@ -20,8 +20,13 @@ function readSnapshot(): WeatherAtmosphereSnapshot | null {
   };
 }
 
+function isHomeScreenMounted(): boolean {
+  return typeof document !== 'undefined' && Boolean(document.getElementById('orbi-mobile-home-screen'));
+}
+
 export default function LivingWeatherAtmosphereHost() {
   const [snapshot, setSnapshot] = useState<WeatherAtmosphereSnapshot | null>(() => readSnapshot());
+  const [homeVisible, setHomeVisible] = useState(() => isHomeScreenMounted());
   const [onboardingDone, setOnboardingDone] = useState(() => {
     try {
       return localStorage.getItem('orbi_clima_first_launch_completed_v1') === 'true';
@@ -39,6 +44,14 @@ export default function LivingWeatherAtmosphereHost() {
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('orbi-weather-bundle-updated', handleWeatherUpdate);
+
+    // Observe only mount/unmount changes so the atmosphere can pause as soon as
+    // the user leaves Home, without coupling this host to App navigation state.
+    const navigationObserver = new MutationObserver(() => {
+      setHomeVisible(isHomeScreenMounted());
+    });
+    navigationObserver.observe(document.body, { childList: true, subtree: true });
+    queueMicrotask(() => setHomeVisible(isHomeScreenMounted()));
 
     // First-launch completion currently lives inside the onboarding component.
     // Short-lived polling keeps this host decoupled from that protected flow and
@@ -59,6 +72,7 @@ export default function LivingWeatherAtmosphereHost() {
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('orbi-weather-bundle-updated', handleWeatherUpdate);
+      navigationObserver.disconnect();
       window.clearInterval(onboardingWatch);
     };
   }, []);
@@ -71,6 +85,7 @@ export default function LivingWeatherAtmosphereHost() {
         currentWeather={snapshot.current}
         dailyForecast={snapshot.daily[0]}
         timezone={snapshot.location.timezone}
+        active={homeVisible}
       />
     </div>
   );
