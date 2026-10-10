@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
-// OC-21 signing policy:
+// OC-21+ signing policy:
 // - Debug builds keep the normal ephemeral Android debug key and are CI-only.
 // - Distributable APK/AAB artifacts must use the persistent ORBI release key.
 // - The release key itself never lives in the repository; CI injects it through secrets.
@@ -24,8 +24,8 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10604
-        versionName "1.0.6-OC21"
+        versionCode 10608
+        versionName "1.0.6-OC22-NATURAL"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
@@ -50,16 +50,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
 
-        // Temporary physical-device validation build. It installs alongside the
-        // canonical com.orbi.clima package, so an old ephemeral debug signature
-        // cannot block OC-21 testing and the currently installed app stays intact.
+        // Physical-device validation build. It installs alongside the canonical
+        // package when signature migration or isolated visual QA is required.
         oc21Preview {
             initWith debug
             applicationIdSuffix ".oc21preview"
             versionNameSuffix "-preview"
             debuggable true
             matchingFallbacks = ['debug']
-            manifestPlaceholders = [appLabel: "ORBI Clima IA OC-21"]
+            manifestPlaceholders = [appLabel: "ORBI Clima IA OC-22"]
         }
     }
 
