@@ -56,6 +56,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run ui:verify-premium-home
 
+      - name: OC-22 Living Weather Atmosphere gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run ui:verify-living-atmosphere
+
       - name: Current Weather Truth source gate
         if: steps.typecheck.outcome == 'success'
         run: npm run weather:verify-current-truth
@@ -147,6 +151,9 @@ jobs:
 
       - name: Verify Premium Home Atmosphere after Capacitor copy
         run: npm run ui:verify-premium-home
+
+      - name: Verify OC-22 Living Weather Atmosphere after Capacitor copy
+        run: npm run ui:verify-living-atmosphere
 
       - name: Verify Current Weather Truth after Capacitor copy
         run: npm run weather:verify-current-truth
