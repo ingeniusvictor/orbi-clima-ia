@@ -125,6 +125,17 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
+      - name: Upload Android signing tools for one-time OC-21 audio recovery
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-temporary-android-signing-tools
+          path: |
+            /usr/local/lib/android/sdk/build-tools/36.0.0/apksigner
+            /usr/local/lib/android/sdk/build-tools/36.0.0/lib/apksigner.jar
+            /usr/local/lib/android/sdk/build-tools/36.0.0/zipalign
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Setup pinned Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
