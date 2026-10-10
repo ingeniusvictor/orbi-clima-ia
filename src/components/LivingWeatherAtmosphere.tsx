@@ -25,10 +25,13 @@ type AtmosphereStyle = CSSProperties & {
   '--lwa-mist-a-opacity': number;
   '--lwa-mist-b-opacity': number;
   '--lwa-wind-shift': string;
+  '--lwa-wind-opacity': number;
 };
 
 const rainDrops = Array.from({ length: 18 }, (_, index) => index);
 const coldParticles = Array.from({ length: 12 }, (_, index) => index);
+const windStreams = Array.from({ length: 7 }, (_, index) => index);
+const heatWaves = Array.from({ length: 5 }, (_, index) => index);
 
 export default function LivingWeatherAtmosphere({
   currentWeather,
@@ -69,11 +72,14 @@ export default function LivingWeatherAtmosphere({
     '--lwa-mist-a-opacity': Number((model.mistStrength * 0.72).toFixed(3)),
     '--lwa-mist-b-opacity': Number((model.mistStrength * 0.42).toFixed(3)),
     '--lwa-wind-shift': `${Math.round(model.windStrength * 24)}px`,
+    '--lwa-wind-opacity': Number(Math.max(model.scene === 'wind' ? 0.36 : 0, model.windStrength * 0.34).toFixed(3)),
   };
 
   const paused = !active || !pageVisible;
   const showRain = model.precipitationStrength > 0.08 && quality !== 'static';
   const showColdParticles = model.scene === 'cold' && quality !== 'static';
+  const showWind = (model.scene === 'wind' || model.windStrength > 0.52) && quality !== 'static';
+  const showHeat = model.scene === 'hot' && quality !== 'static' && quality !== 'low';
 
   return (
     <div
@@ -88,6 +94,7 @@ export default function LivingWeatherAtmosphere({
     >
       <div className="lwa-sky" />
       <div className="lwa-horizon-glow" />
+      <div className="lwa-sun-rays" />
 
       <div className="lwa-stars">
         <span /><span /><span /><span /><span /><span /><span /><span />
@@ -112,6 +119,36 @@ export default function LivingWeatherAtmosphere({
 
       <div className="lwa-mist lwa-mist-a" />
       <div className="lwa-mist lwa-mist-b" />
+
+      {showWind && (
+        <div className="lwa-wind-streams" aria-hidden="true">
+          {windStreams.map((stream) => (
+            <span
+              key={stream}
+              style={{
+                top: `${18 + ((stream * 11) % 58)}%`,
+                width: `${26 + (stream % 4) * 9}%`,
+                animationDuration: `${3.8 + (stream % 3) * 0.9}s`,
+                animationDelay: `${stream * -0.72}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {showHeat && (
+        <div className="lwa-heat-waves" aria-hidden="true">
+          {heatWaves.map((wave) => (
+            <span
+              key={wave}
+              style={{
+                left: `${9 + wave * 18}%`,
+                animationDelay: `${wave * -0.85}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {showRain && (
         <div className="lwa-rain" aria-hidden="true">
