@@ -4,10 +4,15 @@ import App from './App.tsx';
 import LivingWeatherAtmosphereHost from './components/LivingWeatherAtmosphereHost';
 import { initializeFirstLaunchLocationBootstrap } from './services/firstLaunchLocationBootstrap';
 import { initializeZenSoundBootstrap } from './services/zenSoundBootstrap';
+import { isAndroidNativeRuntime } from './services/androidRuntimeDiagnosticsService';
 import './index.css';
 import './styles/home-atmosphere.css';
 import './styles/home-density.css';
 import './styles/android-compositor-guard.css';
+
+if (isAndroidNativeRuntime()) {
+  document.documentElement.classList.add('capacitor-android', 'android-webview');
+}
 
 initializeFirstLaunchLocationBootstrap();
 initializeZenSoundBootstrap();
