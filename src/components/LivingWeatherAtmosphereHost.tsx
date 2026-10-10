@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import LivingWeatherAtmosphere from './LivingWeatherAtmosphere';
 import { CurrentWeather, DailyForecast, WeatherLocation } from '../types/weatherTypes';
 import { loadLastWeatherBundle } from '../services/weatherCacheService';
+import {
+  ATMOSPHERE_DEBUG_EVENT,
+  applyAtmosphereDebugPreset,
+  getAtmosphereDebugPreset,
+} from '../services/weatherAtmosphereDebugService';
 import '../styles/living-weather-host.css';
 
 interface WeatherAtmosphereSnapshot {
@@ -27,6 +32,7 @@ function isHomeScreenMounted(): boolean {
 export default function LivingWeatherAtmosphereHost() {
   const [snapshot, setSnapshot] = useState<WeatherAtmosphereSnapshot | null>(() => readSnapshot());
   const [homeVisible, setHomeVisible] = useState(() => isHomeScreenMounted());
+  const [debugPreset, setDebugPreset] = useState(() => getAtmosphereDebugPreset());
   const [onboardingDone, setOnboardingDone] = useState(() => {
     try {
       return localStorage.getItem('orbi_clima_first_launch_completed_v1') === 'true';
@@ -41,9 +47,11 @@ export default function LivingWeatherAtmosphereHost() {
       if (event.key === 'orbi_clima_last_weather_bundle_v1') refresh();
     };
     const handleWeatherUpdate = () => refresh();
+    const handleDebugChange = () => setDebugPreset(getAtmosphereDebugPreset());
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('orbi-weather-bundle-updated', handleWeatherUpdate);
+    window.addEventListener(ATMOSPHERE_DEBUG_EVENT, handleDebugChange);
 
     // Observe only mount/unmount changes so the atmosphere can pause as soon as
     // the user leaves Home, without coupling this host to App navigation state.
@@ -72,17 +80,27 @@ export default function LivingWeatherAtmosphereHost() {
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('orbi-weather-bundle-updated', handleWeatherUpdate);
+      window.removeEventListener(ATMOSPHERE_DEBUG_EVENT, handleDebugChange);
       navigationObserver.disconnect();
       window.clearInterval(onboardingWatch);
     };
   }, []);
 
-  if (!onboardingDone || !snapshot) return null;
+  const renderedCurrent = useMemo(() => {
+    if (!snapshot) return null;
+    return applyAtmosphereDebugPreset(snapshot.current, debugPreset);
+  }, [snapshot, debugPreset]);
+
+  if (!onboardingDone || !snapshot || !renderedCurrent) return null;
 
   return (
-    <div className="orbi-living-weather-host" aria-hidden="true">
+    <div
+      className="orbi-living-weather-host"
+      data-debug-scene={debugPreset}
+      aria-hidden="true"
+    >
       <LivingWeatherAtmosphere
-        currentWeather={snapshot.current}
+        currentWeather={renderedCurrent}
         dailyForecast={snapshot.daily[0]}
         timezone={snapshot.location.timezone}
         active={homeVisible}
