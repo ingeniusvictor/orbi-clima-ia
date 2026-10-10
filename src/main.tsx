@@ -6,12 +6,14 @@ import ImmersiveWeatherForegroundHost from './components/ImmersiveWeatherForegro
 import AtmosphereLabOverlay from './components/AtmosphereLabOverlay';
 import { initializeFirstLaunchLocationBootstrap } from './services/firstLaunchLocationBootstrap';
 import { initializeZenSoundBootstrap } from './services/zenSoundBootstrap';
+import { initializeAndroidGoldenOrbFluidSkin } from './services/androidGoldenOrbFluidSkin';
 import { isAndroidNativeRuntime } from './services/androidRuntimeDiagnosticsService';
 import './index.css';
 import './styles/home-atmosphere.css';
 import './styles/home-density.css';
 import './styles/android-compositor-guard.css';
 import './styles/orb-android-clip-guard.css';
+import './styles/orb-android-fluid-skin.css';
 import './styles/living-weather-visibility.css';
 import './styles/living-weather-clouds-v2.css';
 import './styles/living-weather-natural-v3.css';
@@ -26,6 +28,7 @@ if (isAndroidNativeRuntime()) {
 
 initializeFirstLaunchLocationBootstrap();
 initializeZenSoundBootstrap();
+initializeAndroidGoldenOrbFluidSkin();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
