@@ -19,6 +19,12 @@ const coreCss = read('src/styles/living-weather-atmosphere.css');
 const effectsCss = read('src/styles/living-weather-effects.css');
 const visibilityCss = read('src/styles/living-weather-visibility.css');
 const androidSafeCss = read('src/styles/living-weather-android-safe.css');
+const cloudCss = read('src/styles/living-weather-clouds-v2.css');
+const orbAndroidCss = read('src/styles/orb-android-stability.css');
+const cloudA = read('public/weather/clouds/cloud-soft-a.svg');
+const cloudB = read('public/weather/clouds/cloud-soft-b.svg');
+const cloudC = read('public/weather/clouds/cloud-soft-c.svg');
+const stormCloud = read('public/weather/clouds/cloud-storm.svg');
 const css = `${coreCss}\n${effectsCss}`;
 const hostCss = read('src/styles/living-weather-host.css');
 const compositorCss = read('src/styles/android-compositor-guard.css');
@@ -50,6 +56,8 @@ expect(main.includes('<LivingWeatherAtmosphereHost />'), 'Atmosphere host is not
 expect(main.includes('<AtmosphereLabOverlay />'), 'Developer Atmosphere Lab is not mounted.');
 expect(main.includes("./styles/living-weather-visibility.css"), 'Physical-device atmosphere visibility tuning is not loaded.');
 expect(main.includes("./styles/living-weather-android-safe.css"), 'Android-safe Living Weather compositor profile is not loaded.');
+expect(main.includes("./styles/living-weather-clouds-v2.css"), 'Organic cloud renderer v2 is not loaded.');
+expect(main.includes("./styles/orb-android-stability.css"), 'Android Orb stability profile is not loaded.');
 expect(lab.includes('isDeveloperModeEnabled()'), 'Atmosphere Lab must be hidden unless developer mode is unlocked and enabled.');
 expect(lab.includes('no modifica el clima guardado'), 'Atmosphere Lab must explain that presets are visual-only.');
 expect(debugService.includes("localStorage.removeItem(ATMOSPHERE_DEBUG_KEY)"), 'LIVE reset must remove the visual override cleanly.');
@@ -83,6 +91,26 @@ expect(androidSafeCss.includes('filter: none !important'), 'Android-safe profile
 expect(androidSafeCss.includes('will-change: auto !important'), 'Android-safe profile must remove persistent GPU promotion hints.');
 expect(androidSafeCss.includes('contain: none !important'), 'Android-safe profile must not isolate the weather into stale compositor tiles.');
 expect(androidSafeCss.includes('transform: none !important'), 'Android-safe profile must remove forced 3D promotion on full-screen layers.');
+
+// Cloud v2 contract: actual shaped assets, not screen-sized blurred ellipses.
+for (const svg of [cloudA, cloudB, cloudC, stormCloud]) {
+  expect(svg.includes('<path'), 'Each cloud asset must contain an organic path silhouette.');
+  expect(svg.includes('linearGradient'), 'Each cloud asset must contain internal lighting/shading.');
+}
+expect(cloudCss.includes("cloud-soft-a.svg"), 'Cloud renderer must use shaped cloud asset A.');
+expect(cloudCss.includes("cloud-soft-b.svg"), 'Cloud renderer must use shaped cloud asset B.');
+expect(cloudCss.includes("cloud-soft-c.svg"), 'Cloud renderer must use shaped cloud asset C.');
+expect(cloudCss.includes("cloud-storm.svg"), 'Storm scene must use a dedicated darker cloud asset.');
+expect(cloudCss.includes('border-radius: 0'), 'Cloud v2 must not render clouds as rounded ellipse containers.');
+expect(!cloudCss.includes('blur('), 'Cloud v2 must not depend on runtime blur filters.');
+
+// Golden Orb protected source stays untouched. Android gets a stylesheet-only
+// stability override that freezes only the expensive compositor operations.
+expect(orbAndroidCss.includes('#orbi-climate-core-container'), 'Android Orb stability profile must target the existing Orb container.');
+expect(orbAndroidCss.includes('border-radius: 9999px !important'), 'Android Orb core must remain circular instead of morphing its clip every frame.');
+expect(orbAndroidCss.includes('transform: none !important'), 'Android Orb stability profile must suppress core scale transforms.');
+expect(orbAndroidCss.includes('mix-blend-mode: normal !important'), 'Android Orb overlay blend modes must be flattened.');
+expect(orbAndroidCss.includes('display: none !important'), 'Android Orb must remove its redundant large blur halos.');
 
 const forbiddenCss = [
   ['backdrop-filter', 'Do not use backdrop-filter in OC-22 atmosphere layers: Android WebView compositing/scroll bleed risk.'],
