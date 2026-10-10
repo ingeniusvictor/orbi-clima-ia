@@ -11,6 +11,8 @@ const expect = (condition, message) => {
 
 const renderer = read('src/components/LivingWeatherAtmosphere.tsx');
 const host = read('src/components/LivingWeatherAtmosphereHost.tsx');
+const lab = read('src/components/AtmosphereLabOverlay.tsx');
+const debugService = read('src/services/weatherAtmosphereDebugService.ts');
 const engine = read('src/services/weatherAtmosphereEngine.ts');
 const cache = read('src/services/weatherCacheService.ts');
 const coreCss = read('src/styles/living-weather-atmosphere.css');
@@ -28,6 +30,10 @@ for (const scene of ['clear', 'partly-cloudy', 'cloudy', 'rain', 'storm', 'wind'
   expect(engine.includes(`'${scene}'`), `Missing weather scene mapping: ${scene}`);
 }
 
+for (const preset of ['live', 'sunny', 'partly_cloudy', 'cloudy', 'rain', 'storm', 'wind', 'cold', 'hot', 'night']) {
+  expect(debugService.includes(`id: '${preset}'`), `Atmosphere Lab is missing preset: ${preset}`);
+}
+
 expect(renderer.includes('document.visibilityState'), 'Animations must pause when the page is hidden.');
 expect(renderer.includes("quality !== 'static'"), 'Static/reduced-motion mode must suppress particle animation.');
 expect(renderer.includes('lwa-sun-rays'), 'Clear/hot weather must have a distinct sunlight signature.');
@@ -36,8 +42,13 @@ expect(renderer.includes('lwa-heat-waves'), 'Hot weather must have a distinct he
 expect(host.includes("orbi_clima_first_launch_completed_v1"), 'Atmosphere host must stay out of first-launch onboarding.');
 expect(host.includes('MutationObserver'), 'Atmosphere host must observe Home visibility and stop work outside Home.');
 expect(host.includes('active={homeVisible}'), 'Atmosphere renderer must pause/mute outside Home.');
+expect(host.includes('applyAtmosphereDebugPreset'), 'Atmosphere host must support non-destructive developer scene overrides.');
 expect(cache.includes("orbi-weather-bundle-updated"), 'Weather cache must publish same-tab atmosphere refresh events.');
 expect(main.includes('<LivingWeatherAtmosphereHost />'), 'Atmosphere host is not mounted at application root.');
+expect(main.includes('<AtmosphereLabOverlay />'), 'Developer Atmosphere Lab is not mounted.');
+expect(lab.includes('isDeveloperModeEnabled()'), 'Atmosphere Lab must be hidden unless developer mode is unlocked and enabled.');
+expect(lab.includes('no modifica el clima guardado'), 'Atmosphere Lab must explain that presets are visual-only.');
+expect(debugService.includes("localStorage.removeItem(ATMOSPHERE_DEBUG_KEY)"), 'LIVE reset must remove the visual override cleanly.');
 expect(hostCss.includes('pointer-events: none'), 'Atmosphere host must never intercept gestures.');
 expect(hostCss.includes('z-index: 2'), 'Atmosphere host must remain below the existing z-10 mobile content.');
 expect(css.includes("prefers-reduced-motion: reduce"), 'Reduced-motion accessibility fallback is missing.');
@@ -45,7 +56,7 @@ expect(css.includes("data-quality='static'"), 'Static performance fallback is mi
 expect(effectsCss.includes("data-quality='low'"), 'Extended cinematic effects must degrade on LOW quality.');
 
 expect(main.includes("isAndroidNativeRuntime()"), 'Native Android runtime must be detected before rendering.');
-expect(main.includes("classList.add('capacitor-android', 'android-webview')"), 'Android compositor guard classes are not activated on the document root.');
+expect(main.includes("classList.add('capacitor-android', 'android-webview')"), 'Android compositor guard classes are not activated before first React paint.');
 expect(compositorCss.includes('#first-launch-onboarding'), 'Android onboarding compositor guard is missing.');
 expect(compositorCss.includes('#orbi-mobile-home-screen'), 'Android Home compositor guard is missing.');
 expect(compositorCss.includes('backdrop-filter: none'), 'Android compositor guard must disable backdrop-filter on risky surfaces.');
