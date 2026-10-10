@@ -4,7 +4,7 @@ declare global {
   }
 }
 
-// Long-standing bundled path; OC-21 pins its bytes to the verified original
+// Stable bundled path. OC-21 pins its bytes to the verified original
 // Beneath the Crystal Arch track through the audio-integrity gate.
 const ORIGINAL_ORBI_ZEN_PATH = '/audio/orbi-zen-ambient.mp3';
 
