@@ -13,6 +13,7 @@ const main = read('src/main.tsx');
 const host = read('src/components/ImmersiveWeatherForegroundHost.tsx');
 const canvas = read('src/components/ImmersivePrecipitationCanvas.tsx');
 const css = read('src/styles/immersive-weather-foreground.css');
+const androidSafe = read('src/styles/living-weather-android-safe.css');
 
 expect(main.includes('<ImmersiveWeatherForegroundHost />'), 'Foreground weather host must be mounted beside App at root.');
 expect(host.includes("model.scene === 'rain'"), 'Foreground precipitation must react to rain scenes.');
@@ -44,5 +45,11 @@ expect(!css.includes('mix-blend-mode'), 'Foreground weather must not use mix-ble
 expect(!css.includes('#orbi-climate-core-container'), 'Foreground weather must never target Golden Orb internals.');
 expect(!canvas.includes('orbi-climate-core-container'), 'Canvas renderer must remain independent from Golden Orb internals.');
 expect(!canvas.includes('filter ='), 'Cinematic canvas must not rely on Canvas filter/blur effects on Android.');
+
+expect(androidSafe.includes("[data-scene='rain'] .lwa-rain"), 'Android rear rain depth rule is missing.');
+expect(androidSafe.includes('opacity: 0.14 !important'), 'Android rain scene must keep legacy DOM rain subordinate to V6 Canvas.');
+expect(androidSafe.includes('opacity: 0.2 !important'), 'Android storm rear rain must remain a restrained depth layer.');
+expect(androidSafe.includes('.lwa-lightning'), 'Android DOM lightning selector is missing.');
+expect(androidSafe.includes('display: none !important'), 'Android DOM lightning must be disabled in favor of Canvas exposure flashes.');
 
 console.log('OC-22E Cinematic Precipitation V6 gate: PASS');
