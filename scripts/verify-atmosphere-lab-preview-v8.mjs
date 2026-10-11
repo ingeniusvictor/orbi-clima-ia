@@ -15,7 +15,9 @@ const preview = read('src/components/AtmosphereLabPreviewScene.tsx');
 
 expect(wrapper.includes('AtmosphereLabOverlayV2'), 'AtmosphereLabOverlay wrapper must route through V2.');
 expect(lab.includes('AtmosphereLabPreviewScene'), 'ATM LAB must mount the complete preview scene.');
-expect(lab.includes('key={`${preset}-${weatherRevision}`}'), 'Preview must remount immediately when the preset changes.');
+expect(lab.includes('setAtmosphereDebugPreset(item.id)'), 'Preset buttons must publish the debug scene immediately.');
+expect(lab.includes('setPreset(item.id)'), 'Preset buttons must update local preview state immediately.');
+expect(lab.includes('applyAtmosphereDebugPreset(bundle.current, preset)'), 'Preview weather must be recomputed from the selected preset.');
 expect(lab.includes('Preview en vivo'), 'ATM LAB must identify the preview as live.');
 expect(preview.includes('LivingWeatherAtmosphere'), 'Preview must include the rear weather atmosphere.');
 expect(preview.includes('PreviewPrecipitationCanvas'), 'Preview must include foreground precipitation.');
