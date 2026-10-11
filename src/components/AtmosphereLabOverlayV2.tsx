@@ -77,7 +77,6 @@ export default function AtmosphereLabOverlayV2() {
           {previewCurrent && previewVisible && (
             <div className="relative h-[260px] overflow-hidden rounded-2xl border border-white/10 bg-[#050914]">
               <AtmosphereLabPreviewScene
-                key={`${preset}-${weatherRevision}`}
                 currentWeather={previewCurrent}
                 dailyForecast={bundle?.daily?.[0]}
                 timezone={bundle?.location?.timezone}
