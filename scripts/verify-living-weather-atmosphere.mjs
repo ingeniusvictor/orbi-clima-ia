@@ -21,6 +21,13 @@ const visibilityCss = read('src/styles/living-weather-visibility.css');
 const androidSafeCss = read('src/styles/living-weather-android-safe.css');
 const cloudCss = read('src/styles/living-weather-clouds-v2.css');
 const canvasCss = read('src/styles/living-weather-canvas-v4.css');
+const cloudCanvas = read('src/components/NaturalCloudCanvasV8.tsx');
+const cinematicSky = read('src/components/CinematicSkyCanvasV10.tsx');
+const snowRenderer = read('src/components/SnowFrostCanvas.tsx');
+const foregroundHost = read('src/components/ImmersiveWeatherForegroundHost.tsx');
+const foregroundCss = read('src/styles/immersive-weather-foreground.css');
+const weatherTypes = read('src/types/weatherTypes.ts');
+const wmoMapper = read('src/utils/wmoWeatherCodeMapper.ts');
 const cloudA = read('public/weather/clouds/cloud-soft-a.svg');
 const cloudB = read('public/weather/clouds/cloud-soft-b.svg');
 const cloudC = read('public/weather/clouds/cloud-soft-c.svg');
@@ -34,11 +41,11 @@ for (const quality of ['ultra', 'high', 'balanced', 'low', 'static']) {
   expect(engine.includes(`'${quality}'`), `Missing adaptive quality mode: ${quality}`);
 }
 
-for (const scene of ['clear', 'partly-cloudy', 'cloudy', 'rain', 'storm', 'wind', 'cold', 'hot']) {
+for (const scene of ['clear', 'partly-cloudy', 'cloudy', 'rain', 'snow', 'storm', 'wind', 'cold', 'hot']) {
   expect(engine.includes(`'${scene}'`), `Missing weather scene mapping: ${scene}`);
 }
 
-for (const preset of ['live', 'sunny', 'partly_cloudy', 'cloudy', 'rain', 'storm', 'wind', 'cold', 'hot', 'night']) {
+for (const preset of ['live', 'sunny', 'partly_cloudy', 'cloudy', 'rain', 'snow', 'storm', 'wind', 'cold', 'hot', 'night']) {
   expect(debugService.includes(`id: '${preset}'`), `Atmosphere Lab is missing preset: ${preset}`);
 }
 
@@ -48,6 +55,7 @@ expect(renderer.includes('lwa-sun-rays'), 'Clear/hot weather must have a distinc
 expect(renderer.includes('lwa-wind-streams'), 'Wind weather must have a distinct motion signature.');
 expect(renderer.includes('lwa-heat-waves'), 'Hot weather must have a distinct heat signature.');
 expect(renderer.includes('NaturalCloudCanvas'), 'Natural Cloud Canvas must own the runtime cloud rendering path.');
+expect(renderer.includes("model.scene !== 'snow'"), 'Legacy DOM rain must never render during a snow scene.');
 expect(host.includes("orbi_clima_first_launch_completed_v1"), 'Atmosphere host must stay out of first-launch onboarding.');
 expect(host.includes('MutationObserver'), 'Atmosphere host must observe Home visibility and stop work outside Home.');
 expect(host.includes('active={homeVisible}'), 'Atmosphere renderer must pause/mute outside Home.');
@@ -98,6 +106,30 @@ expect(canvasCss.includes('.lwa-cloud-field'), 'Canvas runtime must explicitly r
 expect(canvasCss.includes('display: none !important'), 'Illustrated cloud fields must remain hidden.');
 expect(!canvasCss.includes('blur('), 'Canvas clouds must not depend on runtime blur filters.');
 expect(!canvasCss.includes('#orbi-climate-core-container'), 'Living Weather must never override Golden Orb internals.');
+
+// OC-22 V11: Snow is a first-class weather condition from WMO truth through
+// Atmosphere Lab and the independent foreground compositor.
+expect(weatherTypes.includes("| 'snow'"), 'WeatherCondition must expose snow as a first-class state.');
+expect(wmoMapper.includes("return 'snow';"), 'WMO snow codes must resolve to the snow condition instead of cold.');
+for (const code of ['71', '73', '75', '77', '85', '86']) {
+  expect(wmoMapper.includes(`case ${code}:`), `WMO snow mapping is missing code ${code}.`);
+}
+expect(debugService.includes("id: 'snow'"), 'Atmosphere Lab must expose the Nevado preset.');
+expect(foregroundHost.includes("model.scene === 'snow'"), 'Foreground host must route snow into its own compositor path.');
+expect(foregroundHost.includes('<SnowFrostCanvas'), 'SnowFrostCanvas must be mounted for physical Home rendering.');
+expect(snowRenderer.includes('drawCrystal'), 'Snow renderer must include crystalline foreground flakes.');
+expect(snowRenderer.includes('drawFrost'), 'Snow renderer must include procedural edge frost.');
+expect(snowRenderer.includes("prefers-reduced-motion: reduce"), 'Snow renderer must honor reduced-motion accessibility.');
+expect(snowRenderer.includes("android ? 18"), 'Android snow renderer must keep an explicit FPS cap.');
+expect(cloudCanvas.includes('snow: {'), 'Natural cloud renderer must include a dedicated snow cloud family.');
+expect(cloudCanvas.includes("case 'snow'"), 'Snow clouds must have their own cold luminous tint.');
+expect(cinematicSky.includes('const sunnyDay'), 'Cinematic sky must retain the warm-natural sunny-day correction.');
+expect(cinematicSky.includes("case 'snow'"), 'Cinematic sky must include snow-specific exposure.');
+expect(foregroundCss.includes('.orbi-snow-frost-canvas'), 'Snow foreground canvas styling is missing.');
+expect(!snowRenderer.includes('backdrop-filter'), 'Snow effects must not use backdrop-filter.');
+expect(!snowRenderer.includes('mix-blend-mode'), 'Snow effects must not use mix-blend-mode.');
+expect(!snowRenderer.includes('translateZ'), 'Snow effects must not force 3D compositor promotion.');
+expect(!foregroundCss.includes('#orbi-climate-core-container'), 'Snow foreground must never target Golden Orb internals.');
 
 const forbiddenCss = [
   ['backdrop-filter', 'Do not use backdrop-filter in OC-22 atmosphere layers: Android WebView compositing/scroll bleed risk.'],
