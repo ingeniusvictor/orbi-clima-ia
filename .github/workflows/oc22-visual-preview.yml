@@ -61,6 +61,9 @@ jobs:
       - name: OC-22 atmosphere gate
         run: npm run ui:verify-living-atmosphere
 
+      - name: Weather Truth gate
+        run: npm run weather:verify-current-truth
+
       - name: Build current web bundle
         run: npm run build
 
@@ -73,18 +76,18 @@ jobs:
           echo "VISUAL QA ONLY"
           echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
           echo "Do not promote this artifact to stable/release."
-          grep -n "versionCode 10621" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-SNOW-V11"' android/app/build.gradle
+          grep -n "versionCode 10622" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-AUTO-TRUTH-V11"' android/app/build.gradle
 
       - name: Compile side-by-side OC-22 visual preview
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
 
-      - name: Upload Snow V11 visual QA APK
+      - name: Upload 10622 AUTO truth visual QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-snow-v11-visual-preview-10621
+          name: orbi-clima-oc22-auto-truth-v11-visual-preview-10622
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 7
