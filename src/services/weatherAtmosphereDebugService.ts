@@ -14,10 +14,11 @@ export const ATMOSPHERE_DEBUG_PRESETS: Array<{
   description: string;
 }> = [
   { id: 'live', label: 'LIVE', description: 'Clima real' },
-  { id: 'sunny', label: 'Soleado', description: 'Cielo abierto + rayos' },
+  { id: 'sunny', label: 'Soleado', description: 'Cielo abierto + luz solar' },
   { id: 'partly_cloudy', label: 'Parcial', description: 'Capas de nubes + luz' },
   { id: 'cloudy', label: 'Nublado', description: 'Nubes densas + bruma' },
   { id: 'rain', label: 'Lluvia', description: 'Lluvia + niebla fría' },
+  { id: 'snow', label: 'Nevado', description: 'Copos + escarcha de cristal' },
   { id: 'storm', label: 'Tormenta', description: 'Nubes oscuras + relámpago' },
   { id: 'wind', label: 'Viento', description: 'Corrientes de aire' },
   { id: 'cold', label: 'Frío', description: 'Atmósfera fría + partículas' },
@@ -109,6 +110,8 @@ export function applyAtmosphereDebugPreset(
       return { ...base, temperatureC: 18, feelsLikeC: 18, humidity: 84, cloudCover: 94, precipitationMm: 0, windSpeedKmh: 9, windGustKmh: 15, uvIndex: 2 };
     case 'rain':
       return { ...base, temperatureC: 13, feelsLikeC: 12, humidity: 95, cloudCover: 100, precipitationMm: 2.8, windSpeedKmh: 21, windGustKmh: 38, uvIndex: 1 };
+    case 'snow':
+      return { ...base, temperatureC: -2, feelsLikeC: -6, humidity: 94, cloudCover: 96, precipitationMm: 2.4, windSpeedKmh: 18, windGustKmh: 34, uvIndex: 1 };
     case 'storm':
       return { ...base, temperatureC: 12, feelsLikeC: 10, humidity: 97, cloudCover: 100, precipitationMm: 5.4, windSpeedKmh: 46, windGustKmh: 72, uvIndex: 0 };
     case 'wind':
