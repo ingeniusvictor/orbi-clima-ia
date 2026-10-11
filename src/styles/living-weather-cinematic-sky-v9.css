@@ -1,0 +1,28 @@
+.lwa-cinematic-sky-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* V9 owns sky/light rendering. Keep legacy nodes in markup as rollback-safe
+   source material, but never composite duplicate sky/sun/star surfaces. */
+[data-sky-engine='v9'] > .lwa-sky,
+[data-sky-engine='v9'] > .lwa-horizon-glow,
+[data-sky-engine='v9'] > .lwa-sun-rays,
+[data-sky-engine='v9'] > .lwa-stars,
+[data-sky-engine='v9'] > .lwa-celestial {
+  display: none !important;
+}
+
+/* Android: the sky remains one flat 2D canvas. Avoid compositor-heavy effects. */
+.capacitor-android .lwa-cinematic-sky-canvas,
+.android-webview .lwa-cinematic-sky-canvas {
+  filter: none !important;
+  transform: none !important;
+  will-change: auto !important;
+  contain: none !important;
+}
