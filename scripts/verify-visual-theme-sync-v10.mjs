@@ -26,12 +26,12 @@ for (const preset of ['sunny', 'partly_cloudy', 'cloudy', 'rain', 'storm', 'wind
   expect(css.includes(`data-orbi-atm-theme='${preset}'`), `Missing visual palette sync for ${preset}.`);
 }
 expect(css.includes('#welcome-hero-section h1 > span:first-child'), 'ORBI Clima title gradient must synchronize visually in ATM LAB.');
-expect(css.includes('#orbi-climate-core-container'), 'Golden Orb palette must synchronize visually in ATM LAB.');
-expect(!/\btransform\s*:/.test(css), 'V10 theme sync must never override Golden Orb transforms.');
-expect(!/\banimation(?:-[a-z-]+)?\s*:/.test(css), 'V10 theme sync must never override Golden Orb animations.');
+expect(!css.includes('#orbi-climate-core-container'), 'V10 theme sync must never target the frozen Golden Orb or its descendants.');
+expect(!/\btransform\s*:/.test(css), 'V10 theme sync must never override transforms.');
+expect(!/\banimation(?:-[a-z-]+)?\s*:/.test(css), 'V10 theme sync must never override animations.');
 expect(!/\bclip-path\s*:/.test(css), 'V10 theme sync must never change the proven Android Orb clip.');
-expect(!/\bfilter\s*:/.test(css), 'V10 theme sync must never change Orb filters/compositing.');
-expect(!/\boverflow\s*:/.test(css), 'V10 theme sync must never change Orb overflow/compositing.');
+expect(!/\bfilter\s*:/.test(css), 'V10 theme sync must never change compositor filters.');
+expect(!/\boverflow\s*:/.test(css), 'V10 theme sync must never change compositor overflow.');
 
 expect(skyWrapper.includes('CinematicSkyCanvasV10'), 'Cinematic sky wrapper must route through V10.');
 expect(sky.includes('const highSun ='), 'V10 sky must calculate high-sun altitude.');
