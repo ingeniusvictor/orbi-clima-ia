@@ -242,7 +242,7 @@ function stationCanControlCurrent(observation: DmcObservationSnapshot | null): b
 }
 
 function applyObservedScalarFields(current: Record<string, any>, observation: DmcObservationSnapshot): void {
-  if (observation.distanceKm > 15 || observation.ageMinutes > 90) return;
+  if (observation.distanceKm > 25 || observation.ageMinutes > 90) return;
 
   const oldTemperature = finiteOrNull(current.temperature_2m);
   if (observation.temperatureC !== null) {
@@ -252,11 +252,17 @@ function applyObservedScalarFields(current: Record<string, any>, observation: Dm
       current.apparent_temperature = oldFeels + (observation.temperatureC - oldTemperature);
     }
   }
-  if (observation.humidityPct !== null) current.relative_humidity_2m = observation.humidityPct;
-  if (observation.windSpeedKmh !== null) current.wind_speed_10m = observation.windSpeedKmh;
+
+  // Pressure and temperature remain useful regional observation anchors across
+  // the full strong-station radius. Wind, visibility, humidity and cloud cover
+  // are more micro-local, so keep the original tighter 15 km control radius.
   if (observation.pressureHpa !== null) current.pressure_msl = observation.pressureHpa;
-  if (observation.visibilityM !== null) current.visibility = observation.visibilityM;
-  if (observation.cloudCoverPct !== null) current.cloud_cover = observation.cloudCoverPct;
+  if (observation.distanceKm <= 15) {
+    if (observation.humidityPct !== null) current.relative_humidity_2m = observation.humidityPct;
+    if (observation.windSpeedKmh !== null) current.wind_speed_10m = observation.windSpeedKmh;
+    if (observation.visibilityM !== null) current.visibility = observation.visibilityM;
+    if (observation.cloudCoverPct !== null) current.cloud_cover = observation.cloudCoverPct;
+  }
 }
 
 function clearCurrentPrecipitation(current: Record<string, any>): void {
@@ -356,7 +362,6 @@ export function applyCurrentWeatherTruth(
     strongObservation
     && context.dmc !== null
     && context.dmc.temperatureC !== null
-    && context.dmc.distanceKm <= 15
   ) {
     temperatureStrategy = 'dmc_observed';
   } else if (
