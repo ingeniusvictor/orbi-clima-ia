@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { CurrentWeather, DailyForecast } from '../types/weatherTypes';
 import LivingWeatherAtmosphere from './LivingWeatherAtmosphere';
-import { buildWeatherAtmosphereModel, resolveAtmosphereQuality } from '../services/weatherAtmosphereEngine';
+import {
+  AtmospherePhase,
+  buildWeatherAtmosphereModel,
+  resolveAtmosphereQuality,
+} from '../services/weatherAtmosphereEngine';
 
 interface AtmosphereLabPreviewSceneProps {
   currentWeather: CurrentWeather;
   dailyForecast?: DailyForecast;
   timezone?: string;
+  phaseOverride?: AtmospherePhase;
 }
 
 interface PreviewRainDrop {
@@ -186,20 +191,23 @@ export default function AtmosphereLabPreviewScene({
   currentWeather,
   dailyForecast,
   timezone,
+  phaseOverride,
 }: AtmosphereLabPreviewSceneProps) {
   const model = useMemo(() => buildWeatherAtmosphereModel({
     current: currentWeather,
     daily: dailyForecast,
     timezone,
     quality: resolveAtmosphereQuality(),
-  }), [currentWeather, dailyForecast, timezone]);
+    phaseOverride,
+  }), [currentWeather, dailyForecast, timezone, phaseOverride]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden" data-preview-scene={model.scene}>
+    <div className="absolute inset-0 overflow-hidden" data-preview-scene={model.scene} data-preview-phase={model.phase}>
       <LivingWeatherAtmosphere
         currentWeather={currentWeather}
         dailyForecast={dailyForecast}
         timezone={timezone}
+        phaseOverride={phaseOverride}
       />
       <PreviewPrecipitationCanvas
         scene={model.scene}
