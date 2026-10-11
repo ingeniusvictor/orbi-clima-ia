@@ -139,7 +139,7 @@ export default function AtmosphereLabOverlayV2() {
           </div>
 
           <p className="text-[8px] leading-relaxed text-slate-500">
-            El preset solo altera la escena visual OC-22; no modifica clima guardado, alertas, recomendaciones ni Weather Truth.
+            El preset solo altera la escena visual OC-22; no modifica el clima guardado, alertas, recomendaciones ni Weather Truth.
           </p>
         </div>
       )}
