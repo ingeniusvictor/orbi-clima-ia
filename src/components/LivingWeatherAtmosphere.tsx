@@ -1,10 +1,12 @@
 import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import { CurrentWeather, DailyForecast } from '../types/weatherTypes';
 import {
+  AtmospherePhase,
   AtmosphereQuality,
   buildWeatherAtmosphereModel,
   resolveAtmosphereQuality,
 } from '../services/weatherAtmosphereEngine';
+import CinematicSkyCanvas from './CinematicSkyCanvas';
 import NaturalCloudCanvas from './NaturalCloudCanvas';
 import '../styles/living-weather-atmosphere.css';
 import '../styles/living-weather-effects.css';
@@ -14,6 +16,7 @@ interface LivingWeatherAtmosphereProps {
   dailyForecast?: DailyForecast;
   timezone?: string;
   active?: boolean;
+  phaseOverride?: AtmospherePhase;
 }
 
 type AtmosphereStyle = CSSProperties & {
@@ -40,19 +43,23 @@ export default function LivingWeatherAtmosphere({
   dailyForecast,
   timezone,
   active = true,
+  phaseOverride,
 }: LivingWeatherAtmosphereProps) {
   const [quality, setQuality] = useState<AtmosphereQuality>(() => resolveAtmosphereQuality());
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== 'hidden');
+  const [clockRevision, setClockRevision] = useState(0);
 
   useEffect(() => {
     const refreshQuality = () => setQuality(resolveAtmosphereQuality());
     const handleVisibility = () => setPageVisible(document.visibilityState !== 'hidden');
+    const minuteClock = window.setInterval(() => setClockRevision((value) => value + 1), 60_000);
 
     window.addEventListener('resize', refreshQuality, { passive: true });
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('resize', refreshQuality);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearInterval(minuteClock);
     };
   }, []);
 
@@ -61,7 +68,9 @@ export default function LivingWeatherAtmosphere({
     daily: dailyForecast,
     timezone,
     quality,
-  }), [currentWeather, dailyForecast, timezone, quality]);
+    now: new Date(),
+    phaseOverride,
+  }), [currentWeather, dailyForecast, timezone, quality, phaseOverride, clockRevision]);
 
   const style: AtmosphereStyle = {
     '--lwa-cloud-far-opacity': Number((model.cloudOpacity * 0.56).toFixed(3)),
@@ -91,9 +100,22 @@ export default function LivingWeatherAtmosphere({
       data-phase={model.phase}
       data-quality={model.quality}
       data-accent={model.accentTemperature}
+      data-sky-engine="v9"
       style={style}
       aria-hidden="true"
     >
+      <CinematicSkyCanvas
+        scene={model.scene}
+        phase={model.phase}
+        quality={model.quality}
+        solar={model.solar}
+        cloudOpacity={model.cloudOpacity}
+        luminance={model.luminance}
+        active={!paused}
+      />
+
+      {/* Legacy V1 sky nodes are retained as rollback-safe source material.
+          V9 CSS hides them while the cinematic canvas owns the active sky. */}
       <div className="lwa-sky" />
       <div className="lwa-horizon-glow" />
       <div className="lwa-sun-rays" />
@@ -113,6 +135,9 @@ export default function LivingWeatherAtmosphere({
         cloudOpacity={model.cloudOpacity}
         cloudSpeedSeconds={model.cloudSpeed}
         windStrength={model.windStrength}
+        solarLightX={model.solar.sunPositionX}
+        solarWarmth={model.solar.twilightWarmth}
+        nightStrength={model.solar.nightStrength}
         active={!paused}
       />
 
