@@ -120,7 +120,10 @@ expect(foregroundHost.includes('<SnowFrostCanvas'), 'SnowFrostCanvas must be mou
 expect(snowRenderer.includes('drawCrystal'), 'Snow renderer must include crystalline foreground flakes.');
 expect(snowRenderer.includes('drawFrost'), 'Snow renderer must include procedural edge frost.');
 expect(snowRenderer.includes("prefers-reduced-motion: reduce"), 'Snow renderer must honor reduced-motion accessibility.');
-expect(snowRenderer.includes("android ? 18"), 'Android snow renderer must keep an explicit FPS cap.');
+expect(
+  snowRenderer.includes('const targetFps') && snowRenderer.includes('? 18'),
+  'Android snow renderer must keep an explicit 18 FPS cap.',
+);
 expect(cloudCanvas.includes('snow: {'), 'Natural cloud renderer must include a dedicated snow cloud family.');
 expect(cloudCanvas.includes("case 'snow'"), 'Snow clouds must have their own cold luminous tint.');
 expect(cinematicSky.includes('const sunnyDay'), 'Cinematic sky must retain the warm-natural sunny-day correction.');
