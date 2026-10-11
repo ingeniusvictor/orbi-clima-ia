@@ -1,0 +1,88 @@
+/*
+ * OC-22G/V10 visual theme bridge.
+ *
+ * The production/LIVE hero still receives its original real Weather Truth
+ * condition prop. These selectors are active only while developer ATM LAB has
+ * a non-LIVE visual preset, so QA can preview the original condition palette
+ * on the Golden Orb and ORBI Clima title without mutating weather data.
+ *
+ * IMPORTANT: color only. Never alter transform, animation, clip, filter,
+ * overflow or compositor behavior of the protected Golden Orb.
+ */
+
+html[data-orbi-atm-theme-sync='v10'] #welcome-hero-section h1 > span:first-child {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+html[data-orbi-atm-theme='sunny'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #fcd34d, #fb923c, #fde047) !important;
+}
+html[data-orbi-atm-theme='partly_cloudy'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #7dd3fc, #818cf8, #7dd3fc) !important;
+}
+html[data-orbi-atm-theme='cloudy'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #cbd5e1, #94a3b8, #d4d4d8) !important;
+}
+html[data-orbi-atm-theme='rain'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #60a5fa, #818cf8, #22d3ee) !important;
+}
+html[data-orbi-atm-theme='storm'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #818cf8, #a855f7, #a78bfa) !important;
+}
+html[data-orbi-atm-theme='wind'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #2dd4bf, #94a3b8, #34d399) !important;
+}
+html[data-orbi-atm-theme='cold'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #67e8f9, #60a5fa, #a5b4fc) !important;
+}
+html[data-orbi-atm-theme='hot'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #f87171, #f97316, #fbbf24) !important;
+}
+html[data-orbi-atm-theme='night'] #welcome-hero-section h1 > span:first-child {
+  background-image: linear-gradient(to right, #a78bfa, #818cf8, #c084fc) !important;
+}
+
+/* The core sphere is the only complete Orb. We only override its original
+ * weather palette during developer visual QA; no duplicate Orb is created. */
+html[data-orbi-atm-theme-sync='v10'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  transition: box-shadow 900ms ease, opacity 600ms ease !important;
+}
+
+html[data-orbi-atm-theme='sunny'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #fbbf24, #f97316, #fde047) !important;
+  box-shadow: 0 0 62px rgba(245,158,11,.58) !important;
+}
+html[data-orbi-atm-theme='partly_cloudy'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #38bdf8, #6366f1, #7dd3fc) !important;
+  box-shadow: 0 0 58px rgba(56,189,248,.52) !important;
+}
+html[data-orbi-atm-theme='cloudy'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #64748b, #475569, #94a3b8) !important;
+  box-shadow: 0 0 48px rgba(148,163,184,.36) !important;
+}
+html[data-orbi-atm-theme='rain'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #2563eb, #1e1b4b, #0e7490) !important;
+  box-shadow: 0 0 62px rgba(37,99,235,.56) !important;
+}
+html[data-orbi-atm-theme='storm'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #312e81, #3b0764, #5b21b6) !important;
+  box-shadow: 0 0 66px rgba(168,85,247,.58) !important;
+}
+html[data-orbi-atm-theme='wind'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #14b8a6, #0f172a, #047857) !important;
+  box-shadow: 0 0 56px rgba(20,184,166,.5) !important;
+}
+html[data-orbi-atm-theme='cold'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #67e8f9, #1e3a8a, #3730a3) !important;
+  box-shadow: 0 0 58px rgba(34,211,238,.5) !important;
+}
+html[data-orbi-atm-theme='hot'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #ef4444, #ea580c, #f59e0b) !important;
+  box-shadow: 0 0 64px rgba(239,68,68,.56) !important;
+}
+html[data-orbi-atm-theme='night'] #orbi-climate-core-container > div.relative > div.relative.overflow-hidden.z-10 {
+  background-image: linear-gradient(to top right, #2e1065, #020617, #312e81) !important;
+  box-shadow: 0 0 54px rgba(139,92,246,.46) !important;
+}
