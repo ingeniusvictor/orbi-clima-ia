@@ -49,13 +49,45 @@ interface NavigatorHints extends Navigator {
   };
 }
 
+type CurrentWeatherWithDaylightHint = CurrentWeather & {
+  isDay?: boolean;
+};
+
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 function parseClock(value?: string): number | null {
   if (!value) return null;
-  const match = value.match(/(?:^|T|\s)(\d{1,2}):(\d{2})/);
+  const match = value.trim().match(/(?:^|T|\s)(\d{1,2}):(\d{2})(?:\s*([AP]M))?/i);
   if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute < 0 || minute > 59) return null;
+
+  if (meridiem === 'AM') {
+    if (hour === 12) hour = 0;
+    else if (hour < 1 || hour > 11) return null;
+  } else if (meridiem === 'PM') {
+    if (hour >= 1 && hour <= 11) hour += 12;
+    else if (hour !== 12) return null;
+  } else if (hour < 0 || hour > 23) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+}
+
+function resolveSolarClockWindow(daily?: DailyForecast): { sunriseMinutes: number; sunsetMinutes: number } {
+  const fallbackSunrise = 7 * 60;
+  const fallbackSunset = 19 * 60;
+  const sunriseMinutes = parseClock(daily?.sunrise) ?? fallbackSunrise;
+  const parsedSunset = parseClock(daily?.sunset);
+  const sunsetMinutes = parsedSunset !== null && parsedSunset - sunriseMinutes >= 180
+    ? parsedSunset
+    : fallbackSunset;
+
+  return { sunriseMinutes, sunsetMinutes };
 }
 
 function getLocalMinutes(timezone?: string, now: Date = new Date()): number {
@@ -74,6 +106,11 @@ function getLocalMinutes(timezone?: string, now: Date = new Date()): number {
   }
 }
 
+function getProviderDaylightHint(current: CurrentWeather): boolean | null {
+  const value = (current as CurrentWeatherWithDaylightHint).isDay;
+  return typeof value === 'boolean' ? value : null;
+}
+
 export function resolveSolarLightingState(
   timezone?: string,
   daily?: DailyForecast,
@@ -81,8 +118,7 @@ export function resolveSolarLightingState(
   phaseOverride?: AtmospherePhase,
 ): SolarLightingState {
   const localMinutes = getLocalMinutes(timezone, now);
-  const sunriseMinutes = parseClock(daily?.sunrise) ?? 7 * 60;
-  const sunsetMinutes = parseClock(daily?.sunset) ?? 19 * 60;
+  const { sunriseMinutes, sunsetMinutes } = resolveSolarClockWindow(daily);
   const dayLength = Math.max(180, sunsetMinutes - sunriseMinutes);
 
   if (phaseOverride) {
@@ -162,8 +198,7 @@ export function resolveAtmospherePhase(
   now?: Date,
 ): AtmospherePhase {
   const localMinutes = getLocalMinutes(timezone, now);
-  const sunrise = parseClock(daily?.sunrise) ?? 7 * 60;
-  const sunset = parseClock(daily?.sunset) ?? 19 * 60;
+  const { sunriseMinutes: sunrise, sunsetMinutes: sunset } = resolveSolarClockWindow(daily);
 
   if (localMinutes >= sunrise - 45 && localMinutes < sunrise + 55) return 'dawn';
   if (localMinutes >= sunset - 55 && localMinutes < sunset + 45) return 'dusk';
@@ -226,11 +261,28 @@ export function buildWeatherAtmosphereModel(params: {
 }): AtmosphereModel {
   const { current, daily, timezone, now, phaseOverride } = params;
   const scene = resolveAtmosphereScene(current.condition as WeatherCondition | 'setup');
-  const phase = phaseOverride ?? (current.condition === 'night'
-    ? 'night'
-    : resolveAtmospherePhase(timezone, daily, now));
   const quality = params.quality ?? resolveAtmosphereQuality();
-  const solar = resolveSolarLightingState(timezone, daily, now ?? new Date(), phaseOverride ?? (current.condition === 'night' ? 'night' : undefined));
+
+  const automaticPhase = current.condition === 'night'
+    ? 'night'
+    : resolveAtmospherePhase(timezone, daily, now);
+  const providerDaylightHint = getProviderDaylightHint(current);
+  let guardedAutomaticPhase = automaticPhase;
+
+  // Open-Meteo exposes an explicit current.is_day flag. It is only used as a
+  // safety invariant when AUTO contradicts an unequivocal provider daylight
+  // state; dawn/dusk remain governed by the solar clock window.
+  if (current.condition !== 'night' && providerDaylightHint === true && automaticPhase === 'night') {
+    guardedAutomaticPhase = 'day';
+  } else if (providerDaylightHint === false && automaticPhase === 'day') {
+    guardedAutomaticPhase = 'night';
+  }
+
+  const phase = phaseOverride ?? guardedAutomaticPhase;
+  const solarGuardOverride = phaseOverride
+    ?? (guardedAutomaticPhase !== automaticPhase ? guardedAutomaticPhase : undefined)
+    ?? (current.condition === 'night' ? 'night' : undefined);
+  const solar = resolveSolarLightingState(timezone, daily, now ?? new Date(), solarGuardOverride);
 
   const cloudFraction = Math.min(1, Math.max(0, current.cloudCover / 100));
   const precipitationBase = Math.min(1, Math.max(0, current.precipitationMm / 5));
