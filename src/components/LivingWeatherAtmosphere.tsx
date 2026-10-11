@@ -100,7 +100,7 @@ export default function LivingWeatherAtmosphere({
       data-phase={model.phase}
       data-quality={model.quality}
       data-accent={model.accentTemperature}
-      data-sky-engine="v10"
+      data-sky-engine="v9"
       style={style}
       aria-hidden="true"
     >
