@@ -7,9 +7,9 @@
  * palette without mutating weather data.
  *
  * GOLDEN ORB FREEZE:
- * Never target #orbi-climate-core-container or any Golden Orb descendant from
- * this layer. The approved 10615 ORB LAVA architecture and palette remain
- * completely owned by the frozen Orb implementation.
+ * Never target the Golden Orb container or any of its descendants from this
+ * layer. The approved 10615 ORB LAVA architecture and palette remain completely
+ * owned by the frozen Orb implementation.
  */
 
 html[data-orbi-atm-theme-sync='v10'] #welcome-hero-section h1 > span:first-child {
