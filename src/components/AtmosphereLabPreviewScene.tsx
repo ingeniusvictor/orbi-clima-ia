@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { CurrentWeather, DailyForecast } from '../types/weatherTypes';
 import LivingWeatherAtmosphere from './LivingWeatherAtmosphere';
+import SnowFrostCanvas from './SnowFrostCanvas';
 import {
   AtmospherePhase,
   buildWeatherAtmosphereModel,
   resolveAtmosphereQuality,
 } from '../services/weatherAtmosphereEngine';
+import '../styles/immersive-weather-foreground.css';
 
 interface AtmosphereLabPreviewSceneProps {
   currentWeather: CurrentWeather;
@@ -58,7 +60,7 @@ function PreviewPrecipitationCanvas({
     const parent = canvas.parentElement;
     if (!parent) return undefined;
 
-    const wet = scene === 'rain' || scene === 'storm' || precipitationStrength > 0.12;
+    const wet = scene === 'rain' || scene === 'storm' || (scene !== 'snow' && precipitationStrength > 0.12);
     if (!wet) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return undefined;
@@ -201,6 +203,8 @@ export default function AtmosphereLabPreviewScene({
     phaseOverride,
   }), [currentWeather, dailyForecast, timezone, phaseOverride]);
 
+  const snowScene = model.scene === 'snow';
+
   return (
     <div className="absolute inset-0 overflow-hidden" data-preview-scene={model.scene} data-preview-phase={model.phase}>
       <LivingWeatherAtmosphere
@@ -209,11 +213,21 @@ export default function AtmosphereLabPreviewScene({
         timezone={timezone}
         phaseOverride={phaseOverride}
       />
-      <PreviewPrecipitationCanvas
-        scene={model.scene}
-        precipitationStrength={model.precipitationStrength}
-        windStrength={model.windStrength}
-      />
+      {snowScene ? (
+        <SnowFrostCanvas
+          quality={model.quality}
+          snowStrength={model.precipitationStrength}
+          frostStrength={model.frostStrength}
+          windStrength={model.windStrength}
+          active
+        />
+      ) : (
+        <PreviewPrecipitationCanvas
+          scene={model.scene}
+          precipitationStrength={model.precipitationStrength}
+          windStrength={model.windStrength}
+        />
+      )}
       {(model.scene === 'rain' || model.scene === 'storm') && (
         <div className="absolute inset-0 z-[7] pointer-events-none bg-[linear-gradient(112deg,transparent_0%,rgba(230,245,252,0.025)_45%,transparent_72%)]" />
       )}
