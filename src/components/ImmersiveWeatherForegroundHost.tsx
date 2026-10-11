@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ImmersivePrecipitationCanvas from './ImmersivePrecipitationCanvas';
+import SnowFrostCanvas from './SnowFrostCanvas';
 import { CurrentWeather, DailyForecast, WeatherLocation } from '../types/weatherTypes';
 import { loadLastWeatherBundle } from '../services/weatherCacheService';
 import {
@@ -104,8 +105,11 @@ export default function ImmersiveWeatherForegroundHost() {
 
   if (!onboardingDone || !snapshot || !renderedCurrent || !model) return null;
 
-  const wetScene = model.scene === 'rain' || model.scene === 'storm' || model.precipitationStrength > 0.12;
-  if (!wetScene) return null;
+  const snowScene = model.scene === 'snow';
+  const rainScene = model.scene === 'rain'
+    || model.scene === 'storm'
+    || (!snowScene && model.precipitationStrength > 0.12);
+  if (!snowScene && !rainScene) return null;
 
   const active = homeVisible && pageVisible;
 
@@ -117,14 +121,26 @@ export default function ImmersiveWeatherForegroundHost() {
       data-debug-scene={debugPreset}
       aria-hidden="true"
     >
-      <ImmersivePrecipitationCanvas
-        scene={model.scene}
-        quality={model.quality}
-        precipitationStrength={model.precipitationStrength}
-        windStrength={model.windStrength}
-        active={active}
-      />
-      <div className="orbi-rain-glass-sheen" />
+      {snowScene ? (
+        <SnowFrostCanvas
+          quality={model.quality}
+          snowStrength={model.precipitationStrength}
+          frostStrength={model.frostStrength}
+          windStrength={model.windStrength}
+          active={active}
+        />
+      ) : (
+        <>
+          <ImmersivePrecipitationCanvas
+            scene={model.scene}
+            quality={model.quality}
+            precipitationStrength={model.precipitationStrength}
+            windStrength={model.windStrength}
+            active={active}
+          />
+          <div className="orbi-rain-glass-sheen" />
+        </>
+      )}
     </div>
   );
 }
