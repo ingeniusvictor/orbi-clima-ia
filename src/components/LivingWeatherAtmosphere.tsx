@@ -87,7 +87,7 @@ export default function LivingWeatherAtmosphere({
   };
 
   const paused = !active || !pageVisible;
-  const showRain = model.precipitationStrength > 0.08 && quality !== 'static';
+  const showRain = model.scene !== 'snow' && model.precipitationStrength > 0.08 && quality !== 'static';
   const showColdParticles = model.scene === 'cold' && quality !== 'static';
   const showWind = (model.scene === 'wind' || model.windStrength > 0.52) && quality !== 'static';
   const showHeat = model.scene === 'hot' && quality !== 'static' && quality !== 'low';
@@ -100,7 +100,7 @@ export default function LivingWeatherAtmosphere({
       data-phase={model.phase}
       data-quality={model.quality}
       data-accent={model.accentTemperature}
-      data-sky-engine="v9"
+      data-sky-engine="v10"
       style={style}
       aria-hidden="true"
     >
@@ -115,7 +115,7 @@ export default function LivingWeatherAtmosphere({
       />
 
       {/* Legacy V1 sky nodes are retained as rollback-safe source material.
-          V9 CSS hides them while the cinematic canvas owns the active sky. */}
+          V10 CSS hides them while the cinematic canvas owns the active sky. */}
       <div className="lwa-sky" />
       <div className="lwa-horizon-glow" />
       <div className="lwa-sun-rays" />
