@@ -135,9 +135,6 @@ export default function LivingWeatherAtmosphere({
         cloudOpacity={model.cloudOpacity}
         cloudSpeedSeconds={model.cloudSpeed}
         windStrength={model.windStrength}
-        solarLightX={model.solar.sunPositionX}
-        solarWarmth={model.solar.twilightWarmth}
-        nightStrength={model.solar.nightStrength}
         active={!paused}
       />
 
