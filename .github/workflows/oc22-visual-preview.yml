@@ -1,0 +1,90 @@
+name: ORBI Clima OC-22 Visual Preview
+
+on:
+  push:
+    branches:
+      - feature/oc-22-living-weather-atmosphere
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'android/app/build.gradle'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/oc22-visual-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Setup pinned Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript gate
+        run: npm run typecheck
+
+      - name: OC-22 atmosphere gate
+        run: npm run ui:verify-living-atmosphere
+
+      - name: Build current web bundle
+        run: npm run build
+
+      - name: Copy web bundle into Android preview
+        run: npx cap copy android
+
+      - name: Declare preview scope
+        shell: bash
+        run: |
+          echo "VISUAL QA ONLY"
+          echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
+          echo "Do not promote this artifact to stable/release."
+          grep -n "versionCode 10621" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-SNOW-V11"' android/app/build.gradle
+
+      - name: Compile side-by-side OC-22 visual preview
+        working-directory: android
+        shell: bash
+        run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
+
+      - name: Upload Snow V11 visual QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-oc22-snow-v11-visual-preview-10621
+          path: android/app/build/outputs/apk/oc21Preview/*.apk
+          if-no-files-found: error
+          retention-days: 7
