@@ -37,6 +37,7 @@ function sceneExposure(scene: AtmosphereScene) {
   switch (scene) {
     case 'storm': return 0.48;
     case 'rain': return 0.66;
+    case 'snow': return 0.82;
     case 'cloudy': return 0.76;
     case 'cold': return 0.86;
     case 'hot': return 1.08;
@@ -119,23 +120,34 @@ export default function CinematicSkyCanvasV10({
       const day = 1 - night;
       const warm = clamp01(solar.twilightWarmth);
       const exposure = sceneExposure(scene) * (0.74 + luminance * 0.34);
+      const sunnyDay = scene === 'clear' && phase === 'day' && day > 0.82;
+      const snowScene = scene === 'snow';
 
       const nightTop: RGB = [2, 7, 18];
       const nightMid: RGB = [8, 23, 45];
       const nightBottom: RGB = [5, 10, 22];
-      const dayTop: RGB = [17, 67, 116];
-      const dayMid: RGB = [35, 121, 177];
-      const dayBottom: RGB = [77, 148, 190];
+      const dayTop: RGB = sunnyDay ? [24, 77, 132] : [22, 72, 124];
+      const dayMid: RGB = sunnyDay ? [67, 139, 184] : [53, 128, 178];
+      const dayBottom: RGB = sunnyDay ? [148, 177, 185] : [100, 157, 189];
+      const snowTop: RGB = [52, 79, 107];
+      const snowMid: RGB = [104, 132, 153];
+      const snowBottom: RGB = [177, 194, 202];
       const warmTop: RGB = phase === 'dawn' ? [62, 72, 122] : [47, 49, 92];
       const warmMid: RGB = phase === 'dawn' ? [205, 119, 112] : [196, 83, 91];
       const warmBottom: RGB = phase === 'dawn' ? [244, 174, 117] : [244, 129, 79];
 
-      let top = mixRgb(nightTop, dayTop, day);
-      let mid = mixRgb(nightMid, dayMid, day);
-      let bottom = mixRgb(nightBottom, dayBottom, day);
+      let top = mixRgb(nightTop, snowScene ? snowTop : dayTop, day);
+      let mid = mixRgb(nightMid, snowScene ? snowMid : dayMid, day);
+      let bottom = mixRgb(nightBottom, snowScene ? snowBottom : dayBottom, day);
       top = mixRgb(top, warmTop, warm * 0.72);
       mid = mixRgb(mid, warmMid, warm * 0.86);
       bottom = mixRgb(bottom, warmBottom, warm);
+
+      if (sunnyDay) {
+        const solarContinuity = clamp01(solar.sunAltitude) * (1 - warm) * 0.18;
+        mid = mixRgb(mid, [115, 157, 181], solarContinuity * 0.38);
+        bottom = mixRgb(bottom, [232, 188, 132], solarContinuity);
+      }
 
       top = applyExposure(top, exposure);
       mid = applyExposure(mid, exposure);
@@ -160,13 +172,17 @@ export default function CinematicSkyCanvasV10({
         horizonY,
         Math.max(width, height) * (0.44 + warm * 0.12),
       );
-      const horizonAlpha = (0.08 + warm * 0.3) * day * (1 - cloudOpacity * 0.38);
+      const horizonAlpha = (0.08 + warm * 0.3 + (sunnyDay ? 0.055 : 0)) * day * (1 - cloudOpacity * 0.38);
       horizon.addColorStop(0, warm > 0.28
         ? `rgba(255,184,118,${horizonAlpha})`
-        : `rgba(167,220,255,${horizonAlpha * 0.75})`);
+        : sunnyDay
+          ? `rgba(255,207,139,${horizonAlpha * 0.82})`
+          : `rgba(167,220,255,${horizonAlpha * 0.75})`);
       horizon.addColorStop(0.44, warm > 0.28
         ? `rgba(255,130,91,${horizonAlpha * 0.36})`
-        : `rgba(100,190,244,${horizonAlpha * 0.24})`);
+        : sunnyDay
+          ? `rgba(255,176,102,${horizonAlpha * 0.25})`
+          : `rgba(100,190,244,${horizonAlpha * 0.24})`);
       horizon.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = horizon;
       ctx.fillRect(0, height * 0.28, width, height * 0.72);
@@ -205,11 +221,13 @@ export default function CinematicSkyCanvasV10({
         const sunRadius = Math.max(7, width * lerp(warm > 0.35 ? 0.034 : 0.026, 0.016, highSun));
         const glowRadius = sunRadius * lerp(warm > 0.35 ? 7.5 : 7.2, 10.5, highSun);
         const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, glowRadius);
-        const coreGlowAlpha = lerp(0.48, 0.24, highSun) * visibility;
+        const coreGlowAlpha = lerp(0.48, sunnyDay ? 0.32 : 0.24, highSun) * visibility;
         glow.addColorStop(0, `rgba(255,245,215,${coreGlowAlpha})`);
         glow.addColorStop(0.28, warm > 0.3
           ? `rgba(255,179,110,${0.24 * visibility})`
-          : `rgba(220,242,255,${lerp(0.17, 0.11, highSun) * visibility})`);
+          : sunnyDay
+            ? `rgba(255,210,128,${lerp(0.2, 0.14, highSun) * visibility})`
+            : `rgba(220,242,255,${lerp(0.17, 0.11, highSun) * visibility})`);
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow;
         ctx.fillRect(sunX - glowRadius, sunY - glowRadius, glowRadius * 2, glowRadius * 2);
@@ -219,9 +237,9 @@ export default function CinematicSkyCanvasV10({
         // an opaque floating button over the application's text.
         const discAlpha = warm > 0.3
           ? 0.9 * visibility
-          : lerp(0.56, 0.08, highSun) * visibility;
+          : lerp(0.56, sunnyDay ? 0.14 : 0.08, highSun) * visibility;
         if (discAlpha > 0.025) {
-          ctx.fillStyle = warm > 0.3
+          ctx.fillStyle = warm > 0.3 || sunnyDay
             ? `rgba(255,229,181,${discAlpha})`
             : `rgba(255,248,220,${discAlpha})`;
           ctx.beginPath();
