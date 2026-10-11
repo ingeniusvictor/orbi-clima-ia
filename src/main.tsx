@@ -7,12 +7,14 @@ import AtmosphereLabOverlay from './components/AtmosphereLabOverlay';
 import { initializeFirstLaunchLocationBootstrap } from './services/firstLaunchLocationBootstrap';
 import { initializeZenSoundBootstrap } from './services/zenSoundBootstrap';
 import { initializeAndroidGoldenOrbFluidContour } from './services/androidGoldenOrbFluidContour';
+import { initializeAtmosphereVisualThemeBridge } from './services/atmosphereVisualThemeBridge';
 import { isAndroidNativeRuntime } from './services/androidRuntimeDiagnosticsService';
 import './index.css';
 import './styles/home-atmosphere.css';
 import './styles/home-density.css';
 import './styles/android-compositor-guard.css';
 import './styles/orb-android-clip-guard.css';
+import './styles/atmosphere-visual-theme-sync-v10.css';
 import './styles/living-weather-visibility.css';
 import './styles/living-weather-clouds-v2.css';
 import './styles/living-weather-natural-v3.css';
@@ -28,6 +30,7 @@ if (isAndroidNativeRuntime()) {
 initializeFirstLaunchLocationBootstrap();
 initializeZenSoundBootstrap();
 initializeAndroidGoldenOrbFluidContour();
+initializeAtmosphereVisualThemeBridge();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
