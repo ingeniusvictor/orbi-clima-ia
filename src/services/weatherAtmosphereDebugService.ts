@@ -1,9 +1,12 @@
 import type { CurrentWeather, WeatherCondition } from '../types/weatherTypes';
+import type { AtmospherePhase } from './weatherAtmosphereEngine';
 
 export const ATMOSPHERE_DEBUG_KEY = 'orbi_living_atmosphere_debug_scene_v1';
+export const ATMOSPHERE_PHASE_DEBUG_KEY = 'orbi_living_atmosphere_debug_phase_v1';
 export const ATMOSPHERE_DEBUG_EVENT = 'orbi-atmosphere-debug-changed';
 
 export type AtmosphereDebugPreset = 'live' | WeatherCondition;
+export type AtmosphereDebugPhase = 'auto' | AtmospherePhase;
 
 export const ATMOSPHERE_DEBUG_PRESETS: Array<{
   id: AtmosphereDebugPreset;
@@ -22,8 +25,23 @@ export const ATMOSPHERE_DEBUG_PRESETS: Array<{
   { id: 'night', label: 'Noche', description: 'Luna + estrellas' },
 ];
 
+export const ATMOSPHERE_DEBUG_PHASES: Array<{
+  id: AtmosphereDebugPhase;
+  label: string;
+}> = [
+  { id: 'auto', label: 'AUTO' },
+  { id: 'dawn', label: 'AMANECER' },
+  { id: 'day', label: 'DÍA' },
+  { id: 'dusk', label: 'ATARDECER' },
+  { id: 'night', label: 'NOCHE' },
+];
+
 function isPreset(value: string | null): value is AtmosphereDebugPreset {
   return ATMOSPHERE_DEBUG_PRESETS.some((preset) => preset.id === value);
+}
+
+function isPhase(value: string | null): value is AtmosphereDebugPhase {
+  return ATMOSPHERE_DEBUG_PHASES.some((phase) => phase.id === value);
 }
 
 export function getAtmosphereDebugPreset(): AtmosphereDebugPreset {
@@ -32,6 +50,15 @@ export function getAtmosphereDebugPreset(): AtmosphereDebugPreset {
     return isPreset(stored) ? stored : 'live';
   } catch {
     return 'live';
+  }
+}
+
+export function getAtmosphereDebugPhase(): AtmosphereDebugPhase {
+  try {
+    const stored = localStorage.getItem(ATMOSPHERE_PHASE_DEBUG_KEY);
+    return isPhase(stored) ? stored : 'auto';
+  } catch {
+    return 'auto';
   }
 }
 
@@ -45,6 +72,19 @@ export function setAtmosphereDebugPreset(preset: AtmosphereDebugPreset): void {
     window.dispatchEvent(new Event(ATMOSPHERE_DEBUG_EVENT));
   } catch (error) {
     console.warn('Could not persist atmosphere debug preset:', error);
+  }
+}
+
+export function setAtmosphereDebugPhase(phase: AtmosphereDebugPhase): void {
+  try {
+    if (phase === 'auto') {
+      localStorage.removeItem(ATMOSPHERE_PHASE_DEBUG_KEY);
+    } else {
+      localStorage.setItem(ATMOSPHERE_PHASE_DEBUG_KEY, phase);
+    }
+    window.dispatchEvent(new Event(ATMOSPHERE_DEBUG_EVENT));
+  } catch (error) {
+    console.warn('Could not persist atmosphere debug phase:', error);
   }
 }
 
