@@ -68,6 +68,12 @@ const SCENE_PROFILES: Record<AtmosphereScene, SceneProfile> = {
     lowerDarkening: 0.43, layerY: [0.035, 0.15, 0.29], layerHeight: [0.27, 0.34, 0.41],
     layerWidth: [1.78, 1.9, 2.02], layerOpacity: [0.55, 0.76, 0.88], travel: [0.36, 0.55, 0.75],
   },
+  snow: {
+    seedBase: 1031, thresholdBias: -0.045, warp: 0.96, ridgeWeight: 0.16, broadWeight: 0.68,
+    mediumWeight: 0.16, erosionWeight: 0.12, verticalScale: 0.78, towerWeight: 0.02,
+    lowerDarkening: 0.31, layerY: [0.025, 0.13, 0.26], layerHeight: [0.29, 0.37, 0.44],
+    layerWidth: [1.82, 1.94, 2.06], layerOpacity: [0.56, 0.74, 0.86], travel: [0.31, 0.49, 0.68],
+  },
   storm: {
     seedBase: 1297, thresholdBias: -0.08, warp: 1.42, ridgeWeight: 0.36, broadWeight: 0.42,
     mediumWeight: 0.22, erosionWeight: 0.16, verticalScale: 1.58, towerWeight: 0.42,
@@ -147,6 +153,7 @@ function cloudTint(scene: AtmosphereScene): { light: RGB; mid: RGB; shade: RGB; 
   switch (scene) {
     case 'storm': return { light: [145, 153, 169], mid: [82, 94, 113], shade: [27, 35, 51], alpha: 0.98, contrast: 1.24 };
     case 'rain': return { light: [182, 194, 203], mid: [118, 133, 146], shade: [57, 70, 84], alpha: 0.95, contrast: 1.12 };
+    case 'snow': return { light: [232, 245, 249], mid: [166, 188, 201], shade: [91, 116, 134], alpha: 0.94, contrast: 1.04 };
     case 'cloudy': return { light: [229, 235, 239], mid: [169, 182, 192], shade: [101, 116, 129], alpha: 0.91, contrast: 1.03 };
     case 'cold': return { light: [238, 245, 248], mid: [188, 201, 210], shade: [127, 145, 158], alpha: 0.83, contrast: 0.97 };
     case 'partly-cloudy': return { light: [250, 251, 252], mid: [211, 220, 226], shade: [154, 169, 180], alpha: 0.78, contrast: 0.94 };
@@ -194,7 +201,7 @@ function createCloudTexture(width: number, height: number, seed: number, scene: 
   for (let y = 0; y < height; y += 1) {
     const v = y / Math.max(1, height - 1);
     const topFade = profile.towerWeight > 0.2 ? 0.025 : 0.06;
-    const bottomFade = scene === 'rain' ? 0.97 : scene === 'storm' ? 0.995 : 0.94;
+    const bottomFade = scene === 'rain' || scene === 'snow' ? 0.97 : scene === 'storm' ? 0.995 : 0.94;
     const envelope = smoothstep(0.005, topFade, v) * (1 - smoothstep(0.77, bottomFade, v));
     const baseWeight = 0.8 + smoothstep(0.34, 0.9, v) * 0.2;
     for (let x = 0; x < width; x += 1) {
