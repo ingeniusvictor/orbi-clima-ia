@@ -11,7 +11,7 @@ const expect = (condition, message) => {
 
 const renderer = read('src/components/LivingWeatherAtmosphere.tsx');
 const host = read('src/components/LivingWeatherAtmosphereHost.tsx');
-const lab = read('src/components/AtmosphereLabOverlay.tsx');
+const lab = read('src/components/AtmosphereLabOverlayV2.tsx');
 const debugService = read('src/services/weatherAtmosphereDebugService.ts');
 const engine = read('src/services/weatherAtmosphereEngine.ts');
 const cache = read('src/services/weatherCacheService.ts');
@@ -47,7 +47,7 @@ expect(renderer.includes("quality !== 'static'"), 'Static/reduced-motion mode mu
 expect(renderer.includes('lwa-sun-rays'), 'Clear/hot weather must have a distinct sunlight signature.');
 expect(renderer.includes('lwa-wind-streams'), 'Wind weather must have a distinct motion signature.');
 expect(renderer.includes('lwa-heat-waves'), 'Hot weather must have a distinct heat signature.');
-expect(renderer.includes('NaturalCloudCanvas'), 'Natural Cloud Canvas V4 must own the runtime cloud rendering path.');
+expect(renderer.includes('NaturalCloudCanvas'), 'Natural Cloud Canvas must own the runtime cloud rendering path.');
 expect(host.includes("orbi_clima_first_launch_completed_v1"), 'Atmosphere host must stay out of first-launch onboarding.');
 expect(host.includes('MutationObserver'), 'Atmosphere host must observe Home visibility and stop work outside Home.');
 expect(host.includes('active={homeVisible}'), 'Atmosphere renderer must pause/mute outside Home.');
@@ -57,7 +57,7 @@ expect(main.includes('<LivingWeatherAtmosphereHost />'), 'Atmosphere host is not
 expect(main.includes('<AtmosphereLabOverlay />'), 'Developer Atmosphere Lab is not mounted.');
 expect(main.includes("./styles/living-weather-visibility.css"), 'Physical-device atmosphere visibility tuning is not loaded.');
 expect(main.includes("./styles/living-weather-android-safe.css"), 'Android-safe Living Weather compositor profile is not loaded.');
-expect(main.includes("./styles/living-weather-canvas-v4.css"), 'Natural Cloud Canvas V4 styling is not loaded.');
+expect(main.includes("./styles/living-weather-canvas-v4.css"), 'Natural Cloud Canvas styling is not loaded.');
 expect(!main.includes("./styles/orb-android-stability.css"), 'Golden Orb motion-freezing stylesheet must never be loaded.');
 expect(!existsSync('src/styles/orb-android-stability.css'), 'Golden Orb motion-freezing stylesheet must remain deleted.');
 expect(lab.includes('isDeveloperModeEnabled()'), 'Atmosphere Lab must be hidden unless developer mode is unlocked and enabled.');
@@ -89,16 +89,14 @@ expect(androidSafeCss.includes('will-change: auto !important'), 'Android-safe pr
 expect(androidSafeCss.includes('contain: none !important'), 'Android-safe profile must not isolate the weather into stale compositor tiles.');
 expect(androidSafeCss.includes('transform: none !important'), 'Android-safe profile must remove forced 3D promotion on full-screen atmosphere layers.');
 
-// V2 assets remain only as rollback-compatible source material; V4 runtime hides
-// their DOM fields and renders fractal clouds through one stable canvas.
 for (const svg of [cloudA, cloudB, cloudC, stormCloud]) {
   expect(svg.includes('<path'), 'Rollback cloud assets must remain structurally valid.');
 }
 expect(cloudCss.includes("cloud-soft-a.svg"), 'Rollback cloud renderer asset A is missing.');
-expect(canvasCss.includes('.lwa-natural-cloud-canvas'), 'V4 fixed cloud canvas style is missing.');
-expect(canvasCss.includes('.lwa-cloud-field'), 'V4 must explicitly retire illustrated cloud fields.');
-expect(canvasCss.includes('display: none !important'), 'Illustrated cloud fields must be hidden in V4.');
-expect(!canvasCss.includes('blur('), 'V4 canvas must not depend on runtime blur filters.');
+expect(canvasCss.includes('.lwa-natural-cloud-canvas'), 'Fixed cloud canvas style is missing.');
+expect(canvasCss.includes('.lwa-cloud-field'), 'Canvas runtime must explicitly retire illustrated cloud fields.');
+expect(canvasCss.includes('display: none !important'), 'Illustrated cloud fields must remain hidden.');
+expect(!canvasCss.includes('blur('), 'Canvas clouds must not depend on runtime blur filters.');
 expect(!canvasCss.includes('#orbi-climate-core-container'), 'Living Weather must never override Golden Orb internals.');
 
 const forbiddenCss = [
