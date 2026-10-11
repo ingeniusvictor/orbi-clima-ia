@@ -5,10 +5,14 @@ import AtmosphereLabPreviewScene from './AtmosphereLabPreviewScene';
 import { loadLastWeatherBundle } from '../services/weatherCacheService';
 import {
   ATMOSPHERE_DEBUG_EVENT,
+  ATMOSPHERE_DEBUG_PHASES,
   ATMOSPHERE_DEBUG_PRESETS,
+  AtmosphereDebugPhase,
   AtmosphereDebugPreset,
   applyAtmosphereDebugPreset,
+  getAtmosphereDebugPhase,
   getAtmosphereDebugPreset,
+  setAtmosphereDebugPhase,
   setAtmosphereDebugPreset,
 } from '../services/weatherAtmosphereDebugService';
 
@@ -17,6 +21,7 @@ export default function AtmosphereLabOverlayV2() {
   const [open, setOpen] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(true);
   const [preset, setPreset] = useState<AtmosphereDebugPreset>(() => getAtmosphereDebugPreset());
+  const [phasePreset, setPhasePreset] = useState<AtmosphereDebugPhase>(() => getAtmosphereDebugPhase());
   const [weatherRevision, setWeatherRevision] = useState(0);
 
   useEffect(() => {
@@ -25,7 +30,10 @@ export default function AtmosphereLabOverlayV2() {
       setDeveloperEnabled(enabled);
       if (!enabled) setOpen(false);
     };
-    const syncPreset = () => setPreset(getAtmosphereDebugPreset());
+    const syncPreset = () => {
+      setPreset(getAtmosphereDebugPreset());
+      setPhasePreset(getAtmosphereDebugPhase());
+    };
     const refreshWeather = () => setWeatherRevision((value) => value + 1);
 
     window.addEventListener('orbi_dev_mode_changed', syncDeveloperMode);
@@ -38,9 +46,10 @@ export default function AtmosphereLabOverlayV2() {
     };
   }, []);
 
-  const bundle = useMemo(() => loadLastWeatherBundle(), [weatherRevision, preset, open]);
+  const bundle = useMemo(() => loadLastWeatherBundle(), [weatherRevision, preset, phasePreset, open]);
   const previewCurrent = bundle?.current ? applyAtmosphereDebugPreset(bundle.current, preset) : null;
   const activePreset = ATMOSPHERE_DEBUG_PRESETS.find((item) => item.id === preset);
+  const activePhase = ATMOSPHERE_DEBUG_PHASES.find((item) => item.id === phasePreset);
 
   if (!developerEnabled) return null;
 
@@ -80,11 +89,14 @@ export default function AtmosphereLabOverlayV2() {
                 currentWeather={previewCurrent}
                 dailyForecast={bundle?.daily?.[0]}
                 timezone={bundle?.location?.timezone}
+                phaseOverride={phasePreset === 'auto' ? undefined : phasePreset}
               />
               <div className="absolute inset-x-3 bottom-3 z-10 rounded-xl border border-white/10 bg-black/40 px-3 py-2 pointer-events-none">
                 <div className="text-[9px] font-mono text-cyan-300 uppercase tracking-wider">Preview en vivo</div>
-                <div className="text-sm font-black text-white mt-0.5">{preset === 'live' ? 'Clima real' : activePreset?.label}</div>
-                <div className="text-[8px] text-slate-400 mt-0.5">Fondo + nubes + precipitación frontal + flash</div>
+                <div className="text-sm font-black text-white mt-0.5">
+                  {preset === 'live' ? 'Clima real' : activePreset?.label} · {activePhase?.label}
+                </div>
+                <div className="text-[8px] text-slate-400 mt-0.5">Cielo + luz + nubes + precipitación frontal + flash</div>
               </div>
             </div>
           )}
@@ -95,27 +107,55 @@ export default function AtmosphereLabOverlayV2() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            {ATMOSPHERE_DEBUG_PRESETS.map((item) => {
-              const active = preset === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setAtmosphereDebugPreset(item.id);
-                    setPreset(item.id);
-                  }}
-                  className={`rounded-xl border p-2.5 text-left transition-all active:scale-[0.98] ${
-                    active
-                      ? 'border-cyan-400/35 bg-cyan-400/10 text-cyan-200'
-                      : 'border-white/5 bg-white/[0.02] text-slate-300 hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <span className="block text-[10px] font-black uppercase tracking-wide">{item.label}</span>
-                  <span className="block text-[8px] text-slate-500 mt-0.5">{item.description}</span>
-                </button>
-              );
-            })}
+          <div>
+            <div className="text-[8px] text-slate-500 font-mono uppercase tracking-[0.12em] mb-1.5">Clima visual</div>
+            <div className="grid grid-cols-2 gap-2">
+              {ATMOSPHERE_DEBUG_PRESETS.map((item) => {
+                const active = preset === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setAtmosphereDebugPreset(item.id);
+                      setPreset(item.id);
+                    }}
+                    className={`rounded-xl border p-2.5 text-left transition-all active:scale-[0.98] ${
+                      active
+                        ? 'border-cyan-400/35 bg-cyan-400/10 text-cyan-200'
+                        : 'border-white/5 bg-white/[0.02] text-slate-300 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-black uppercase tracking-wide">{item.label}</span>
+                    <span className="block text-[8px] text-slate-500 mt-0.5">{item.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="pt-1 border-t border-white/5">
+            <div className="text-[8px] text-slate-500 font-mono uppercase tracking-[0.12em] mb-1.5">Luz / hora visual</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {ATMOSPHERE_DEBUG_PHASES.map((item) => {
+                const active = phasePreset === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setAtmosphereDebugPhase(item.id);
+                      setPhasePreset(item.id);
+                    }}
+                    className={`rounded-lg border px-2 py-2 text-[8px] font-black tracking-wide transition-all active:scale-[0.98] ${
+                      active
+                        ? 'border-amber-300/35 bg-amber-300/10 text-amber-200'
+                        : 'border-white/5 bg-white/[0.02] text-slate-400'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
@@ -129,7 +169,9 @@ export default function AtmosphereLabOverlayV2() {
             <button
               onClick={() => {
                 setAtmosphereDebugPreset('live');
+                setAtmosphereDebugPhase('auto');
                 setPreset('live');
+                setPhasePreset('auto');
               }}
               className="px-2.5 py-1.5 rounded-lg bg-cyan-500/10 text-[9px] text-cyan-300 flex items-center gap-1.5 active:scale-95"
             >
@@ -139,7 +181,7 @@ export default function AtmosphereLabOverlayV2() {
           </div>
 
           <p className="text-[8px] leading-relaxed text-slate-500">
-            El preset solo altera la escena visual OC-22; no modifica el clima guardado, alertas, recomendaciones ni Weather Truth.
+            Los presets solo alteran la escena visual OC-22; no modifica el clima guardado, alertas, recomendaciones ni Weather Truth.
           </p>
         </div>
       )}
