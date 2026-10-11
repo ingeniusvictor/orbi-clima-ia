@@ -8,6 +8,7 @@ export type AtmosphereScene =
   | 'partly-cloudy'
   | 'cloudy'
   | 'rain'
+  | 'snow'
   | 'storm'
   | 'wind'
   | 'cold'
@@ -32,6 +33,7 @@ export interface AtmosphereModel {
   cloudOpacity: number;
   cloudSpeed: number;
   precipitationStrength: number;
+  frostStrength: number;
   mistStrength: number;
   windStrength: number;
   luminance: number;
@@ -180,6 +182,8 @@ export function resolveAtmosphereScene(condition: WeatherCondition | 'setup'): A
       return 'cloudy';
     case 'rain':
       return 'rain';
+    case 'snow':
+      return 'snow';
     case 'storm':
       return 'storm';
     case 'wind':
@@ -229,7 +233,7 @@ export function buildWeatherAtmosphereModel(params: {
   const solar = resolveSolarLightingState(timezone, daily, now ?? new Date(), phaseOverride ?? (current.condition === 'night' ? 'night' : undefined));
 
   const cloudFraction = Math.min(1, Math.max(0, current.cloudCover / 100));
-  const rainStrength = Math.min(1, Math.max(0, current.precipitationMm / 5));
+  const precipitationBase = Math.min(1, Math.max(0, current.precipitationMm / 5));
   const windStrength = Math.min(1, Math.max(0, current.windSpeedKmh / 55));
   const humidityMist = Math.min(1, Math.max(0, (current.humidity - 58) / 42));
 
@@ -239,6 +243,7 @@ export function buildWeatherAtmosphereModel(params: {
     'partly-cloudy': 0.48,
     cloudy: 0.82,
     rain: 0.9,
+    snow: 0.9,
     storm: 1,
     wind: 0.38,
     cold: 0.44,
@@ -247,21 +252,30 @@ export function buildWeatherAtmosphereModel(params: {
 
   const cloudOpacity = Math.min(1, Math.max(sceneCloudBias[scene], cloudFraction));
   const precipitationStrength = scene === 'storm'
-    ? Math.max(0.65, rainStrength)
+    ? Math.max(0.65, precipitationBase)
     : scene === 'rain'
-      ? Math.max(0.35, rainStrength)
-      : rainStrength * 0.2;
+      ? Math.max(0.35, precipitationBase)
+      : scene === 'snow'
+        ? Math.max(0.46, precipitationBase)
+        : precipitationBase * 0.2;
 
-  const mistStrength = scene === 'rain' || scene === 'storm' || scene === 'cloudy'
-    ? Math.max(0.2, humidityMist)
+  const frostStrength = scene === 'snow'
+    ? clamp01(0.38 + precipitationStrength * 0.36 + windStrength * 0.08)
+    : scene === 'cold'
+      ? clamp01(0.08 + Math.max(0, -current.feelsLikeC) / 28)
+      : 0;
+
+  const mistStrength = scene === 'rain' || scene === 'storm' || scene === 'cloudy' || scene === 'snow'
+    ? Math.max(scene === 'snow' ? 0.28 : 0.2, humidityMist)
     : humidityMist * 0.45;
 
   const solarLuminance = Math.max(0.14, (1 - solar.nightStrength) * (0.44 + Math.max(0, solar.sunAltitude) * 0.5));
   const phaseFloor = phase === 'night' ? 0.17 : phase === 'dawn' || phase === 'dusk' ? 0.48 : 0.74;
   const luminanceBase = Math.max(phaseFloor, solarLuminance);
-  const luminance = Math.max(0.12, luminanceBase - cloudOpacity * 0.24 - precipitationStrength * 0.12);
+  const snowDiffusePenalty = scene === 'snow' ? 0.06 : 0;
+  const luminance = Math.max(0.12, luminanceBase - cloudOpacity * 0.24 - precipitationStrength * 0.12 - snowDiffusePenalty);
 
-  const severeCoolScene = scene === 'cold' || scene === 'rain' || scene === 'storm';
+  const severeCoolScene = scene === 'cold' || scene === 'rain' || scene === 'snow' || scene === 'storm';
   const accentTemperature: AtmosphereModel['accentTemperature'] =
     severeCoolScene || phase === 'night'
       ? 'cool'
@@ -276,6 +290,7 @@ export function buildWeatherAtmosphereModel(params: {
     cloudOpacity,
     cloudSpeed: 44 - windStrength * 25,
     precipitationStrength,
+    frostStrength,
     mistStrength,
     windStrength,
     luminance,
