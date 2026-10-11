@@ -5,6 +5,7 @@ import { loadLastWeatherBundle } from '../services/weatherCacheService';
 import {
   ATMOSPHERE_DEBUG_EVENT,
   applyAtmosphereDebugPreset,
+  getAtmosphereDebugPhase,
   getAtmosphereDebugPreset,
 } from '../services/weatherAtmosphereDebugService';
 import '../styles/living-weather-host.css';
@@ -33,6 +34,7 @@ export default function LivingWeatherAtmosphereHost() {
   const [snapshot, setSnapshot] = useState<WeatherAtmosphereSnapshot | null>(() => readSnapshot());
   const [homeVisible, setHomeVisible] = useState(() => isHomeScreenMounted());
   const [debugPreset, setDebugPreset] = useState(() => getAtmosphereDebugPreset());
+  const [debugPhase, setDebugPhase] = useState(() => getAtmosphereDebugPhase());
   const [onboardingDone, setOnboardingDone] = useState(() => {
     try {
       return localStorage.getItem('orbi_clima_first_launch_completed_v1') === 'true';
@@ -47,23 +49,21 @@ export default function LivingWeatherAtmosphereHost() {
       if (event.key === 'orbi_clima_last_weather_bundle_v1') refresh();
     };
     const handleWeatherUpdate = () => refresh();
-    const handleDebugChange = () => setDebugPreset(getAtmosphereDebugPreset());
+    const handleDebugChange = () => {
+      setDebugPreset(getAtmosphereDebugPreset());
+      setDebugPhase(getAtmosphereDebugPhase());
+    };
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('orbi-weather-bundle-updated', handleWeatherUpdate);
     window.addEventListener(ATMOSPHERE_DEBUG_EVENT, handleDebugChange);
 
-    // Observe only mount/unmount changes so the atmosphere can pause as soon as
-    // the user leaves Home, without coupling this host to App navigation state.
     const navigationObserver = new MutationObserver(() => {
       setHomeVisible(isHomeScreenMounted());
     });
     navigationObserver.observe(document.body, { childList: true, subtree: true });
     queueMicrotask(() => setHomeVisible(isHomeScreenMounted()));
 
-    // First-launch completion currently lives inside the onboarding component.
-    // Short-lived polling keeps this host decoupled from that protected flow and
-    // prevents atmosphere layers from appearing over the onboarding slides.
     const onboardingWatch = window.setInterval(() => {
       try {
         const done = localStorage.getItem('orbi_clima_first_launch_completed_v1') === 'true';
@@ -97,6 +97,7 @@ export default function LivingWeatherAtmosphereHost() {
     <div
       className="orbi-living-weather-host"
       data-debug-scene={debugPreset}
+      data-debug-phase={debugPhase}
       aria-hidden="true"
     >
       <LivingWeatherAtmosphere
@@ -104,6 +105,7 @@ export default function LivingWeatherAtmosphereHost() {
         dailyForecast={snapshot.daily[0]}
         timezone={snapshot.location.timezone}
         active={homeVisible}
+        phaseOverride={debugPhase === 'auto' ? undefined : debugPhase}
       />
     </div>
   );
