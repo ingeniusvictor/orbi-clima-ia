@@ -22,7 +22,7 @@ expect(bridge.includes("preset === 'live'"), 'LIVE must remove the visual theme 
 expect(bridge.includes('ATMOSPHERE_DEBUG_EVENT'), 'Theme bridge must react immediately to ATM LAB preset changes.');
 expect(bridge.includes('dataset[ROOT_THEME_ATTRIBUTE]'), 'Theme bridge must use a visual-only root dataset rather than mutating Weather Truth.');
 
-for (const preset of ['sunny', 'partly_cloudy', 'cloudy', 'rain', 'storm', 'wind', 'cold', 'hot', 'night']) {
+for (const preset of ['sunny', 'partly_cloudy', 'cloudy', 'rain', 'snow', 'storm', 'wind', 'cold', 'hot', 'night']) {
   expect(css.includes(`data-orbi-atm-theme='${preset}'`), `Missing visual palette sync for ${preset}.`);
 }
 expect(css.includes('#welcome-hero-section h1 > span:first-child'), 'ORBI Clima title gradient must synchronize visually in ATM LAB.');
@@ -35,8 +35,9 @@ expect(!/\boverflow\s*:/.test(css), 'V10 theme sync must never change compositor
 
 expect(skyWrapper.includes('CinematicSkyCanvasV10'), 'Cinematic sky wrapper must route through V10.');
 expect(sky.includes('const highSun ='), 'V10 sky must calculate high-sun altitude.');
-expect(sky.includes('lerp(0.56, 0.08, highSun)'), 'High midday sun disc must dissolve instead of remaining opaque.');
+expect(sky.includes('sunnyDay ? 0.14 : 0.08'), 'High midday sun must retain the warm sunny-day correction without becoming an opaque disc.');
 expect(sky.includes('opaque floating button'), 'V10 must document the physical-device high-sun correction.');
+expect(sky.includes('const sunnyDay'), 'V10 must keep the physical sunny-day continuity correction.');
 expect(!sky.includes('backdrop-filter'), 'Cinematic Sky V10 must not use backdrop filters.');
 expect(!sky.includes('mix-blend-mode'), 'Cinematic Sky V10 must not use blend compositing.');
 expect(!sky.includes('translateZ'), 'Cinematic Sky V10 must not force 3D compositing.');
