@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
 const fail = (message) => {
-  console.error(`OC-22G Cinematic Sky V9: FAIL\n${message}`);
+  console.error(`OC-22G Cinematic Sky V9/V10: FAIL\n${message}`);
   process.exit(1);
 };
 const expect = (condition, message) => {
@@ -11,7 +11,10 @@ const expect = (condition, message) => {
 
 const engine = read('src/services/weatherAtmosphereEngine.ts');
 const atmosphere = read('src/components/LivingWeatherAtmosphere.tsx');
-const sky = read('src/components/CinematicSkyCanvas.tsx');
+const skyWrapper = read('src/components/CinematicSkyCanvas.tsx');
+const sky = skyWrapper.includes('CinematicSkyCanvasV10')
+  ? read('src/components/CinematicSkyCanvasV10.tsx')
+  : skyWrapper;
 const skyCss = read('src/styles/living-weather-cinematic-sky-v9.css');
 const host = read('src/components/LivingWeatherAtmosphereHost.tsx');
 const lab = read('src/components/AtmosphereLabOverlayV2.tsx');
@@ -31,7 +34,7 @@ for (const token of [
 }
 
 expect(atmosphere.includes('CinematicSkyCanvas'), 'Living Weather must mount CinematicSkyCanvas.');
-expect(atmosphere.includes('data-sky-engine="v9"'), 'Living Weather must explicitly select the V9 sky engine.');
+expect(atmosphere.includes('data-sky-engine="v9"'), 'Living Weather must explicitly select the V9+ sky engine.');
 expect(atmosphere.includes('60_000'), 'Living Weather must refresh real solar lighting at minute cadence.');
 expect(atmosphere.includes('phaseOverride'), 'Living Weather must accept a visual-only QA phase override.');
 
@@ -45,7 +48,7 @@ for (const forbidden of ['filter: blur(', 'backdrop-filter', 'mix-blend-mode', '
   expect(!skyCss.includes(forbidden), `V9 sky CSS must not use compositor-heavy token: ${forbidden}`);
 }
 expect(!skyCss.includes('#orbi-climate-core-container'), 'V9 sky CSS must never target Golden Orb internals.');
-expect(skyCss.includes("[data-sky-engine='v9']"), 'V9 must explicitly retire duplicate legacy sky layers.');
+expect(skyCss.includes("[data-sky-engine='v9']"), 'V9+ must explicitly retire duplicate legacy sky layers.');
 
 for (const phase of ['auto', 'dawn', 'day', 'dusk', 'night']) {
   expect(debug.includes(`id: '${phase}'`), `Atmosphere Lab missing visual phase preset: ${phase}`);
@@ -58,4 +61,4 @@ expect(lab.includes('Luz / hora visual'), 'ATM LAB must expose the time-of-day Q
 expect(lab.includes("setAtmosphereDebugPhase('auto')"), 'Volver a LIVE must reset the visual phase to AUTO.');
 expect(preview.includes('phaseOverride={phaseOverride}'), 'ATM LAB preview must render the selected time phase directly.');
 
-console.log('OC-22G Cinematic Sky V9 gate: PASS');
+console.log('OC-22G Cinematic Sky V9/V10 gate: PASS');
