@@ -5,6 +5,7 @@ export type WeatherCondition =
   | 'partly_cloudy'
   | 'cloudy'
   | 'rain'
+  | 'snow'
   | 'storm'
   | 'wind'
   | 'cold'
