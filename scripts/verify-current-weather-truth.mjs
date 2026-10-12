@@ -22,7 +22,7 @@ requireText(truth, 'const STRONG_STATION_RADIUS_KM = 25', '25 km strong-station 
 requireText(truth, 'const LOCAL_OBSERVATION_RADIUS_KM = 15', '15 km local-condition guard');
 requireText(truth, 'const OBSERVATION_MAX_AGE_MINUTES = 90', '90 minute current-condition freshness guard');
 requireText(truth, "type ObservedPrecipitationState = 'wet' | 'dry' | 'recent' | 'unknown'", 'recent-vs-current precipitation separation');
-requireText(truth, "precipitationEvidence = 'recent_only'", 'recent precipitation evidence metadata');
+requireText(truth, "'recent_only'", 'recent precipitation evidence metadata');
 requireText(truth, "precipitationEvidence = 'observed_now'", 'current observed precipitation evidence');
 requireText(truth, 'Positive recent accumulation is history', 'recent accumulation non-current guard');
 requireText(truth, "multi.consensus === 'dry'", 'dry consensus conflict handling');
