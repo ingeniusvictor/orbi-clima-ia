@@ -2,21 +2,23 @@ package com.orbi.clima.widget
 
 import android.content.Context
 import android.graphics.Bitmap
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * OC-22O/P launcher-adaptive renderer.
+ * OC-22O/P/Q launcher-adaptive renderer.
  *
- * V3 paints directly into the exact launcher bitmap. There is no fixed-size
- * intermediate composition and no fit-center scale in the healthy path.
- * Official ORBI Clima branding is applied after rendering so V3 and the
- * deterministic V2 emergency fallback share the same app identity.
+ * Normal widgets paint directly into the exact launcher bitmap through Fluid V3.
+ * Commander 4x4 receives the Orbital V4 composition when geometry is sufficient.
+ * V3 and V2 remain deterministic fallbacks; no fixed-size fit-center scaling is
+ * reintroduced. Official ORBI Clima branding is applied after rendering.
  */
 object OrbiLauncherAdaptiveRenderer {
     private const val MIN_DIMENSION_PX = 180
     private const val MAX_DIMENSION_PX = 1440
     private const val MAX_BITMAP_PIXELS = 1_250_000
+    private const val ORBITAL_V4_MIN_SIDE_PX = 300
 
     fun variantForHint(state: OrbiWidgetContract): OrbiNativeWidgetSnapshotRendererV2.Variant =
         when (state.visualVariantHint.lowercase()) {
@@ -45,16 +47,37 @@ object OrbiLauncherAdaptiveRenderer {
         )
 
         val rendered = try {
-            OrbiFluidNativeWidgetRendererV3.render(
-                context = context,
-                state = state,
-                variant = variant,
-                width = target.first,
-                height = target.second,
-            )
+            if (isCommandVariant(variant) && supportsOrbitalV4(target.first, target.second)) {
+                try {
+                    OrbiOrbitalCommandRendererV4.render(
+                        context = context,
+                        state = state,
+                        variant = variant,
+                        width = target.first,
+                        height = target.second,
+                    )
+                } catch (_: Throwable) {
+                    // V4 is a progressive Commander enhancement. A failure must
+                    // fall back to the already-certified Fluid V3 composition.
+                    OrbiFluidNativeWidgetRendererV3.render(
+                        context = context,
+                        state = state,
+                        variant = variant,
+                        width = target.first,
+                        height = target.second,
+                    )
+                }
+            } else {
+                OrbiFluidNativeWidgetRendererV3.render(
+                    context = context,
+                    state = state,
+                    variant = variant,
+                    width = target.first,
+                    height = target.second,
+                )
+            }
         } catch (_: Throwable) {
-            // V2 remains a deterministic emergency fallback only. It is not the
-            // normal launcher path after OC-22O.
+            // V2 remains the final deterministic emergency fallback.
             OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)
         }
 
@@ -63,6 +86,17 @@ object OrbiLauncherAdaptiveRenderer {
             source = rendered,
             variant = variant,
         )
+    }
+
+    private fun isCommandVariant(variant: OrbiNativeWidgetSnapshotRendererV2.Variant): Boolean =
+        variant == OrbiNativeWidgetSnapshotRendererV2.Variant.COMMAND ||
+            variant == OrbiNativeWidgetSnapshotRendererV2.Variant.PREMIUM_COMMAND
+
+    private fun supportsOrbitalV4(width: Int, height: Int): Boolean {
+        val side = min(width, height)
+        if (side < ORBITAL_V4_MIN_SIDE_PX) return false
+        val ratio = width.toFloat() / height.toFloat()
+        return ratio in 0.72f..1.35f
     }
 
     private fun fallbackSurface(
