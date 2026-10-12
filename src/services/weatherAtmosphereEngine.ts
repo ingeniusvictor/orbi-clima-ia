@@ -8,6 +8,7 @@ export type AtmosphereScene =
   | 'clear'
   | 'partly-cloudy'
   | 'cloudy'
+  | 'fog'
   | 'rain'
   | 'snow'
   | 'storm'
@@ -272,6 +273,8 @@ export function resolveAtmosphereScene(condition: WeatherCondition | 'setup'): A
       return 'partly-cloudy';
     case 'cloudy':
       return 'cloudy';
+    case 'fog':
+      return 'fog';
     case 'rain':
       return 'rain';
     case 'snow':
@@ -354,6 +357,7 @@ export function buildWeatherAtmosphereModel(params: {
     clear: 0.08,
     'partly-cloudy': 0.48,
     cloudy: 0.82,
+    fog: 0.76,
     rain: 0.9,
     snow: 0.9,
     storm: 1,
@@ -377,17 +381,20 @@ export function buildWeatherAtmosphereModel(params: {
       ? clamp01(0.08 + Math.max(0, -current.feelsLikeC) / 28)
       : 0;
 
-  const mistStrength = scene === 'rain' || scene === 'storm' || scene === 'cloudy' || scene === 'snow'
-    ? Math.max(scene === 'snow' ? 0.24 : 0.12 + precipitationStrength * 0.16, humidityMist)
-    : humidityMist * 0.45;
+  const mistStrength = scene === 'fog'
+    ? Math.max(0.72, humidityMist)
+    : scene === 'rain' || scene === 'storm' || scene === 'cloudy' || scene === 'snow'
+      ? Math.max(scene === 'snow' ? 0.24 : 0.12 + precipitationStrength * 0.16, humidityMist)
+      : humidityMist * 0.45;
 
   const solarLuminance = Math.max(0.14, (1 - solar.nightStrength) * (0.44 + Math.max(0, solar.sunAltitude) * 0.5));
   const phaseFloor = phase === 'night' ? 0.17 : phase === 'dawn' || phase === 'dusk' ? 0.48 : 0.74;
   const luminanceBase = Math.max(phaseFloor, solarLuminance);
   const snowDiffusePenalty = scene === 'snow' ? 0.06 : 0;
-  const luminance = Math.max(0.12, luminanceBase - cloudOpacity * 0.24 - precipitationStrength * 0.12 - snowDiffusePenalty);
+  const fogDiffusePenalty = scene === 'fog' ? 0.09 : 0;
+  const luminance = Math.max(0.12, luminanceBase - cloudOpacity * 0.24 - precipitationStrength * 0.12 - snowDiffusePenalty - fogDiffusePenalty);
 
-  const severeCoolScene = scene === 'cold' || scene === 'rain' || scene === 'snow' || scene === 'storm';
+  const severeCoolScene = scene === 'cold' || scene === 'rain' || scene === 'snow' || scene === 'storm' || scene === 'fog';
   const accentTemperature: AtmosphereModel['accentTemperature'] =
     severeCoolScene || phase === 'night'
       ? 'cool'
