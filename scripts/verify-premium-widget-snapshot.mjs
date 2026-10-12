@@ -27,7 +27,6 @@ const assertions = [
   ['shared host renders bitmap through Glance ImageProvider', host.includes('ImageProvider(bitmap)')],
   ['shared host avoids FillBounds aspect distortion', host.includes('ContentScale.Fit') && !host.includes('ContentScale.FillBounds')],
 
-  // OC-22Q: capable Commander/Premium geometry is routed to Orbital V4.
   ['adaptive layer routes capable Command/Premium geometry through Orbital V4', adaptive.includes('OrbiOrbitalCommandRendererV4.render(')],
   ['adaptive layer has explicit Orbital V4 geometry eligibility threshold', adaptive.includes('ORBITAL_V4_MIN_SIDE_PX') && adaptive.includes('supportsOrbitalV4')],
   ['adaptive layer preserves Fluid V3 progressive fallback', adaptive.includes('OrbiFluidNativeWidgetRendererV3.render(')],
@@ -40,7 +39,7 @@ const assertions = [
   ['Orbital V4 creates final-size ARGB bitmap', rendererV4.includes('Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)')],
   ['Orbital V4 paints directly with Android Canvas', rendererV4.includes('val canvas = Canvas(bitmap)')],
   ['Orbital V4 renders full orbital architecture', rendererV4.includes('drawOrbitalArchitecture(')],
-  ['Orbital V4 renders three forecast satellites', rendererV4.includes('drawForecastSatellites(') && ['forecastDay1Label', 'forecastDay2Label', 'forecastDay3Label'].every(field => rendererV4.includes(`state.${field}`)))],
+  ['Orbital V4 renders three forecast satellites', rendererV4.includes('drawForecastSatellites(') && ['forecastDay1Label', 'forecastDay2Label', 'forecastDay3Label'].every(field => rendererV4.includes(`state.${field}`))],
   ['Orbital V4 renders dominant current-weather core', rendererV4.includes('drawCoreOrb(') && rendererV4.includes('state.temperatureC') && rendererV4.includes('state.conditionLabel')],
   ['Orbital V4 preserves current feels-like and UV inside the core', rendererV4.includes('state.feelsLikeC') && rendererV4.includes('state.uvIndex') && rendererV4.includes('uvDescriptor')],
   ['Orbital V4 renders rain/wind/humidity operational satellites', rendererV4.includes('drawOperationalSatellites(') && rendererV4.includes('state.rainProbability') && rendererV4.includes('state.windSpeedKmh') && rendererV4.includes('state.humidity')],
@@ -48,8 +47,6 @@ const assertions = [
   ['Orbital V4 responds to all certified weather families', ['CLEAR', 'CLOUD', 'FOG', 'DRIZZLE', 'RAIN', 'STORM', 'SNOW', 'WIND', 'NIGHT'].every(family => rendererV4.includes(family))],
   ['Orbital V4 remains isolated from frozen Golden Orb', rendererV4.includes('frozen Golden Orb')],
 
-  // V3 is intentionally still certified because it is the progressive fallback
-  // on constrained/irregular launcher geometry.
   ['Fluid V3 fallback remains exact-size Canvas', rendererV3.includes('Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)') && rendererV3.includes('val canvas = Canvas(bitmap)')],
   ['Fluid V3 fallback preserves exact Weather Truth label', rendererV3.includes('state.conditionLabel')],
   ['Fluid V3 fallback uses adaptive typography', rendererV3.includes('drawFittedText(') && rendererV3.includes('fitText(')],
