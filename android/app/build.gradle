@@ -24,8 +24,8 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10624
-        versionName "1.0.6-OC22-ADAPTIVE-WIDGETS"
+        versionCode 10625
+        versionName "1.0.6-OC22-ADAPTIVE-WIDGETS-QA10625"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
@@ -52,13 +52,18 @@ android {
 
         oc21Preview {
             initWith debug
-            applicationIdSuffix ".oc21preview"
+            // Until a persistent QA signing secret is configured, each physical-QA
+            // milestone gets a unique applicationId so Android never rejects the APK
+            // because a previous GitHub runner used a different ephemeral debug key.
+            // This package is intentionally isolated from both stable ORBI Clima IA and
+            // earlier OC-22 preview installs.
+            applicationIdSuffix ".oc22qa10625"
             versionNameSuffix "-preview"
             debuggable true
             matchingFallbacks = ['debug']
-            manifestPlaceholders = [appLabel: "ORBI Clima IA OC-22"]
-            // Physical QA builds must keep one signing identity across GitHub runners so
-            // Android can update preview APKs in place instead of reporting package conflicts.
+            manifestPlaceholders = [appLabel: "ORBI Clima IA QA 10625"]
+            // Once persistent signing is configured, preview builds can return to a
+            // stable package and update in place across milestones.
             if (hasOrbiReleaseSigning) {
                 signingConfig signingConfigs.release
             }
