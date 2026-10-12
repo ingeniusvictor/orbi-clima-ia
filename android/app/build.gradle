@@ -2,10 +2,11 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
-// OC-21+ signing policy:
-// - Debug builds keep the normal ephemeral Android debug key and are CI-only.
-// - Distributable release and physical-QA preview artifacts use the persistent ORBI key when available.
-// - The release key itself never lives in the repository; CI injects it through secrets.
+// Signing policy:
+// - Production/release uses the private ORBI signing identity injected through CI secrets.
+// - Physical QA uses a separate fixed TEST identity and a fixed QA package so Android
+//   can update QA builds in place without ever sharing the production certificate.
+// - The QA identity is deliberately non-production and must never sign com.orbi.clima.
 def orbiKeystorePath = System.getenv('ORBI_KEYSTORE_PATH')
 def orbiKeystorePassword = System.getenv('ORBI_KEYSTORE_PASSWORD')
 def orbiKeyAlias = System.getenv('ORBI_KEY_ALIAS')
@@ -16,6 +17,16 @@ def hasOrbiReleaseSigning = orbiKeystorePath &&
         orbiKeyAlias &&
         orbiKeyPassword
 
+def orbiQaKeystorePath = System.getenv('ORBI_QA_KEYSTORE_PATH')
+def orbiQaStorePassword = System.getenv('ORBI_QA_STORE_PASSWORD')
+def orbiQaKeyAlias = System.getenv('ORBI_QA_KEY_ALIAS')
+def orbiQaKeyPassword = System.getenv('ORBI_QA_KEY_PASSWORD')
+def hasOrbiQaSigning = orbiQaKeystorePath &&
+        file(orbiQaKeystorePath).exists() &&
+        orbiQaStorePassword &&
+        orbiQaKeyAlias &&
+        orbiQaKeyPassword
+
 android {
     namespace 'com.orbi.clima'
     compileSdk rootProject.ext.compileSdkVersion
@@ -24,8 +35,8 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10627
-        versionName "1.0.6-OC22-PHENOMENON-FIDELITY-QA10627"
+        versionCode 10628
+        versionName "1.0.6-OC22-PERSISTENT-QA10628"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
@@ -37,6 +48,16 @@ android {
                 storePassword orbiKeystorePassword
                 keyAlias orbiKeyAlias
                 keyPassword orbiKeyPassword
+            }
+        }
+
+        qa {
+            if (hasOrbiQaSigning) {
+                storeFile file(orbiQaKeystorePath)
+                storePassword orbiQaStorePassword
+                keyAlias orbiQaKeyAlias
+                keyPassword orbiQaKeyPassword
+                storeType "PKCS12"
             }
         }
     }
@@ -52,20 +73,17 @@ android {
 
         oc21Preview {
             initWith debug
-            // Until a persistent QA signing secret is configured, each physical-QA
-            // milestone gets a unique applicationId so Android never rejects the APK
-            // because a previous GitHub runner used a different ephemeral debug key.
-            // This package is intentionally isolated from both stable ORBI Clima IA and
-            // earlier OC-22 preview installs.
-            applicationIdSuffix ".oc22qa10627"
-            versionNameSuffix "-preview"
+            // 10628 establishes the persistent QA update channel. 10627 and older
+            // milestone-isolated packages remain separate one-off installs.
+            // From 10628 onward this suffix stays fixed so versionCode + certificate
+            // determine whether Android offers Update.
+            applicationIdSuffix ".oc22qa"
+            versionNameSuffix "-qa"
             debuggable true
             matchingFallbacks = ['debug']
-            manifestPlaceholders = [appLabel: "ORBI Clima IA QA 10627"]
-            // Once persistent signing is configured, preview builds can return to a
-            // stable package and update in place across milestones.
-            if (hasOrbiReleaseSigning) {
-                signingConfig signingConfigs.release
+            manifestPlaceholders = [appLabel: "ORBI Clima IA QA"]
+            if (hasOrbiQaSigning) {
+                signingConfig signingConfigs.qa
             }
         }
     }
