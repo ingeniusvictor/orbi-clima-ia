@@ -1,4 +1,5 @@
 import { CurrentWeather, DailyForecast, WeatherCondition } from '../types/weatherTypes';
+import type { OrbiPrecipitationIntensity, OrbiPrecipitationKind } from '../utils/wmoWeatherCodeMapper';
 
 export type AtmosphereQuality = 'ultra' | 'high' | 'balanced' | 'low' | 'static';
 export type AtmospherePhase = 'dawn' | 'day' | 'dusk' | 'night';
@@ -33,6 +34,8 @@ export interface AtmosphereModel {
   cloudOpacity: number;
   cloudSpeed: number;
   precipitationStrength: number;
+  precipitationKind: OrbiPrecipitationKind;
+  precipitationIntensity: OrbiPrecipitationIntensity;
   frostStrength: number;
   mistStrength: number;
   windStrength: number;
@@ -51,6 +54,11 @@ interface NavigatorHints extends Navigator {
 
 type CurrentWeatherWithDaylightHint = CurrentWeather & {
   isDay?: boolean;
+};
+
+type CurrentWeatherWithSemantics = CurrentWeather & {
+  precipitationKind?: OrbiPrecipitationKind;
+  precipitationIntensity?: OrbiPrecipitationIntensity;
 };
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -109,6 +117,55 @@ function getLocalMinutes(timezone?: string, now: Date = new Date()): number {
 function getProviderDaylightHint(current: CurrentWeather): boolean | null {
   const value = (current as CurrentWeatherWithDaylightHint).isDay;
   return typeof value === 'boolean' ? value : null;
+}
+
+function inferPrecipitationIntensity(current: CurrentWeather): OrbiPrecipitationIntensity {
+  const explicit = (current as CurrentWeatherWithSemantics).precipitationIntensity;
+  if (explicit) return explicit;
+  const mm = Math.max(0, current.precipitationMm);
+  if (mm <= 0) return 'none';
+  if (mm < 0.2) return 'trace';
+  if (mm < 2) return 'light';
+  if (mm < 8) return 'moderate';
+  return 'heavy';
+}
+
+function inferPrecipitationKind(current: CurrentWeather, scene: AtmosphereScene): OrbiPrecipitationKind {
+  const explicit = (current as CurrentWeatherWithSemantics).precipitationKind;
+  if (explicit && explicit !== 'unknown') return explicit;
+  if (scene === 'snow') return 'snow';
+  if (scene === 'storm') return 'storm';
+  if (scene === 'rain') return 'rain';
+  return 'none';
+}
+
+function intensityVisualFloor(intensity: OrbiPrecipitationIntensity): number {
+  switch (intensity) {
+    case 'trace': return 0.1;
+    case 'light': return 0.2;
+    case 'moderate': return 0.42;
+    case 'heavy': return 0.7;
+    case 'violent': return 0.94;
+    case 'none':
+    default:
+      return 0;
+  }
+}
+
+function kindVisualScale(kind: OrbiPrecipitationKind): number {
+  switch (kind) {
+    case 'drizzle': return 0.68;
+    case 'freezing_drizzle': return 0.62;
+    case 'freezing_rain': return 0.9;
+    case 'showers': return 1.12;
+    case 'storm': return 1.16;
+    case 'snow': return 0.94;
+    case 'rain': return 1;
+    case 'none': return 0;
+    case 'unknown':
+    default:
+      return 1;
+  }
 }
 
 export function resolveSolarLightingState(
@@ -269,9 +326,6 @@ export function buildWeatherAtmosphereModel(params: {
   const providerDaylightHint = getProviderDaylightHint(current);
   let guardedAutomaticPhase = automaticPhase;
 
-  // Open-Meteo exposes an explicit current.is_day flag. It is only used as a
-  // safety invariant when AUTO contradicts an unequivocal provider daylight
-  // state; dawn/dusk remain governed by the solar clock window.
   if (current.condition !== 'night' && providerDaylightHint === true && automaticPhase === 'night') {
     guardedAutomaticPhase = 'day';
   } else if (providerDaylightHint === false && automaticPhase === 'day') {
@@ -286,6 +340,12 @@ export function buildWeatherAtmosphereModel(params: {
 
   const cloudFraction = Math.min(1, Math.max(0, current.cloudCover / 100));
   const precipitationBase = Math.min(1, Math.max(0, current.precipitationMm / 5));
+  const precipitationKind = inferPrecipitationKind(current, scene);
+  const precipitationIntensity = inferPrecipitationIntensity(current);
+  const semanticStrength = clamp01(
+    Math.max(precipitationBase, intensityVisualFloor(precipitationIntensity))
+      * kindVisualScale(precipitationKind),
+  );
   const windStrength = Math.min(1, Math.max(0, current.windSpeedKmh / 55));
   const humidityMist = Math.min(1, Math.max(0, (current.humidity - 58) / 42));
 
@@ -304,21 +364,21 @@ export function buildWeatherAtmosphereModel(params: {
 
   const cloudOpacity = Math.min(1, Math.max(sceneCloudBias[scene], cloudFraction));
   const precipitationStrength = scene === 'storm'
-    ? Math.max(0.65, precipitationBase)
+    ? Math.max(0.68, semanticStrength)
     : scene === 'rain'
-      ? Math.max(0.35, precipitationBase)
+      ? Math.max(0.08, semanticStrength)
       : scene === 'snow'
-        ? Math.max(0.46, precipitationBase)
+        ? Math.max(0.24, semanticStrength)
         : precipitationBase * 0.2;
 
   const frostStrength = scene === 'snow'
-    ? clamp01(0.38 + precipitationStrength * 0.36 + windStrength * 0.08)
+    ? clamp01(0.3 + precipitationStrength * 0.4 + windStrength * 0.08)
     : scene === 'cold'
       ? clamp01(0.08 + Math.max(0, -current.feelsLikeC) / 28)
       : 0;
 
   const mistStrength = scene === 'rain' || scene === 'storm' || scene === 'cloudy' || scene === 'snow'
-    ? Math.max(scene === 'snow' ? 0.28 : 0.2, humidityMist)
+    ? Math.max(scene === 'snow' ? 0.24 : 0.12 + precipitationStrength * 0.16, humidityMist)
     : humidityMist * 0.45;
 
   const solarLuminance = Math.max(0.14, (1 - solar.nightStrength) * (0.44 + Math.max(0, solar.sunAltitude) * 0.5));
@@ -342,6 +402,8 @@ export function buildWeatherAtmosphereModel(params: {
     cloudOpacity,
     cloudSpeed: 44 - windStrength * 25,
     precipitationStrength,
+    precipitationKind,
+    precipitationIntensity,
     frostStrength,
     mistStrength,
     windStrength,
