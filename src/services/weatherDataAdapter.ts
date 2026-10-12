@@ -116,6 +116,7 @@ export function adaptOpenMeteoCurrent(raw: OpenMeteoRawResponse): CurrentWeather
     currentTruthBand: truth?.band ?? 'model_only',
     currentTruthLabel: truth?.label ?? 'Modelo meteorológico',
     currentTruthDetail: truth?.detail ?? 'Condición actual derivada de modelo; sin corroboración observacional local.',
+    precipitationEvidence: truth?.precipitationEvidence ?? (precipitationMm > 0 ? 'model_only' : 'none'),
     conditionLabel: truth?.conditionLabel ?? getWmoHumanLabel(wmoCode),
     temperatureStrategy: truth?.temperatureStrategy ?? 'primary_model',
     truthStationName: truth?.stationName ?? undefined,
