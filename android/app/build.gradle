@@ -4,7 +4,7 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 // OC-21+ signing policy:
 // - Debug builds keep the normal ephemeral Android debug key and are CI-only.
-// - Distributable APK/AAB artifacts must use the persistent ORBI release key.
+// - Distributable release and physical-QA preview artifacts use the persistent ORBI key when available.
 // - The release key itself never lives in the repository; CI injects it through secrets.
 def orbiKeystorePath = System.getenv('ORBI_KEYSTORE_PATH')
 def orbiKeystorePassword = System.getenv('ORBI_KEYSTORE_PASSWORD')
@@ -57,6 +57,11 @@ android {
             debuggable true
             matchingFallbacks = ['debug']
             manifestPlaceholders = [appLabel: "ORBI Clima IA OC-22"]
+            // Physical QA builds must keep one signing identity across GitHub runners so
+            // Android can update preview APKs in place instead of reporting package conflicts.
+            if (hasOrbiReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
