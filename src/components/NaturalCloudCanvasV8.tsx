@@ -62,6 +62,12 @@ const SCENE_PROFILES: Record<AtmosphereScene, SceneProfile> = {
     lowerDarkening: 0.29, layerY: [-0.015, 0.07, 0.17], layerHeight: [0.3, 0.39, 0.48],
     layerWidth: [1.62, 1.7, 1.8], layerOpacity: [0.46, 0.68, 0.8], travel: [0.42, 0.63, 0.86],
   },
+  fog: {
+    seedBase: 659, thresholdBias: -0.085, warp: 0.54, ridgeWeight: 0.07, broadWeight: 0.78,
+    mediumWeight: 0.15, erosionWeight: 0.06, verticalScale: 0.54, towerWeight: 0,
+    lowerDarkening: 0.13, layerY: [0.18, 0.32, 0.47], layerHeight: [0.3, 0.34, 0.38],
+    layerWidth: [2.12, 2.28, 2.44], layerOpacity: [0.48, 0.62, 0.72], travel: [0.18, 0.26, 0.34],
+  },
   rain: {
     seedBase: 811, thresholdBias: -0.065, warp: 1.04, ridgeWeight: 0.13, broadWeight: 0.7,
     mediumWeight: 0.17, erosionWeight: 0.1, verticalScale: 0.72, towerWeight: 0.02,
@@ -154,6 +160,7 @@ function cloudTint(scene: AtmosphereScene): { light: RGB; mid: RGB; shade: RGB; 
     case 'storm': return { light: [145, 153, 169], mid: [82, 94, 113], shade: [27, 35, 51], alpha: 0.98, contrast: 1.24 };
     case 'rain': return { light: [182, 194, 203], mid: [118, 133, 146], shade: [57, 70, 84], alpha: 0.95, contrast: 1.12 };
     case 'snow': return { light: [232, 245, 249], mid: [166, 188, 201], shade: [91, 116, 134], alpha: 0.94, contrast: 1.04 };
+    case 'fog': return { light: [238, 241, 242], mid: [199, 207, 211], shade: [151, 162, 168], alpha: 0.88, contrast: 0.82 };
     case 'cloudy': return { light: [229, 235, 239], mid: [169, 182, 192], shade: [101, 116, 129], alpha: 0.91, contrast: 1.03 };
     case 'cold': return { light: [238, 245, 248], mid: [188, 201, 210], shade: [127, 145, 158], alpha: 0.83, contrast: 0.97 };
     case 'partly-cloudy': return { light: [250, 251, 252], mid: [211, 220, 226], shade: [154, 169, 180], alpha: 0.78, contrast: 0.94 };
@@ -201,7 +208,7 @@ function createCloudTexture(width: number, height: number, seed: number, scene: 
   for (let y = 0; y < height; y += 1) {
     const v = y / Math.max(1, height - 1);
     const topFade = profile.towerWeight > 0.2 ? 0.025 : 0.06;
-    const bottomFade = scene === 'rain' || scene === 'snow' ? 0.97 : scene === 'storm' ? 0.995 : 0.94;
+    const bottomFade = scene === 'storm' ? 0.995 : scene === 'rain' || scene === 'snow' ? 0.97 : scene === 'fog' ? 0.995 : 0.94;
     const envelope = smoothstep(0.005, topFade, v) * (1 - smoothstep(0.77, bottomFade, v));
     const baseWeight = 0.8 + smoothstep(0.34, 0.9, v) * 0.2;
     for (let x = 0; x < width; x += 1) {
