@@ -31,6 +31,7 @@ jobs:
       ORBI_QA_KEY_ALIAS: orbi-qa
       ORBI_QA_KEY_PASSWORD: orbiqa
       ORBI_QA_CERT_SHA256: a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc
+      ORBI_ZEN_SHA256: 7717bd6f5461f6ab3a0e4a297fd9db4288656a183039d3d08f833ec167ff0341
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,6 +88,9 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
+      - name: Verify bundled Zen audio integrity after Capacitor copy
+        run: npm run android:verify-audio-assets
+
       - name: Prepare fixed QA signing identity
         shell: bash
         run: |
@@ -139,7 +143,7 @@ jobs:
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
 
-      - name: Verify QA package and signing identity
+      - name: Verify QA package, signing identity and final Zen payload
         shell: bash
         run: |
           set -euo pipefail
@@ -154,6 +158,15 @@ jobs:
           echo "$SIGNATURE_OUTPUT"
           APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
           test "$APK_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
+
+          for AUDIO in orbi-zen-ambient.mp3 orbi-zen-loop-v1.mp3; do
+            ACTUAL_ZEN_SHA256="$(unzip -p "$APK" "assets/public/audio/$AUDIO" | sha256sum | awk '{print $1}')"
+            test "$ACTUAL_ZEN_SHA256" = "$ORBI_ZEN_SHA256"
+          done
+          if unzip -Z1 "$APK" | grep -Eq '^assets/public/audio/.*\.ogg$'; then
+            echo "Unexpected legacy OGG Zen payload in APK"
+            exit 1
+          fi
 
       - name: Upload 10629 persistent QA update-check APK
         uses: actions/upload-artifact@v4
