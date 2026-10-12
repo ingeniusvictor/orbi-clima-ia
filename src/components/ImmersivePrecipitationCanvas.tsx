@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { AtmosphereQuality, AtmosphereScene } from '../services/weatherAtmosphereEngine';
+import type { OrbiPrecipitationIntensity, OrbiPrecipitationKind } from '../utils/wmoWeatherCodeMapper';
 
 interface ImmersivePrecipitationCanvasProps {
   scene: AtmosphereScene;
   quality: AtmosphereQuality;
   precipitationStrength: number;
+  precipitationKind: OrbiPrecipitationKind;
+  precipitationIntensity: OrbiPrecipitationIntensity;
   windStrength: number;
   active: boolean;
 }
@@ -33,6 +36,18 @@ interface GlassDrop {
   generation: number;
 }
 
+interface PrecipitationTextureProfile {
+  particleScale: number;
+  glassScale: number;
+  speedScale: number;
+  lengthScale: number;
+  widthScale: number;
+  alphaScale: number;
+  radiusScale: number;
+  gustScale: number;
+  intermittency: number;
+}
+
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 function seeded(index: number, salt: number) {
@@ -40,51 +55,185 @@ function seeded(index: number, salt: number) {
   return value - Math.floor(value);
 }
 
-function makeRain(count: number, width: number, height: number): RainParticle[] {
+function intensityScale(intensity: OrbiPrecipitationIntensity): number {
+  switch (intensity) {
+    case 'trace': return 0.58;
+    case 'light': return 0.78;
+    case 'moderate': return 1;
+    case 'heavy': return 1.15;
+    case 'violent': return 1.3;
+    case 'none':
+    default:
+      return 0.45;
+  }
+}
+
+function precipitationTextureProfile(
+  kind: OrbiPrecipitationKind,
+  intensity: OrbiPrecipitationIntensity,
+): PrecipitationTextureProfile {
+  const intensityFactor = intensityScale(intensity);
+  const base: Record<OrbiPrecipitationKind, Omit<PrecipitationTextureProfile, 'particleScale'>> = {
+    none: {
+      glassScale: 0.35,
+      speedScale: 0.7,
+      lengthScale: 0.55,
+      widthScale: 0.55,
+      alphaScale: 0.55,
+      radiusScale: 0.7,
+      gustScale: 0.55,
+      intermittency: 0,
+    },
+    unknown: {
+      glassScale: 1,
+      speedScale: 1,
+      lengthScale: 1,
+      widthScale: 1,
+      alphaScale: 1,
+      radiusScale: 1,
+      gustScale: 1,
+      intermittency: 0,
+    },
+    drizzle: {
+      glassScale: 0.58,
+      speedScale: 0.58,
+      lengthScale: 0.44,
+      widthScale: 0.52,
+      alphaScale: 0.66,
+      radiusScale: 0.66,
+      gustScale: 0.52,
+      intermittency: 0.04,
+    },
+    freezing_drizzle: {
+      glassScale: 0.46,
+      speedScale: 0.54,
+      lengthScale: 0.42,
+      widthScale: 0.5,
+      alphaScale: 0.75,
+      radiusScale: 0.58,
+      gustScale: 0.48,
+      intermittency: 0.03,
+    },
+    rain: {
+      glassScale: 1,
+      speedScale: 1,
+      lengthScale: 1,
+      widthScale: 1,
+      alphaScale: 1,
+      radiusScale: 1,
+      gustScale: 1,
+      intermittency: 0.04,
+    },
+    freezing_rain: {
+      glassScale: 0.72,
+      speedScale: 0.88,
+      lengthScale: 0.82,
+      widthScale: 0.88,
+      alphaScale: 1.05,
+      radiusScale: 0.8,
+      gustScale: 0.82,
+      intermittency: 0.04,
+    },
+    showers: {
+      glassScale: 0.84,
+      speedScale: 1.12,
+      lengthScale: 1.08,
+      widthScale: 1.04,
+      alphaScale: 1.05,
+      radiusScale: 0.94,
+      gustScale: 1.35,
+      intermittency: 0.36,
+    },
+    snow: {
+      glassScale: 0,
+      speedScale: 0.5,
+      lengthScale: 0.3,
+      widthScale: 0.6,
+      alphaScale: 0.8,
+      radiusScale: 0,
+      gustScale: 0.8,
+      intermittency: 0.08,
+    },
+    storm: {
+      glassScale: 1.08,
+      speedScale: 1.18,
+      lengthScale: 1.16,
+      widthScale: 1.08,
+      alphaScale: 1.12,
+      radiusScale: 1.04,
+      gustScale: 1.45,
+      intermittency: 0.18,
+    },
+  };
+
+  const selected = base[kind] ?? base.unknown;
+  return {
+    ...selected,
+    particleScale: Math.max(0.35, intensityFactor * (kind === 'drizzle' || kind === 'freezing_drizzle' ? 0.8 : 1)),
+  };
+}
+
+function makeRain(
+  count: number,
+  width: number,
+  height: number,
+  profile: PrecipitationTextureProfile,
+): RainParticle[] {
   return Array.from({ length: count }, (_, index) => {
     const depth = 0.12 + seeded(index, 2) * 0.88;
     return {
       x: seeded(index, 3) * width,
       y: seeded(index, 5) * height,
-      speed: 240 + depth * 960 + seeded(index, 7) * 210,
-      length: 9 + depth * 68 + seeded(index, 11) * 22,
-      width: 0.35 + depth * 1.95,
-      alpha: 0.045 + depth * 0.29,
+      speed: (240 + depth * 960 + seeded(index, 7) * 210) * profile.speedScale,
+      length: (9 + depth * 68 + seeded(index, 11) * 22) * profile.lengthScale,
+      width: (0.35 + depth * 1.95) * profile.widthScale,
+      alpha: (0.045 + depth * 0.29) * profile.alphaScale,
       depth,
       phase: seeded(index, 47) * Math.PI * 2,
     };
   });
 }
 
-function makeGlassDrops(count: number, width: number, height: number): GlassDrop[] {
+function makeGlassDrops(
+  count: number,
+  width: number,
+  height: number,
+  profile: PrecipitationTextureProfile,
+): GlassDrop[] {
   return Array.from({ length: count }, (_, index) => {
-    const baseRadius = 1.6 + seeded(index, 19) * 5.6;
+    const baseRadius = (1.6 + seeded(index, 19) * 5.6) * profile.radiusScale;
     return {
       x: width * (0.035 + seeded(index, 13) * 0.93),
       y: height * (0.035 + seeded(index, 17) * 0.82),
       radius: baseRadius,
       baseRadius,
       velocityY: 0,
-      alpha: 0.1 + seeded(index, 29) * 0.24,
-      trail: 5 + seeded(index, 31) * 28,
+      alpha: (0.1 + seeded(index, 29) * 0.24) * profile.alphaScale,
+      trail: (5 + seeded(index, 31) * 28) * profile.lengthScale,
       phase: seeded(index, 37) * Math.PI * 2,
-      slideThreshold: 3.7 + seeded(index, 41) * 3.8,
+      slideThreshold: (3.7 + seeded(index, 41) * 3.8) * Math.max(0.68, profile.radiusScale),
       generation: 0,
     };
   });
 }
 
-function resetGlassDrop(drop: GlassDrop, width: number, height: number, index: number) {
+function resetGlassDrop(
+  drop: GlassDrop,
+  width: number,
+  height: number,
+  index: number,
+  profile: PrecipitationTextureProfile,
+) {
   drop.generation += 1;
   const salt = 53 + drop.generation * 7;
   drop.x = width * (0.04 + seeded(index + drop.generation * 13, salt) * 0.92);
   drop.y = height * (0.025 + seeded(index + drop.generation * 17, salt + 2) * 0.18);
-  drop.baseRadius = 1.5 + seeded(index + drop.generation * 19, salt + 4) * 5.4;
+  drop.baseRadius = (1.5 + seeded(index + drop.generation * 19, salt + 4) * 5.4) * profile.radiusScale;
   drop.radius = drop.baseRadius;
   drop.velocityY = 0;
-  drop.alpha = 0.1 + seeded(index + drop.generation * 23, salt + 6) * 0.22;
-  drop.trail = 6 + seeded(index + drop.generation * 29, salt + 8) * 34;
-  drop.slideThreshold = 3.8 + seeded(index + drop.generation * 31, salt + 10) * 3.6;
+  drop.alpha = (0.1 + seeded(index + drop.generation * 23, salt + 6) * 0.22) * profile.alphaScale;
+  drop.trail = (6 + seeded(index + drop.generation * 29, salt + 8) * 34) * profile.lengthScale;
+  drop.slideThreshold = (3.8 + seeded(index + drop.generation * 31, salt + 10) * 3.6) * Math.max(0.68, profile.radiusScale);
 }
 
 function drawGlassDrop(ctx: CanvasRenderingContext2D, drop: GlassDrop, nowSeconds: number, strength: number) {
@@ -143,6 +292,8 @@ export default function ImmersivePrecipitationCanvas({
   scene,
   quality,
   precipitationStrength,
+  precipitationKind,
+  precipitationIntensity,
   windStrength,
   active,
 }: ImmersivePrecipitationCanvasProps) {
@@ -157,6 +308,7 @@ export default function ImmersivePrecipitationCanvas({
     const android = document.documentElement.classList.contains('capacitor-android')
       || document.documentElement.classList.contains('android-webview');
     const strength = clamp01(precipitationStrength);
+    const profile = precipitationTextureProfile(precipitationKind, precipitationIntensity);
     const stormBoost = scene === 'storm' ? 1.28 : 1;
 
     const dpr = Math.min(window.devicePixelRatio || 1, android ? 1.35 : 1.7);
@@ -169,13 +321,13 @@ export default function ImmersivePrecipitationCanvas({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const qualityFactor = quality === 'ultra' ? 1 : quality === 'high' ? 0.88 : quality === 'balanced' ? 0.72 : 0.52;
-    const rainCount = Math.round((52 + strength * 74) * qualityFactor * stormBoost);
+    const rainCount = Math.round((34 + strength * 82) * qualityFactor * stormBoost * profile.particleScale);
     const glassCount = quality === 'low' || quality === 'static'
-      ? Math.round(8 + strength * 5)
-      : Math.round((16 + strength * 17) * qualityFactor);
+      ? Math.round((5 + strength * 7) * profile.glassScale)
+      : Math.round((10 + strength * 20) * qualityFactor * profile.glassScale);
 
-    const rain = makeRain(rainCount, cssWidth, cssHeight);
-    const glass = makeGlassDrops(glassCount, cssWidth, cssHeight);
+    const rain = makeRain(rainCount, cssWidth, cssHeight, profile);
+    const glass = makeGlassDrops(glassCount, cssWidth, cssHeight, profile);
 
     let disposed = false;
     let raf = 0;
@@ -198,7 +350,15 @@ export default function ImmersivePrecipitationCanvas({
 
       ctx.clearRect(0, 0, cssWidth, cssHeight);
       const seconds = now / 1000;
-      const gust = clamp01(0.56 + Math.sin(seconds * 0.37) * 0.18 + Math.sin(seconds * 0.93 + 1.7) * 0.14 + windStrength * 0.28);
+      const showerPulse = precipitationKind === 'showers'
+        ? 0.68 + (0.32 * (0.5 + Math.sin(seconds * 1.18) * 0.5))
+        : 1;
+      const gust = clamp01(
+        0.56
+        + Math.sin(seconds * 0.37) * 0.18 * profile.gustScale
+        + Math.sin(seconds * 0.93 + 1.7) * 0.14 * profile.gustScale
+        + windStrength * 0.28,
+      );
       const dynamicWind = clamp01(windStrength * 0.7 + gust * 0.42);
       const windAngle = (3 + dynamicWind * 21) * Math.PI / 180;
       const xDrift = Math.sin(windAngle);
@@ -207,8 +367,8 @@ export default function ImmersivePrecipitationCanvas({
       if (active && quality !== 'static') {
         ctx.lineCap = 'round';
         for (const drop of rain) {
-          const localGust = 0.88 + gust * 0.34 + Math.sin(seconds * 0.7 + drop.phase) * 0.07;
-          const fall = drop.speed * dt * (0.68 + strength * 0.7) * stormBoost * localGust;
+          const localGust = 0.88 + gust * 0.34 + Math.sin(seconds * 0.7 + drop.phase) * 0.07 * profile.gustScale;
+          const fall = drop.speed * dt * (0.68 + strength * 0.7) * stormBoost * localGust * showerPulse;
           drop.x += xDrift * fall * (0.22 + drop.depth * 0.5);
           drop.y += yDrift * fall;
 
@@ -217,7 +377,13 @@ export default function ImmersivePrecipitationCanvas({
             drop.x = -100 + seeded(Math.round(drop.speed + drop.length + seconds), 43) * (cssWidth + 200);
           }
 
-          const alpha = drop.alpha * (0.38 + strength * 0.78) * (scene === 'storm' ? 1.15 : 1);
+          const intermittentAlpha = precipitationKind === 'showers'
+            ? (0.66 + showerPulse * 0.34)
+            : (1 - profile.intermittency * 0.18);
+          const alpha = drop.alpha
+            * (0.38 + strength * 0.78)
+            * (scene === 'storm' ? 1.15 : 1)
+            * intermittentAlpha;
           const gradient = ctx.createLinearGradient(
             drop.x - xDrift * drop.length,
             drop.y - yDrift * drop.length,
@@ -238,11 +404,11 @@ export default function ImmersivePrecipitationCanvas({
         glass.forEach((drop, index) => {
           drop.radius = Math.min(drop.baseRadius * 1.68, drop.radius + dt * (0.08 + strength * 0.28));
           if (drop.radius >= drop.slideThreshold && strength > 0.34) {
-            drop.velocityY = Math.min(42, drop.velocityY + dt * (3.5 + strength * 13));
+            drop.velocityY = Math.min(42, drop.velocityY + dt * (3.5 + strength * 13) * profile.speedScale);
             drop.y += drop.velocityY * dt;
             drop.x += Math.sin(seconds * 0.32 + drop.phase) * dt * (0.22 + windStrength * 0.45);
           }
-          if (drop.y > cssHeight * 0.97) resetGlassDrop(drop, cssWidth, cssHeight, index);
+          if (drop.y > cssHeight * 0.97) resetGlassDrop(drop, cssWidth, cssHeight, index, profile);
           drawGlassDrop(ctx, drop, seconds, strength);
         });
 
@@ -258,11 +424,11 @@ export default function ImmersivePrecipitationCanvas({
                 if (a.radius >= b.radius) {
                   a.radius = Math.min(a.baseRadius * 1.85, Math.sqrt(a.radius * a.radius + b.radius * b.radius));
                   a.velocityY = Math.max(a.velocityY, b.velocityY);
-                  resetGlassDrop(b, cssWidth, cssHeight, j);
+                  resetGlassDrop(b, cssWidth, cssHeight, j, profile);
                 } else {
                   b.radius = Math.min(b.baseRadius * 1.85, Math.sqrt(a.radius * a.radius + b.radius * b.radius));
                   b.velocityY = Math.max(a.velocityY, b.velocityY);
-                  resetGlassDrop(a, cssWidth, cssHeight, i);
+                  resetGlassDrop(a, cssWidth, cssHeight, i, profile);
                 }
               }
             }
@@ -303,7 +469,7 @@ export default function ImmersivePrecipitationCanvas({
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [scene, quality, precipitationStrength, windStrength, active]);
+  }, [scene, quality, precipitationStrength, precipitationKind, precipitationIntensity, windStrength, active]);
 
   return <canvas ref={canvasRef} className="orbi-immersive-precipitation-canvas" aria-hidden="true" />;
 }
