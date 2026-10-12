@@ -189,10 +189,9 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(result.current.cloud_cover, 88, 'Cloud cover remains model-local beyond 15 km.');
 }
 
-// 7) The exact 2026-10-12 physical-QA temperature failure: a nearby DMC station
-// reports 13 C while the tightly grouped numerical models center on 15 C. The
-// station must not force the UI down to 13 C when it conflicts materially with
-// the broader local model field.
+// 7) Physical-QA temperature failure: a nearby DMC station reports 13 C while
+// tightly grouped numerical models center on 15 C. DMC must not force the UI
+// down when it conflicts materially with the broader local field.
 {
   const raw = rawCurrent({
     weather_code: 3,
@@ -217,15 +216,9 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(result.current.weather_code, 3);
 }
 
-// 8) Positive recent accumulation is history, not evidence of rain happening
-// now. This reproduces the false "Lluvia Activa" path from physical QA.
+// 8) Positive recent accumulation is history, not evidence of rain happening now.
 {
-  const raw = rawCurrent({
-    weather_code: 61,
-    precipitation: 0.3,
-    rain: 0.3,
-    cloud_cover: 96,
-  });
+  const raw = rawCurrent({ weather_code: 61, precipitation: 0.3, rain: 0.3, cloud_cover: 96 });
   const result = applyCurrentWeatherTruth(raw, context({
     dmc: dmcObservation({
       distanceKm: 8,
@@ -243,15 +236,10 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(result.orbi_current_truth.band, 'conflicted');
 }
 
-// 9) An explicit present-weather label such as Nublado is stronger than a
-// recent rain accumulation and must suppress an active-rain scene.
+// 9) An explicit present-weather label such as Nublado is stronger than recent
+// rain accumulation and must suppress an active-rain scene.
 {
-  const raw = rawCurrent({
-    weather_code: 61,
-    precipitation: 0.6,
-    rain: 0.6,
-    cloud_cover: 92,
-  });
+  const raw = rawCurrent({ weather_code: 61, precipitation: 0.6, rain: 0.6, cloud_cover: 92 });
   const result = applyCurrentWeatherTruth(raw, context({
     dmc: dmcObservation({
       distanceKm: 7,
@@ -268,16 +256,10 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(result.orbi_current_truth.band, 'observed');
 }
 
-// 10) Genuine present rain remains first-class: an explicit DMC present-weather
-// phenomenon is allowed to produce the active rain scene even if the recent
-// accumulation field is zero or unavailable.
+// 10) Genuine present light rain remains first-class and preserves its exact
+// WMO semantic label instead of collapsing to a generic "active rain" concept.
 {
-  const raw = rawCurrent({
-    weather_code: 3,
-    precipitation: 0,
-    rain: 0,
-    cloud_cover: 100,
-  });
+  const raw = rawCurrent({ weather_code: 3, precipitation: 0, rain: 0, cloud_cover: 100 });
   const result = applyCurrentWeatherTruth(raw, context({
     dmc: dmcObservation({
       distanceKm: 6,
@@ -290,8 +272,38 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
 
   assert.equal(result.current.weather_code, 61);
   assert.ok(result.current.precipitation > 0);
+  assert.equal(result.orbi_current_truth.conditionLabel, 'Lluvia ligera');
   assert.equal(result.orbi_current_truth.precipitationEvidence, 'observed_now');
   assert.equal(result.orbi_current_truth.band, 'observed');
 }
 
-console.log('OC-22K deterministic current-weather truth tests: PASS');
+function assertObservedPhenomenon(label: string, expectedCode: number, expectedLabel: string) {
+  const raw = rawCurrent({ weather_code: 3, precipitation: 0, rain: 0, showers: 0, cloud_cover: 100 });
+  const result = applyCurrentWeatherTruth(raw, context({
+    dmc: dmcObservation({
+      distanceKm: 5,
+      precipitationRecentMm: 0,
+      cloudCoverPct: 100,
+      presentWeatherLabel: label,
+    }),
+    multiModel: models(['nublado', 'lluvia', 'nublado', 'lluvia']),
+  })) as any;
+
+  assert.equal(result.current.weather_code, expectedCode, `${label} should resolve to WMO ${expectedCode}.`);
+  assert.equal(result.orbi_current_truth.conditionLabel, expectedLabel, `${label} should retain a precise user-facing label.`);
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'observed_now');
+}
+
+// 11) OC-22L precipitation semantic ladder: observed phenomena keep their
+// actual class/intensity instead of collapsing to one generic rain state.
+assertObservedPhenomenon('Llovizna moderada', 53, 'Llovizna moderada');
+assertObservedPhenomenon('Llovizna densa', 55, 'Llovizna densa');
+assertObservedPhenomenon('Lluvia moderada', 63, 'Lluvia moderada');
+assertObservedPhenomenon('Lluvia intensa', 65, 'Lluvia intensa');
+assertObservedPhenomenon('Lluvia gélida intensa', 67, 'Lluvia gélida intensa');
+assertObservedPhenomenon('Chubasco moderado', 81, 'Chubascos moderados');
+assertObservedPhenomenon('Chubasco fuerte', 82, 'Chubascos violentos');
+assertObservedPhenomenon('Nieve moderada', 73, 'Nieve moderada');
+assertObservedPhenomenon('Nieve intensa', 75, 'Nieve intensa');
+
+console.log('OC-22L deterministic current-weather truth + precipitation semantics tests: PASS');
