@@ -101,7 +101,7 @@ jobs:
         run: |
           echo "VISUAL QA ONLY"
           echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
-          echo "QA_PACKAGE=com.orbi.clima.oc22qa10625"
+          echo "QA_PACKAGE=com.orbi.clima.oc22qa10626"
           if [ -n "$ORBI_ANDROID_KEYSTORE_B64" ]; then
             echo "SIGNING_MODE=PERSISTENT_ORBI"
           else
@@ -109,9 +109,9 @@ jobs:
             echo "Package is version-isolated, so this APK can install beside older QA previews even when runner signatures differ."
           fi
           echo "Do not promote this artifact to stable/release."
-          grep -n "versionCode 10625" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-ADAPTIVE-WIDGETS-QA10625"' android/app/build.gradle
-          grep -n 'applicationIdSuffix ".oc22qa10625"' android/app/build.gradle
+          grep -n "versionCode 10626" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-WEATHER-TRUTH-HARDENING-QA10626"' android/app/build.gradle
+          grep -n 'applicationIdSuffix ".oc22qa10626"' android/app/build.gradle
 
       - name: Compile isolated OC-22 visual preview
         working-directory: android
@@ -125,10 +125,10 @@ jobs:
           test -n "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
 
-      - name: Upload 10625 isolated adaptive widget visual QA APK
+      - name: Upload 10626 isolated Weather Truth hardening visual QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-adaptive-widgets-isolated-qa-10625
+          name: orbi-clima-oc22-weather-truth-hardening-isolated-qa-10626
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 7
