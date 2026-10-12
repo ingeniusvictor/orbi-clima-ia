@@ -3,6 +3,8 @@ import { readFileSync, existsSync } from 'node:fs';
 const clipCss = readFileSync('src/styles/orb-android-clip-guard.css', 'utf8');
 const contourService = readFileSync('src/services/androidGoldenOrbFluidContour.ts', 'utf8');
 const main = readFileSync('src/main.tsx', 'utf8');
+const orb = readFileSync('src/components/OrbiClimateCore.tsx', 'utf8');
+const welcome = readFileSync('src/components/WelcomeHeroSection.tsx', 'utf8');
 
 const fail = (message) => {
   console.error(`Android Golden Orb live-motion gate: FAIL\n${message}`);
@@ -55,4 +57,13 @@ expect(!clipCss.includes('.blur-2xl'), 'Golden Orb Android guard must not disabl
 expect(!clipCss.includes('.mix-blend-screen'), 'Golden Orb Android guard must not target the internal blend layer.');
 expect(!clipCss.includes('.mix-blend-overlay'), 'Golden Orb Android guard must not target storm blend FX.');
 
-console.log('Android Golden Orb live-motion gate: PASS (single stable Orb + pronounced lava-like punched-out Canvas contour)');
+// OC-22M: the broad family remains responsible for visual theme, while Weather
+// Truth owns the exact human label. This prevents rain, fog, snow, cloud and
+// storm variants from collapsing back into generic Orb copy.
+expect(orb.includes('conditionLabel?: string'), 'Golden Orb must accept an exact Weather Truth condition label.');
+expect(orb.includes('displayConditionLabel'), 'Golden Orb must resolve the exact condition label before falling back to family copy.');
+expect(orb.includes("conditionLabel?.trim()"), 'Golden Orb must ignore empty semantic labels safely.');
+expect(welcome.includes('conditionLabel={conditionText}'), 'Welcome hero must route its exact condition text into the Golden Orb.');
+expect(welcome.includes('Fenómeno actual'), 'Weather Truth diagnostic must describe the exact current phenomenon.');
+
+console.log('Android Golden Orb live-motion gate: PASS (10615 motion preserved + OC-22M exact phenomenon labels)');
