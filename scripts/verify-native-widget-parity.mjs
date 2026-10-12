@@ -13,6 +13,11 @@ const mini = read('android/app/src/main/java/com/orbi/clima/widget/OrbiSkyOrbMin
 const panel = read('android/app/src/main/java/com/orbi/clima/widget/OrbiSkyOrbPanelWidgetReceiver.kt');
 const command = read('android/app/src/main/java/com/orbi/clima/widget/OrbiSkyOrbCommandWidgetReceiver.kt');
 const premium = read('android/app/src/main/java/com/orbi/clima/widget/OrbiSkyOrbCommandPremiumWidgetReceiver.kt');
+const field = read('android/app/src/main/java/com/orbi/clima/widget/OrbiFieldCommandWidgetReceiver.kt');
+const cinematic = read('android/app/src/main/java/com/orbi/clima/widget/OrbiCinematicBarWidgetReceiver.kt');
+const manifest = read('android/app/src/main/AndroidManifest.xml');
+const fieldProvider = read('android/app/src/main/res/xml/orbi_field_command_widget_info.xml');
+const cinematicProvider = read('android/app/src/main/res/xml/orbi_cinematic_bar_widget_info.xml');
 const mobile = read('src/components/MobileWidgetsScreen.tsx');
 const preview = read('src/components/NativeWidgetParityPreview.tsx');
 
@@ -35,6 +40,15 @@ expect(mini.includes('OrbiNativeWidgetSnapshotRendererV2.renderMini'), 'Mini wid
 expect(panel.includes('OrbiNativeWidgetSnapshotRendererV2.renderPanel'), 'SkyPanel must route through native V2 renderer.');
 expect(command.includes('OrbiNativeWidgetSnapshotRendererV2.renderCommand'), 'Command widget must route through native V2 renderer.');
 expect(premium.includes('OrbiNativeWidgetSnapshotRendererV2.renderPremiumCommand'), 'Premium command must route through native V2 renderer.');
+expect(field.includes('Variant.FIELD_COMMAND'), 'Field Command must have a dedicated native receiver.');
+expect(cinematic.includes('Variant.CINEMATIC_BAR'), 'Cinematic Bar must have a dedicated native receiver.');
+
+expect(manifest.includes('.widget.OrbiFieldCommandWidgetReceiver'), 'Android launcher must register Field Command directly.');
+expect(manifest.includes('@xml/orbi_field_command_widget_info'), 'Field Command provider metadata must be wired.');
+expect(manifest.includes('.widget.OrbiCinematicBarWidgetReceiver'), 'Android launcher must register Cinematic Bar directly.');
+expect(manifest.includes('@xml/orbi_cinematic_bar_widget_info'), 'Cinematic Bar provider metadata must be wired.');
+expect(fieldProvider.includes('android:targetCellWidth="4"') && fieldProvider.includes('android:targetCellHeight="4"'), 'Field Command must declare 4x4 launcher geometry.');
+expect(cinematicProvider.includes('android:targetCellWidth="5"') && cinematicProvider.includes('android:targetCellHeight="2"'), 'Cinematic Bar must declare 5x2 launcher geometry.');
 
 expect(mobile.includes("import NativeWidgetParityPreview"), 'Widgets screen must use native parity preview.');
 expect(!mobile.includes("import WidgetsPreviews"), 'Widgets screen must not present the aspirational legacy preview as launcher truth.');
@@ -56,5 +70,6 @@ if (failures.length) {
 console.log('OC-22I Native Widget Parity gate: PASS');
 console.log('- all launcher variants use deterministic Canvas snapshots');
 console.log('- Glance is only the launcher host/click surface');
+console.log('- Field Command and Cinematic Bar are dedicated launcher providers');
 console.log('- in-app preview mirrors the native-first widget family');
 console.log('- snow and Golden Orb isolation remain explicit');
