@@ -9,6 +9,7 @@ const expect = (condition, message) => {
 const rendererV2 = read('android/app/src/main/java/com/orbi/clima/widget/OrbiNativeWidgetSnapshotRendererV2.kt');
 const rendererV3 = read('android/app/src/main/java/com/orbi/clima/widget/OrbiFluidNativeWidgetRendererV3.kt');
 const adaptive = read('android/app/src/main/java/com/orbi/clima/widget/OrbiLauncherAdaptiveRenderer.kt');
+const brandOverlay = read('android/app/src/main/java/com/orbi/clima/widget/OrbiWidgetBrandOverlay.kt');
 const host = read('android/app/src/main/java/com/orbi/clima/widget/OrbiNativeWidgetSnapshotHost.kt');
 const exactBase = read('android/app/src/main/java/com/orbi/clima/widget/OrbiExactNativeWidget.kt');
 const generic = read('android/app/src/main/java/com/orbi/clima/widget/OrbiSkyOrbWidget.kt');
@@ -67,10 +68,20 @@ expect(adaptive.includes('MAX_DIMENSION_PX = 1440'), 'Adaptive renderer must cap
 expect(adaptive.includes('OrbiFluidNativeWidgetRendererV3.render('), 'Adaptive renderer must route the healthy path through Fluid V3.');
 expect(adaptive.includes('OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)'), 'Adaptive renderer must retain V2 as emergency fallback.');
 expect(adaptive.includes('catch (_: Throwable)'), 'Adaptive renderer must isolate unexpected V3 failures behind the certified V2 fallback.');
+expect(adaptive.includes('OrbiWidgetBrandOverlay.apply('), 'Adaptive renderer must apply the official ORBI Clima brand overlay to launcher surfaces.');
 expect(!adaptive.includes('uniformScale'), 'Adaptive renderer must not scale a fixed V2 composition in the healthy V3 path.');
 expect(!adaptive.includes('fitScale'), 'Adaptive renderer must not fit-scale a fixed bitmap in the healthy V3 path.');
 expect(!adaptive.includes('Canvas(output).drawBitmap(base'), 'Adaptive renderer must not copy a fixed intermediate bitmap into launcher geometry.');
 expect(!adaptive.includes('base.recycle()'), 'Fluid V3 path must not depend on recycling a fixed V2 intermediate bitmap.');
+
+// OC-22P: official application identity must be visible in Android and widgets.
+expect(fs.existsSync('android/app/src/main/res/drawable/orbi_clima_app_icon.jpg'), 'Official Android ORBI Clima icon asset is missing.');
+expect(fs.existsSync('public/orbi-clima-app-icon.jpg'), 'Official web parity icon asset is missing.');
+expect(manifest.includes('android:icon="@drawable/orbi_clima_app_icon"'), 'Android application must declare the official ORBI Clima icon.');
+expect(manifest.includes('android:roundIcon="@drawable/orbi_clima_app_icon"'), 'Android application must declare the official ORBI Clima round icon.');
+expect(brandOverlay.includes('R.drawable.orbi_clima_app_icon'), 'Widget brand overlay must render the official ORBI Clima icon.');
+expect(brandOverlay.includes('canvas.drawText("ORBI"'), 'Widget brand overlay must retain the ORBI wordmark.');
+expect(brandOverlay.includes('canvas.drawText(" CLIMA IA"'), 'Widget brand overlay must retain the CLIMA IA wordmark.');
 
 expect(host.includes('ImageProvider(bitmap)'), 'Glance host must display the native bitmap.');
 expect(host.includes('LocalSize.current'), 'Shared host must read the actual Glance launcher size.');
@@ -108,16 +119,23 @@ expect(preview.includes("id: 'panel'"), 'Parity preview must expose SkyPanel.');
 expect(preview.includes("id: 'command'"), 'Parity preview must expose Command.');
 expect(preview.includes("id: 'field'"), 'Parity preview must expose Field Command.');
 expect(preview.includes("id: 'cinematic'"), 'Parity preview must expose Cinematic Bar.');
+expect(preview.includes("useState<NativeVariant>('command')"), 'Physical parity preview must default to the launcher-tested Command surface.');
+expect(preview.includes('MetricBubble'), 'Command parity preview must use the same circular metric-bubble hierarchy as Fluid V3.');
+expect(preview.includes('/orbi-clima-app-icon.jpg'), 'Parity preview must use the official ORBI Clima app icon.');
+expect(preview.includes('VISTA DE PARIDAD NATIVA · CANVAS V3'), 'Parity preview must identify the actual Canvas V3 renderer.');
+expect(!preview.includes('CANVAS V2'), 'Parity preview must not claim legacy Canvas V2 parity.');
 expect(preview.includes('conditionLabel'), 'Parity preview must preserve exact condition-label semantics.');
 
 if (failures.length) {
-  console.error('OC-22I/J/O Native Widget Parity + Fluid Launcher gate: FAIL');
+  console.error('OC-22I/J/O/P Native Widget Parity + Fluid Launcher + Brand gate: FAIL');
   failures.forEach(failure => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('OC-22I/J/O Native Widget Parity + Fluid Launcher gate: PASS');
+console.log('OC-22I/J/O/P Native Widget Parity + Fluid Launcher + Brand gate: PASS');
 console.log('- Fluid Canvas V3 paints directly at the exact launcher bitmap size');
+console.log('- in-app Command preview mirrors the native circular metric hierarchy');
+console.log('- official ORBI Clima icon is required in Android app + widget branding + preview');
 console.log('- no fixed-size fit-center scaling remains in the healthy launcher path');
 console.log('- deterministic weather micro-atmospheres cover clear/cloud/fog/drizzle/rain/storm/snow/wind/night');
 console.log('- exact condition labels and adaptive typography are required');
