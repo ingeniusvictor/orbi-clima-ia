@@ -4,6 +4,7 @@ export type WeatherCondition =
   | 'sunny'
   | 'partly_cloudy'
   | 'cloudy'
+  | 'fog'
   | 'rain'
   | 'snow'
   | 'storm'
@@ -11,6 +12,26 @@ export type WeatherCondition =
   | 'cold'
   | 'hot'
   | 'night';
+
+export type WeatherPhenomenonKind =
+  | 'none'
+  | 'drizzle'
+  | 'freezing_drizzle'
+  | 'rain'
+  | 'freezing_rain'
+  | 'showers'
+  | 'snow'
+  | 'storm'
+  | 'unknown';
+
+export type WeatherPhenomenonIntensity = 'none' | 'trace' | 'light' | 'moderate' | 'heavy' | 'violent';
+
+export interface WeatherPhenomenonSemantics {
+  weatherCode?: number;
+  conditionLabel?: string;
+  precipitationKind?: WeatherPhenomenonKind;
+  precipitationIntensity?: WeatherPhenomenonIntensity;
+}
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -24,7 +45,7 @@ export interface WeatherLocation {
   timezone: string;
 }
 
-export interface CurrentWeather {
+export interface CurrentWeather extends WeatherPhenomenonSemantics {
   temperatureC: number;
   feelsLikeC: number;
   humidity: number;
@@ -36,9 +57,10 @@ export interface CurrentWeather {
   uvIndex: number;
   condition: WeatherCondition;
   updatedAt: string;
+  isDay?: boolean;
 }
 
-export interface HourlyForecast {
+export interface HourlyForecast extends WeatherPhenomenonSemantics {
   time: string;
   temperatureC: number;
   precipitationProbability: number;
@@ -50,7 +72,7 @@ export interface HourlyForecast {
   condition: WeatherCondition;
 }
 
-export interface DailyForecast {
+export interface DailyForecast extends WeatherPhenomenonSemantics {
   date: string;
   minTempC: number;
   maxTempC: number;
@@ -217,276 +239,3 @@ export type SmartAlertSeverity =
   | 'watch'
   | 'warning'
   | 'critical';
-
-export type SmartAlertCategory =
-  | 'rain'
-  | 'wind'
-  | 'gusts'
-  | 'uv'
-  | 'cold'
-  | 'heat'
-  | 'humidity'
-  | 'storm'
-  | 'field_work'
-  | 'electrical_work'
-  | 'solar_pv'
-  | 'general';
-
-export type SmartAlertStatus =
-  | 'active'
-  | 'upcoming'
-  | 'expired'
-  | 'dismissed';
-
-export interface SmartWeatherAlert {
-  id: string;
-  title: string;
-  message: string;
-  severity: SmartAlertSeverity;
-  category: SmartAlertCategory;
-  profile: WeatherProfile;
-  status: SmartAlertStatus;
-  startsAt?: string;
-  endsAt?: string;
-  timeLabel: string;
-  actionLabel?: string;
-  recommendation: string;
-  source: 'skycore';
-  createdAt: string;
-  priority: number;
-  relatedRiskLevel?: RiskLevel;
-}
-
-export type OrbiNotificationPermissionState =
-  | 'unknown'
-  | 'granted'
-  | 'denied'
-  | 'prompt'
-  | 'unsupported';
-
-export type OrbiNotificationChannel =
-  | 'weather_alerts'
-  | 'field_alerts'
-  | 'official_alerts'
-  | 'system_status';
-
-export type OrbiNotificationSource =
-  | 'skycore_alert'
-  | 'official_senapred';
-
-export interface OrbiNotificationCandidate {
-  id: string;
-  title: string;
-  body: string;
-  channel: OrbiNotificationChannel;
-  severity: SmartAlertSeverity;
-  profile: WeatherProfile;
-  alertId?: string;
-  category?: SmartAlertCategory;
-  createdAt: string;
-  scheduledFor?: string;
-  dedupKey: string;
-  source: OrbiNotificationSource;
-}
-
-export interface OrbiNotificationHistoryItem {
-  id: string;
-  title: string;
-  body: string;
-  channel: OrbiNotificationChannel;
-  severity: SmartAlertSeverity;
-  profile: WeatherProfile;
-  alertId?: string;
-  createdAt: string;
-  sentAt: string;
-  dedupKey: string;
-  source?: OrbiNotificationSource;
-}
-
-export type QuietHoursMode =
-  | 'disabled'
-  | 'enabled'
-  | 'critical_only';
-
-export interface QuietHoursSettings {
-  enabled: boolean;
-  mode: QuietHoursMode;
-  startTime: string;
-  endTime: string;
-  allowCritical: boolean;
-}
-
-export interface NotificationFrequencySettings {
-  maxPersonPerDay: number;
-  maxFieldPerDay: number;
-  minMinutesBetweenSimilar: number;
-  minMinutesBetweenAny: number;
-}
-
-export interface QuietHoursDecision {
-  allowed: boolean;
-  shouldDefer: boolean;
-  reason: string;
-}
-
-export interface FrequencyDecision {
-  allowed: boolean;
-  reason: string;
-}
-
-export interface OrbiBlockedNotificationLog {
-  id: string;
-  title: string;
-  body: string;
-  profile: WeatherProfile;
-  severity: SmartAlertSeverity;
-  reason: string;
-  blockedAt: string;
-  type: 'quiet_hours' | 'frequency' | 'demo' | 'outdated' | 'fallback';
-}
-
-export type ScheduledAlertStatus =
-  | 'scheduled'
-  | 'deferred'
-  | 'sent'
-  | 'blocked'
-  | 'expired'
-  | 'cancelled';
-
-export type ScheduledSummaryType =
-  | 'person_morning'
-  | 'field_pre_shift'
-  | 'evening_preview';
-
-export interface ScheduledAlertItem {
-  id: string;
-  candidateId: string;
-  alertId?: string;
-  title: string;
-  body: string;
-  profile: WeatherProfile;
-  severity: SmartAlertSeverity;
-  category?: SmartAlertCategory;
-  status: ScheduledAlertStatus;
-  scheduledFor: string;
-  createdAt: string;
-  reason: string;
-  source: 'skycore_scheduler';
-}
-
-export interface ScheduledSummarySettings {
-  personMorningEnabled: boolean;
-  personMorningTime: string;
-  fieldPreShiftEnabled: boolean;
-  fieldPreShiftTime: string;
-  eveningPreviewEnabled: boolean;
-  eveningPreviewTime: string;
-}
-
-export const DEFAULT_SUMMARY_SETTINGS: ScheduledSummarySettings = {
-  personMorningEnabled: true,
-  personMorningTime: '07:30',
-  fieldPreShiftEnabled: false,
-  fieldPreShiftTime: '08:00',
-  eveningPreviewEnabled: false,
-  eveningPreviewTime: '20:00',
-};
-
-export type PreferredThemeMode =
-  | 'auto'
-  | 'dark'
-  | 'light';
-
-export type PreferredWidgetVariant =
-  | 'skyorb_mini'
-  | 'skypanel'
-  | 'field_command'
-  | 'cinematic_bar'
-  | 'skyorb_2x2'
-  | 'skyorb_4x2'
-  | 'skyorb_4x4';
-
-export type AlertSensitivityMode =
-  | 'low'
-  | 'normal'
-  | 'high';
-
-export interface PreferredLocationSnapshot {
-  id: string;
-  name: string;
-  region?: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
-  source: 'manual' | 'gps' | 'demo';
-  savedAt: string;
-}
-
-export interface OrbiClimaUserPreferences {
-  version: string;
-  preferredProfile: WeatherProfile;
-  preferredThemeMode: PreferredThemeMode;
-  preferredWidgetVariant: PreferredWidgetVariant;
-  alertSensitivity: AlertSensitivityMode;
-  preferredLocation?: PreferredLocationSnapshot;
-  favoriteAlertCategories: SmartAlertCategory[];
-  morningSummaryEnabled: boolean;
-  fieldSummaryEnabled: boolean;
-  quietHoursEnabled: boolean;
-  lastUpdated: string;
-}
-
-export interface WeatherMemoryLocationUse {
-  id: string;
-  name: string;
-  region?: string;
-  country: string;
-  source: 'manual' | 'gps_confirmed' | 'demo';
-  useCount: number;
-  lastUsedAt: string;
-}
-
-export interface WeatherMemoryProfileUse {
-  profile: WeatherProfile;
-  useCount: number;
-  lastUsedAt: string;
-}
-
-export interface WeatherMemoryWidgetUse {
-  variant: PreferredWidgetVariant;
-  useCount: number;
-  lastUsedAt: string;
-}
-
-export interface WeatherMemoryInsight {
-  id: string;
-  title: string;
-  message: string;
-  type: 'location' | 'profile' | 'widget' | 'alert' | 'scheduler';
-  createdAt: string;
-}
-
-export interface OrbiWeatherMemory {
-  version: string;
-  locations: WeatherMemoryLocationUse[];
-  profileUses: WeatherMemoryProfileUse[];
-  widgetUses: WeatherMemoryWidgetUse[];
-  insights: WeatherMemoryInsight[];
-  lastUpdated: string;
-}
-
-export interface SavedWeatherLocation {
-  id: string;
-  name: string;
-  label: string; // editable custom name
-  type: 'home' | 'work' | 'solar_park' | 'custom';
-  latitude: number;
-  longitude: number;
-  region: string;
-  country: string;
-  createdAt: string;
-  updatedAt: string;
-  lastUsedAt: string;
-  source: 'gps' | 'manual' | 'imported';
-  isFavorite?: boolean;
-}
