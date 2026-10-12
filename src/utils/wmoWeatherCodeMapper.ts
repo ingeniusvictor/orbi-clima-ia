@@ -56,9 +56,10 @@ export function mapWmoCodeToOrbiCondition(code?: number, isDay?: boolean, precip
     case 2:
       return 'partly_cloudy';
     case 3:
+      return 'cloudy';
     case 45:
     case 48:
-      return 'cloudy';
+      return 'fog';
     case 51:
     case 53:
     case 55:
