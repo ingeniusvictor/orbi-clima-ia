@@ -35,22 +35,25 @@ export interface OrbiWidgetContract {
   nextHour3Label: string;
   nextHour3Temp: number;
 
-  // OC-22Q orbital forecast satellites.
-  forecastDay1Label: string;
-  forecastDay1MinC: number;
-  forecastDay1MaxC: number;
-  forecastDay1ConditionCode: string;
-  forecastDay1ConditionLabel: string;
-  forecastDay2Label: string;
-  forecastDay2MinC: number;
-  forecastDay2MaxC: number;
-  forecastDay2ConditionCode: string;
-  forecastDay2ConditionLabel: string;
-  forecastDay3Label: string;
-  forecastDay3MinC: number;
-  forecastDay3MaxC: number;
-  forecastDay3ConditionCode: string;
-  forecastDay3ConditionLabel: string;
+  // OC-22Q orbital forecast satellites. Optional at the TypeScript boundary so
+  // pre-V4 contracts already persisted on devices remain readable. The LIVE
+  // builder always emits these fields and syncAndroidWidgetContract normalizes
+  // legacy/demo contracts before they cross the Android bridge.
+  forecastDay1Label?: string;
+  forecastDay1MinC?: number;
+  forecastDay1MaxC?: number;
+  forecastDay1ConditionCode?: string;
+  forecastDay1ConditionLabel?: string;
+  forecastDay2Label?: string;
+  forecastDay2MinC?: number;
+  forecastDay2MaxC?: number;
+  forecastDay2ConditionCode?: string;
+  forecastDay2ConditionLabel?: string;
+  forecastDay3Label?: string;
+  forecastDay3MinC?: number;
+  forecastDay3MaxC?: number;
+  forecastDay3ConditionCode?: string;
+  forecastDay3ConditionLabel?: string;
 
   visualVariantHint: string;
 
@@ -86,6 +89,30 @@ function formatDayLabel(dateValue: string | undefined, index: number, fallback: 
   } catch {
     return fallback.toUpperCase();
   }
+}
+
+function normalizeOrbitalForecastFields(contract: OrbiWidgetContract): OrbiWidgetContract {
+  const fallbackConditionCode = contract.conditionCode || 'cloudy';
+  const fallbackConditionLabel = contract.conditionLabel || 'Estable';
+  return {
+    ...contract,
+    version: contract.version === '1.1.0' ? '1.3.0' : contract.version,
+    forecastDay1Label: contract.forecastDay1Label ?? 'HOY',
+    forecastDay1MinC: contract.forecastDay1MinC ?? contract.temperatureC,
+    forecastDay1MaxC: contract.forecastDay1MaxC ?? contract.temperatureC,
+    forecastDay1ConditionCode: contract.forecastDay1ConditionCode ?? fallbackConditionCode,
+    forecastDay1ConditionLabel: contract.forecastDay1ConditionLabel ?? fallbackConditionLabel,
+    forecastDay2Label: contract.forecastDay2Label ?? contract.nextHour2Label ?? '+2H',
+    forecastDay2MinC: contract.forecastDay2MinC ?? contract.nextHour2Temp ?? contract.temperatureC,
+    forecastDay2MaxC: contract.forecastDay2MaxC ?? contract.nextHour2Temp ?? contract.temperatureC,
+    forecastDay2ConditionCode: contract.forecastDay2ConditionCode ?? fallbackConditionCode,
+    forecastDay2ConditionLabel: contract.forecastDay2ConditionLabel ?? fallbackConditionLabel,
+    forecastDay3Label: contract.forecastDay3Label ?? contract.nextHour3Label ?? '+3H',
+    forecastDay3MinC: contract.forecastDay3MinC ?? contract.nextHour3Temp ?? contract.temperatureC,
+    forecastDay3MaxC: contract.forecastDay3MaxC ?? contract.nextHour3Temp ?? contract.temperatureC,
+    forecastDay3ConditionCode: contract.forecastDay3ConditionCode ?? fallbackConditionCode,
+    forecastDay3ConditionLabel: contract.forecastDay3ConditionLabel ?? fallbackConditionLabel,
+  };
 }
 
 export function buildAndroidWidgetContract(params: {
@@ -253,7 +280,7 @@ export function getWidgetSyncStatus(): WidgetSyncStatus {
 
   if (syncedContractStr) {
     try {
-      contract = JSON.parse(syncedContractStr);
+      contract = normalizeOrbitalForecastFields(JSON.parse(syncedContractStr));
     } catch (e) {
       console.error(e);
     }
@@ -270,21 +297,22 @@ export function getWidgetSyncStatus(): WidgetSyncStatus {
 }
 
 export async function syncAndroidWidgetContract(contract: OrbiWidgetContract) {
+  const normalizedContract = normalizeOrbitalForecastFields(contract);
   const timeStr = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   localStorage.setItem(LAST_SYNC_KEY, timeStr);
-  localStorage.setItem(SYNCED_CONTRACT_KEY, JSON.stringify(contract));
+  localStorage.setItem(SYNCED_CONTRACT_KEY, JSON.stringify(normalizedContract));
 
   try {
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor !== undefined;
     if (!isCapacitor) {
-      console.log('[ORBI Widget Sync] Web simulation successful', contract);
+      console.log('[ORBI Widget Sync] Web simulation successful', normalizedContract);
       return;
     }
 
     const bridge = (window as any).Capacitor?.Plugins?.OrbiWidgetBridge;
     if (bridge && typeof bridge.saveWidgetContract === 'function') {
       await bridge.saveWidgetContract({
-        contractJson: JSON.stringify(contract),
+        contractJson: JSON.stringify(normalizedContract),
       });
       console.log('[ORBI Widget Sync] Synced with Android via Capacitor Plugin');
     } else {
