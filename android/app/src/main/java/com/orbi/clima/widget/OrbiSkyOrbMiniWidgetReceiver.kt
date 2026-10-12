@@ -1,21 +1,13 @@
 package com.orbi.clima.widget
 
-import android.content.Context
-import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.provideContent
 
 class OrbiSkyOrbMiniWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = OrbiSkyOrbMiniWidget()
 }
 
-class OrbiSkyOrbMiniWidget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val state = OrbiWidgetStateReader.read(context)
-        val snapshot = OrbiNativeWidgetSnapshotRendererV2.renderMini(context, state)
-        provideContent {
-            OrbiNativeWidgetSnapshotHost(snapshot, "ORBI SkyOrb Mini")
-        }
-    }
-}
+class OrbiSkyOrbMiniWidget : OrbiExactNativeWidget(
+    description = "ORBI SkyOrb Mini",
+    fixedVariant = OrbiNativeWidgetSnapshotRendererV2.Variant.MINI,
+)
