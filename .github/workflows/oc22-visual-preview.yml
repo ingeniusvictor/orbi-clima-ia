@@ -23,11 +23,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      ORBI_ANDROID_KEYSTORE_B64: ${{ secrets.ORBI_ANDROID_KEYSTORE_B64 }}
-      ORBI_KEYSTORE_PASSWORD: ${{ secrets.ORBI_ANDROID_KEYSTORE_PASSWORD }}
-      ORBI_KEY_ALIAS: ${{ secrets.ORBI_ANDROID_KEY_ALIAS }}
-      ORBI_KEY_PASSWORD: ${{ secrets.ORBI_ANDROID_KEY_PASSWORD }}
-      ORBI_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-release.jks
+      # QA ONLY. This uses the public AOSP test identity, pinned below, so QA
+      # builds have a stable certificate without ever touching ORBI production
+      # signing material. Never use this identity for com.orbi.clima release.
+      ORBI_QA_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-qa-test.p12
+      ORBI_QA_STORE_PASSWORD: orbiqa
+      ORBI_QA_KEY_ALIAS: orbi-qa
+      ORBI_QA_KEY_PASSWORD: orbiqa
+      ORBI_QA_CERT_SHA256: a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,50 +87,78 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
-      - name: Restore persistent ORBI preview signing identity when configured
-        if: ${{ env.ORBI_ANDROID_KEYSTORE_B64 != '' }}
+      - name: Prepare fixed QA signing identity
         shell: bash
         run: |
-          test -n "$ORBI_KEYSTORE_PASSWORD"
-          test -n "$ORBI_KEY_ALIAS"
-          test -n "$ORBI_KEY_PASSWORD"
-          printf '%s' "$ORBI_ANDROID_KEYSTORE_B64" | base64 --decode > "$ORBI_KEYSTORE_PATH"
-          chmod 600 "$ORBI_KEYSTORE_PATH"
-          test -s "$ORBI_KEYSTORE_PATH"
+          set -euo pipefail
+          QA_KEY_PK8="$RUNNER_TEMP/orbi-qa-testkey.pk8"
+          QA_CERT_PEM="$RUNNER_TEMP/orbi-qa-testkey.x509.pem"
+          QA_KEY_PEM="$RUNNER_TEMP/orbi-qa-testkey.pem"
 
-      - name: Declare preview scope
+          # Public AOSP development test key, pinned to a fixed platform/build commit.
+          # It is deliberately non-secret and is used ONLY for the isolated QA package.
+          curl -fsSL 'https://android.googlesource.com/platform/build/+/31f843f/target/product/security/testkey.pk8?format=TEXT' \
+            | base64 --decode > "$QA_KEY_PK8"
+          curl -fsSL 'https://android.googlesource.com/platform/build/+/31f843f/target/product/security/testkey.x509.pem?format=TEXT' \
+            | base64 --decode > "$QA_CERT_PEM"
+
+          test -s "$QA_KEY_PK8"
+          test -s "$QA_CERT_PEM"
+
+          ACTUAL_CERT_SHA256="$(openssl x509 -in "$QA_CERT_PEM" -outform DER | sha256sum | awk '{print $1}')"
+          echo "QA_CERT_SHA256=$ACTUAL_CERT_SHA256"
+          test "$ACTUAL_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
+
+          openssl pkcs8 -inform DER -nocrypt -in "$QA_KEY_PK8" -out "$QA_KEY_PEM"
+          openssl pkcs12 -export \
+            -inkey "$QA_KEY_PEM" \
+            -in "$QA_CERT_PEM" \
+            -name "$ORBI_QA_KEY_ALIAS" \
+            -out "$ORBI_QA_KEYSTORE_PATH" \
+            -passout pass:"$ORBI_QA_STORE_PASSWORD"
+
+          chmod 600 "$ORBI_QA_KEYSTORE_PATH"
+          test -s "$ORBI_QA_KEYSTORE_PATH"
+
+      - name: Declare persistent QA update channel
         shell: bash
         run: |
+          set -euo pipefail
           echo "VISUAL QA ONLY"
-          echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
-          echo "QA_PACKAGE=com.orbi.clima.oc22qa10627"
-          if [ -n "$ORBI_ANDROID_KEYSTORE_B64" ]; then
-            echo "SIGNING_MODE=PERSISTENT_ORBI"
-          else
-            echo "SIGNING_MODE=EPHEMERAL_DEBUG"
-            echo "Package is version-isolated, so this APK can install beside older QA previews even when runner signatures differ."
-          fi
-          echo "Do not promote this artifact to stable/release."
-          grep -n "versionCode 10627" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-PHENOMENON-FIDELITY-QA10627"' android/app/build.gradle
-          grep -n 'applicationIdSuffix ".oc22qa10627"' android/app/build.gradle
+          echo "QA_PACKAGE=com.orbi.clima.oc22qa"
+          echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
+          echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
+          echo "10628 is the one-time migration baseline; 10629+ must update in place."
+          echo "This QA identity must never sign the production package com.orbi.clima."
+          grep -n "versionCode 10628" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-PERSISTENT-QA10628"' android/app/build.gradle
+          grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
 
-      - name: Compile isolated OC-22 visual preview
+      - name: Compile persistent OC-22 QA preview
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
 
-      - name: Verify preview APK signature
+      - name: Verify QA package and signing identity
         shell: bash
         run: |
+          set -euo pipefail
           APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
           test -n "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
 
-      - name: Upload 10627 isolated Weather Phenomenon Fidelity visual QA APK
+          BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
+          echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
+          echo "$BADGING" | grep -F "versionCode='10628'"
+
+          SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
+          echo "$SIGNATURE_OUTPUT"
+          APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
+          test "$APK_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
+
+      - name: Upload 10628 persistent QA update-channel APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-phenomenon-fidelity-isolated-qa-10627
+          name: orbi-clima-oc22-persistent-update-channel-qa-10628
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
