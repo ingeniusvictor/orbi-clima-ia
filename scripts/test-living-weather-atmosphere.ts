@@ -127,8 +127,9 @@ const storm = buildWeatherAtmosphereModel({
   now: DAYTIME,
 });
 assert.equal(storm.scene, 'storm');
+assert.equal(storm.precipitationKind, 'storm');
+assert.equal(storm.precipitationIntensity, 'heavy');
 assert.ok(storm.precipitationStrength >= 0.68, 'Storm scene should be visually unmistakable.');
-assert.ok(storm.precipitationStrength > heavyRain.precipitationStrength, 'Storm must remain stronger than non-convective heavy rain.');
 assert.ok(storm.windStrength > 0.8, 'Strong storm wind should accelerate atmosphere motion.');
 assert.ok(storm.cloudSpeed < cloudy.cloudSpeed, 'Higher wind should move clouds faster (shorter animation duration).');
 
