@@ -343,8 +343,13 @@ export function applyCurrentWeatherTruth(
     if (observedState === 'wet') {
       resolvedCode = observedWeatherCode(context.dmc);
       current.weather_code = resolvedCode;
-      current.precipitation = Math.max(originalPrecipitationMm, context.dmc.precipitationRecentMm ?? 0.1);
-      current.rain = Math.max(finiteOrNull(current.rain) ?? 0, context.dmc.precipitationRecentMm ?? 0.1);
+      // Present-weather observations are authoritative for "now". The recent
+      // accumulation counter may still be zero before its next reporting tick,
+      // so preserve a small non-zero trace to keep current precipitation and FX
+      // consistent with the explicitly observed phenomenon.
+      const observedTraceMm = Math.max(context.dmc.precipitationRecentMm ?? 0, 0.1);
+      current.precipitation = Math.max(originalPrecipitationMm, observedTraceMm);
+      current.rain = Math.max(finiteOrNull(current.rain) ?? 0, observedTraceMm);
       band = 'observed';
       label = 'Precipitación actual observada por DMC';
       detail = `${context.dmc.stationName} · ${context.dmc.distanceKm.toFixed(1)} km · ${context.dmc.ageMinutes} min de antigüedad.`;
