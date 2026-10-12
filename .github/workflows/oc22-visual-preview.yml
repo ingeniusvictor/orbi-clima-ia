@@ -85,18 +85,18 @@ jobs:
           echo "VISUAL QA ONLY"
           echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
           echo "Do not promote this artifact to stable/release."
-          grep -n "versionCode 10623" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-WIDGET-PARITY-V2"' android/app/build.gradle
+          grep -n "versionCode 10624" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-ADAPTIVE-WIDGETS"' android/app/build.gradle
 
       - name: Compile side-by-side OC-22 visual preview
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
 
-      - name: Upload 10623 widget parity visual QA APK
+      - name: Upload 10624 adaptive widget visual QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-widget-parity-v2-visual-preview-10623
+          name: orbi-clima-oc22-adaptive-widgets-visual-preview-10624
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 7
