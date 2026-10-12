@@ -23,9 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # QA ONLY. This uses the public AOSP test identity, pinned below, so QA
-      # builds have a stable certificate without ever touching ORBI production
-      # signing material. Never use this identity for com.orbi.clima release.
       ORBI_QA_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-qa-test.p12
       ORBI_QA_STORE_PASSWORD: orbiqa
       ORBI_QA_KEY_ALIAS: orbi-qa
@@ -82,9 +79,6 @@ jobs:
       - name: Premium Widget Snapshot gate
         run: npm run android:verify-premium-widget
 
-      # Compile native widget sources before the Zen packaging gate. This does
-      # not bypass audio integrity: it simply makes Kotlin regressions visible
-      # independently, while the final APK remains blocked by the strict Zen gate.
       - name: Compile native widget Kotlin source gate
         working-directory: android
         shell: bash
@@ -96,8 +90,39 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
+      - name: Build non-installable 10631 native recovery payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd android
+            gradle --no-daemon --stacktrace :app:assembleOc21Preview
+          )
+          APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          rm -rf "$RUNNER_TEMP/orbi-10631-payload"
+          mkdir -p "$RUNNER_TEMP/orbi-10631-payload"
+          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10631-payload"
+          rm -rf "$RUNNER_TEMP/orbi-10631-payload/assets/public/audio"
+          rm -rf "$RUNNER_TEMP/orbi-10631-payload/META-INF"
+          (
+            cd "$RUNNER_TEMP/orbi-10631-payload"
+            zip -qr "$GITHUB_WORKSPACE/orbi-10631-widget-v3-non-audio-payload.zip" .
+          )
+          test -s "$GITHUB_WORKSPACE/orbi-10631-widget-v3-non-audio-payload.zip"
+
       - name: Verify bundled Zen audio integrity after Capacitor copy
+        id: zen_integrity
         run: npm run android:verify-audio-assets
+
+      - name: Archive non-audio recovery payload after Zen result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-oc22-widget-fluid-v3-native-payload-10631
+          path: orbi-10631-widget-v3-non-audio-payload.zip
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Prepare fixed QA signing identity
         shell: bash
@@ -107,8 +132,6 @@ jobs:
           QA_CERT_PEM="$RUNNER_TEMP/orbi-qa-testkey.x509.pem"
           QA_KEY_PEM="$RUNNER_TEMP/orbi-qa-testkey.pem"
 
-          # Public AOSP development test key, pinned to a fixed platform/build commit.
-          # It is deliberately non-secret and is used ONLY for the isolated QA package.
           curl -fsSL 'https://android.googlesource.com/platform/build/+/31f843f/target/product/security/testkey.pk8?format=TEXT' \
             | base64 --decode > "$QA_KEY_PK8"
           curl -fsSL 'https://android.googlesource.com/platform/build/+/31f843f/target/product/security/testkey.x509.pem?format=TEXT' \
@@ -116,7 +139,6 @@ jobs:
 
           test -s "$QA_KEY_PK8"
           test -s "$QA_CERT_PEM"
-
           ACTUAL_CERT_SHA256="$(openssl x509 -in "$QA_CERT_PEM" -outform DER | sha256sum | awk '{print $1}')"
           echo "QA_CERT_SHA256=$ACTUAL_CERT_SHA256"
           test "$ACTUAL_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
@@ -128,7 +150,6 @@ jobs:
             -name "$ORBI_QA_KEY_ALIAS" \
             -out "$ORBI_QA_KEYSTORE_PATH" \
             -passout pass:"$ORBI_QA_STORE_PASSWORD"
-
           chmod 600 "$ORBI_QA_KEYSTORE_PATH"
           test -s "$ORBI_QA_KEYSTORE_PATH"
 
@@ -157,16 +178,13 @@ jobs:
           set -euo pipefail
           APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
           test -n "$APK"
-
           BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
           echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
           echo "$BADGING" | grep -F "versionCode='10631'"
-
           SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
           echo "$SIGNATURE_OUTPUT"
           APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
           test "$APK_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
-
           for AUDIO in orbi-zen-ambient.mp3 orbi-zen-loop-v1.mp3; do
             ACTUAL_ZEN_SHA256="$(unzip -p "$APK" "assets/public/audio/$AUDIO" | sha256sum | awk '{print $1}')"
             test "$ACTUAL_ZEN_SHA256" = "$ORBI_ZEN_SHA256"
