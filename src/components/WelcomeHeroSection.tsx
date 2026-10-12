@@ -235,6 +235,7 @@ export default function WelcomeHeroSection({
           condition={conditionCode}
           temperature={temperature}
           feelsLike={feelsLike}
+          conditionLabel={conditionText}
           isLoading={isLoading}
         />
       </div>
@@ -296,17 +297,19 @@ export default function WelcomeHeroSection({
                 </span>
               </div>
               <div className="bg-white/[0.01] p-1.5 rounded-lg border border-white/[0.03]">
-                <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Inestabilidad</span>
+                <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Fenómeno actual</span>
                 <span className="font-bold text-slate-200 block">
-                  {currentWeather && currentWeather.precipitationMm > 0 ? `Precipitación Activa (${currentWeather.precipitationMm} mm)` : 'Estable sin lluvia'}
+                  {currentWeather && currentWeather.precipitationMm > 0
+                    ? `${conditionText} (${currentWeather.precipitationMm} mm)`
+                    : conditionText}
                 </span>
               </div>
             </div>
 
             {/* Microclima localized fallback warning (REQUISITO 3) */}
-            {currentWeather && currentWeather.precipitationMm === 0 && (conditionCode === 'rain' || conditionCode === 'storm' || conditionText.toLowerCase().includes('lluvia') || conditionText.toLowerCase().includes('chubasco')) && (
+            {currentWeather && currentWeather.precipitationMm === 0 && (conditionCode === 'rain' || conditionCode === 'snow' || conditionCode === 'storm' || /lluvia|llovizna|chubasco|nieve|nevada|granizo/i.test(conditionText)) && (
               <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 font-sans text-[9px] leading-normal">
-                ⚠️ <strong>Condición variable:</strong> El modelo detecta nubosidad propensa a precipitaciones en el cuadrante de {location.name}, pero el clima real instantáneo puede diferir por microclima local o viento en altura.
+                ⚠️ <strong>Condición variable:</strong> El modelo detecta precipitación potencial en el cuadrante de {location.name}, pero el fenómeno instantáneo puede diferir por microclima local o viento en altura.
               </div>
             )}
           </div>
