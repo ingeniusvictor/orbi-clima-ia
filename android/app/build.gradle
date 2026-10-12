@@ -24,8 +24,8 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10626
-        versionName "1.0.6-OC22-WEATHER-TRUTH-HARDENING-QA10626"
+        versionCode 10627
+        versionName "1.0.6-OC22-PHENOMENON-FIDELITY-QA10627"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
@@ -57,11 +57,11 @@ android {
             // because a previous GitHub runner used a different ephemeral debug key.
             // This package is intentionally isolated from both stable ORBI Clima IA and
             // earlier OC-22 preview installs.
-            applicationIdSuffix ".oc22qa10626"
+            applicationIdSuffix ".oc22qa10627"
             versionNameSuffix "-preview"
             debuggable true
             matchingFallbacks = ['debug']
-            manifestPlaceholders = [appLabel: "ORBI Clima IA QA 10626"]
+            manifestPlaceholders = [appLabel: "ORBI Clima IA QA 10627"]
             // Once persistent signing is configured, preview builds can return to a
             // stable package and update in place across milestones.
             if (hasOrbiReleaseSigning) {
