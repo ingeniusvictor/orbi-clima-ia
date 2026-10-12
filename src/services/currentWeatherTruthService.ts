@@ -1,4 +1,5 @@
 import { OpenMeteoRawResponse, WeatherLocation } from '../types/weatherTypes';
+import { getWmoHumanLabel } from '../utils/wmoWeatherCodeMapper';
 import {
   DmcObservationSnapshot,
   fetchNearestDmcObservation,
@@ -209,22 +210,61 @@ function observedPrecipitationState(observation: DmcObservationSnapshot | null):
   if (/sin\s+precipit|despejado|nublado|cubierto|niebla|neblina|bruma/i.test(label)) return 'dry';
 
   if (observation.precipitationRecentMm !== null) {
-    // DMC recent precipitation is an accumulation/history signal. A positive
-    // accumulation means it rained recently, not necessarily that it is
-    // raining at the user's GPS right now.
     return observation.precipitationRecentMm > RECENT_PRECIP_TRACE_MM ? 'recent' : 'dry';
   }
 
   return 'unknown';
 }
 
+function hasStrongIntensity(label: string): boolean {
+  return /intens|fuerte|torrencial|sever|violent/i.test(label);
+}
+
+function hasModerateIntensity(label: string): boolean {
+  return /moderad/i.test(label);
+}
+
 function observedWeatherCode(observation: DmcObservationSnapshot): number {
   const label = (observation.presentWeatherLabel ?? '').toLowerCase();
-  if (label.includes('tormenta')) return 95;
-  if (label.includes('chubasco')) return 80;
-  if (label.includes('llovizna')) return 51;
-  if (label.includes('lluvia')) return 61;
-  if (label.includes('nieve')) return 71;
+
+  if (label.includes('tormenta')) {
+    if (/granizo.*(?:fuerte|intens)|(?:fuerte|intens).*granizo/.test(label)) return 99;
+    if (label.includes('granizo')) return 96;
+    return 95;
+  }
+
+  if (label.includes('chubasco') && label.includes('nieve')) {
+    return hasStrongIntensity(label) ? 86 : 85;
+  }
+  if (label.includes('chubasco')) {
+    if (hasStrongIntensity(label)) return 82;
+    if (hasModerateIntensity(label)) return 81;
+    return 80;
+  }
+
+  if (label.includes('llovizna')) {
+    const freezing = /g[eé]lida|engelante|congelante/.test(label);
+    if (freezing) return hasStrongIntensity(label) ? 57 : 56;
+    if (hasStrongIntensity(label) || /densa/.test(label)) return 55;
+    if (hasModerateIntensity(label)) return 53;
+    return 51;
+  }
+
+  if (label.includes('lluvia')) {
+    const freezing = /g[eé]lida|engelante|congelante/.test(label);
+    if (freezing) return hasStrongIntensity(label) ? 67 : 66;
+    if (hasStrongIntensity(label)) return 65;
+    if (hasModerateIntensity(label)) return 63;
+    return 61;
+  }
+
+  if (label.includes('nieve')) {
+    if (label.includes('grano')) return 77;
+    if (hasStrongIntensity(label)) return 75;
+    if (hasModerateIntensity(label)) return 73;
+    return 71;
+  }
+
   if (label.includes('niebla') || label.includes('neblina')) return 45;
   const cloud = observation.cloudCoverPct;
   if (cloud !== null) {
@@ -244,19 +284,7 @@ function dryCodeFromCloudCover(current: Record<string, any>): number {
 }
 
 function humanLabelForCode(code: number): string {
-  const labels: Record<number, string> = {
-    0: 'Despejado',
-    1: 'Mayormente despejado',
-    2: 'Parcialmente nublado',
-    3: 'Nublado',
-    45: 'Niebla',
-    51: 'Llovizna observada',
-    61: 'Lluvia observada',
-    71: 'Nieve observada',
-    80: 'Chubasco observado',
-    95: 'Tormenta observada',
-  };
-  return labels[code] ?? (isWetCode(code) ? 'Precipitación modelada' : 'Condición modelada');
+  return getWmoHumanLabel(code);
 }
 
 function stationCanControlCurrent(observation: DmcObservationSnapshot | null): boolean {
@@ -276,8 +304,6 @@ function stationCanControlLocalPrecipitation(observation: DmcObservationSnapshot
 function applyObservedNonTemperatureFields(current: Record<string, any>, observation: DmcObservationSnapshot): void {
   if (observation.distanceKm > STRONG_STATION_RADIUS_KM || observation.ageMinutes > OBSERVATION_MAX_AGE_MINUTES) return;
 
-  // Pressure remains a useful regional observation anchor. Wind, visibility,
-  // humidity and cloud cover are more micro-local and retain the tighter radius.
   if (observation.pressureHpa !== null) current.pressure_msl = observation.pressureHpa;
   if (observation.distanceKm <= LOCAL_OBSERVATION_RADIUS_KM) {
     if (observation.humidityPct !== null) current.relative_humidity_2m = observation.humidityPct;
@@ -343,10 +369,6 @@ export function applyCurrentWeatherTruth(
     if (observedState === 'wet') {
       resolvedCode = observedWeatherCode(context.dmc);
       current.weather_code = resolvedCode;
-      // Present-weather observations are authoritative for "now". The recent
-      // accumulation counter may still be zero before its next reporting tick,
-      // so preserve a small non-zero trace to keep current precipitation and FX
-      // consistent with the explicitly observed phenomenon.
       const observedTraceMm = Math.max(context.dmc.precipitationRecentMm ?? 0, 0.1);
       current.precipitation = Math.max(originalPrecipitationMm, observedTraceMm);
       current.rain = Math.max(finiteOrNull(current.rain) ?? 0, observedTraceMm);
@@ -358,9 +380,6 @@ export function applyCurrentWeatherTruth(
       precipitationEvidence = observedState === 'dry' ? 'observed_dry' : 'recent_only';
 
       if (modelWet) {
-        // A local fresh station that does not report current precipitation must
-        // prevent a model-only wet code from becoming the strong "Lluvia Activa"
-        // presentation. Positive recent accumulation is history, not proof of now.
         resolvedCode = localDryCode(current, context.dmc);
         current.weather_code = resolvedCode;
         clearCurrentPrecipitation(current);
