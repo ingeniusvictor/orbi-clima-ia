@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Cloud, CloudRain, Snowflake, Sun, Wind, Zap } from 'lucide-react';
+import { Cloud, CloudRain, Eye, Snowflake, Sun, Wind, Zap } from 'lucide-react';
 import type { CurrentWeather, HourlyForecast, WeatherCondition } from '../types/weatherTypes';
 
 type NativeVariant = 'mini' | 'panel' | 'command' | 'field' | 'cinematic';
@@ -29,6 +29,7 @@ function accent(condition: WeatherCondition) {
     case 'storm': return { text: 'text-violet-300', border: 'border-violet-400/35', glow: 'rgba(139,92,246,.28)', a: '#a78bfa', b: '#2e1065' };
     case 'snow':
     case 'cold': return { text: 'text-sky-200', border: 'border-sky-200/35', glow: 'rgba(186,230,253,.30)', a: '#e0f2fe', b: '#075985' };
+    case 'fog': return { text: 'text-zinc-200', border: 'border-zinc-300/30', glow: 'rgba(212,212,216,.22)', a: '#e4e4e7', b: '#475569' };
     case 'wind': return { text: 'text-cyan-300', border: 'border-cyan-300/35', glow: 'rgba(34,211,238,.25)', a: '#67e8f9', b: '#134e4a' };
     case 'cloudy':
     case 'partly_cloudy': return { text: 'text-slate-200', border: 'border-slate-300/25', glow: 'rgba(148,163,184,.22)', a: '#cbd5e1', b: '#334155' };
@@ -36,12 +37,16 @@ function accent(condition: WeatherCondition) {
   }
 }
 
-function conditionLabel(condition: WeatherCondition) {
+function fallbackConditionLabel(condition: WeatherCondition) {
   const map: Record<WeatherCondition, string> = {
-    sunny: 'Soleado', partly_cloudy: 'Parcial', cloudy: 'Nublado', rain: 'Lluvia', snow: 'Nevado',
+    sunny: 'Soleado', partly_cloudy: 'Parcial', cloudy: 'Nublado', fog: 'Niebla', rain: 'Lluvia', snow: 'Nevado',
     storm: 'Tormenta', wind: 'Ventoso', cold: 'Frío', hot: 'Caluroso', night: 'Despejado',
   };
   return map[condition] ?? 'Estable';
+}
+
+function conditionLabel(current: CurrentWeather) {
+  return current.conditionLabel?.trim() || fallbackConditionLabel(current.condition);
 }
 
 function ConditionIcon({ condition, className = 'w-8 h-8' }: { condition: WeatherCondition; className?: string }) {
@@ -49,6 +54,7 @@ function ConditionIcon({ condition, className = 'w-8 h-8' }: { condition: Weathe
   if (condition === 'snow' || condition === 'cold') return <Snowflake className={className} />;
   if (condition === 'storm') return <Zap className={className} />;
   if (condition === 'wind') return <Wind className={className} />;
+  if (condition === 'fog') return <Eye className={className} />;
   if (condition === 'cloudy' || condition === 'partly_cloudy') return <Cloud className={className} />;
   return <Sun className={className} />;
 }
@@ -114,6 +120,7 @@ export default function NativeWidgetParityPreview({
   const tone = accent(current.condition);
   const next = useMemo(() => hourly.slice(0, 3), [hourly]);
   const rainProbability = next[0]?.precipitationProbability ?? 0;
+  const exactLabel = conditionLabel(current);
 
   const header = (
     <div className="flex items-center justify-between gap-3">
@@ -133,7 +140,7 @@ export default function NativeWidgetParityPreview({
           <div className="h-[calc(100%-28px)] flex flex-col items-center justify-center -mt-1">
             <NativeOrb current={current} size={104} />
             <div className="text-[36px] leading-none font-black text-white mt-1">{current.temperatureC}°</div>
-            <div className={`text-[9px] font-black uppercase tracking-[.12em] mt-2 ${tone.text}`}>{conditionLabel(current.condition)}</div>
+            <div className={`text-[9px] font-black uppercase tracking-[.12em] mt-2 ${tone.text}`}>{exactLabel}</div>
             <div className="text-[10px] font-bold text-slate-300 mt-1">{locationName}</div>
           </div>
         </Frame>
@@ -148,7 +155,7 @@ export default function NativeWidgetParityPreview({
             <NativeOrb current={current} size={100} />
             <div className="min-w-0">
               <div className="text-[34px] leading-none font-black text-white">{current.temperatureC}°</div>
-              <div className={`text-[10px] font-black mt-2 ${tone.text}`}>{conditionLabel(current.condition)}</div>
+              <div className={`text-[10px] font-black mt-2 ${tone.text}`}>{exactLabel}</div>
               <div className="text-[10px] text-slate-300 font-bold mt-1 truncate">{locationName}</div>
               <div className="text-[8px] text-slate-500 mt-1">Sensación {current.feelsLikeC}°</div>
             </div>
@@ -177,7 +184,7 @@ export default function NativeWidgetParityPreview({
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <NativeOrb current={current} size={128} />
               <div className="text-[38px] leading-none font-black text-white -mt-1">{current.temperatureC}°</div>
-              <div className={`text-[9px] font-black mt-2 ${tone.text}`}>{conditionLabel(current.condition)}</div>
+              <div className={`text-[9px] font-black mt-2 ${tone.text}`}>{exactLabel}</div>
               <div className="text-[10px] text-slate-300 font-bold">{locationName}</div>
             </div>
           </div>
@@ -199,7 +206,7 @@ export default function NativeWidgetParityPreview({
             <div className="text-[18px] font-black text-white">{current.temperatureC}° / {current.feelsLikeC}°</div>
           </div>
           <div className="grid grid-cols-[112px_1fr] gap-3 mt-3">
-            <div className="flex flex-col items-center"><NativeOrb current={current} size={110} /><span className={`text-[9px] font-black ${tone.text}`}>{conditionLabel(current.condition)}</span></div>
+            <div className="flex flex-col items-center"><NativeOrb current={current} size={110} /><span className={`text-[9px] font-black ${tone.text}`}>{exactLabel}</span></div>
             <div className="grid grid-cols-2 gap-2"><Metric label="HUMEDAD" value={`${current.humidity}%`} /><Metric label="VIENTO" value={`${current.windSpeedKmh} km/h`} tone="text-violet-300" /><Metric label="UV" value={`${current.uvIndex}`} tone="text-amber-200" /><Metric label="LLUVIA" value={`${rainProbability}%`} tone="text-blue-300" /></div>
           </div>
           <div className="mt-3 rounded-2xl border border-amber-300/15 bg-slate-900/75 px-3 py-3">
@@ -215,7 +222,7 @@ export default function NativeWidgetParityPreview({
         {header}
         <div className="grid grid-cols-[116px_180px_1fr] gap-3 items-center h-[calc(100%-28px)]">
           <NativeOrb current={current} size={106} />
-          <div><div className="text-[34px] font-black leading-none text-white">{current.temperatureC}°</div><div className={`text-[9px] font-black mt-2 ${tone.text}`}>{conditionLabel(current.condition)}</div><div className="text-[10px] text-slate-300 mt-1 font-bold">{locationName}</div></div>
+          <div><div className="text-[34px] font-black leading-none text-white">{current.temperatureC}°</div><div className={`text-[9px] font-black mt-2 ${tone.text}`}>{exactLabel}</div><div className="text-[10px] text-slate-300 mt-1 font-bold">{locationName}</div></div>
           <div className="min-w-0"><div className="text-[8px] font-black tracking-[.16em] text-cyan-300">ORBI CINEMATIC</div><p className="text-[10px] leading-relaxed text-slate-100 font-semibold mt-2 line-clamp-2">{shortNarrative || 'Clima actual y ventana recomendada en una sola mirada.'}</p><div className="grid grid-cols-3 gap-1.5 mt-3">{next.map((h, i) => <div key={i} className="rounded-lg border border-white/[.06] bg-slate-900/70 px-2 py-1.5 text-center"><div className="text-[7px] text-slate-500">{h.time}</div><div className="text-[10px] text-white font-black">{h.temperatureC}°</div></div>)}</div><div className="text-[7px] text-slate-500 mt-2">Mejor ventana: {bestWindow || 'según evolución'}</div></div>
         </div>
       </Frame>
