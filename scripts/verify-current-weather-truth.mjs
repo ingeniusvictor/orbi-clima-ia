@@ -18,14 +18,20 @@ const forbidText = (source, text, label) => {
 requireText(truth, 'fetchNearestDmcObservation', 'official DMC observation input');
 requireText(truth, 'fetchTrueMultiModelConsensus', 'independent multi-model input');
 requireText(truth, "observation.quality === 'strong'", 'strong-station control guard');
-requireText(truth, 'observation.distanceKm <= 25', '25 km current-condition station guard');
-requireText(truth, 'observation.ageMinutes <= 90', '90 minute current-condition freshness guard');
+requireText(truth, 'const STRONG_STATION_RADIUS_KM = 25', '25 km strong-station guard');
+requireText(truth, 'const LOCAL_OBSERVATION_RADIUS_KM = 15', '15 km local-condition guard');
+requireText(truth, 'const OBSERVATION_MAX_AGE_MINUTES = 90', '90 minute current-condition freshness guard');
+requireText(truth, "type ObservedPrecipitationState = 'wet' | 'dry' | 'recent' | 'unknown'", 'recent-vs-current precipitation separation');
+requireText(truth, "precipitationEvidence = 'recent_only'", 'recent precipitation evidence metadata');
+requireText(truth, "precipitationEvidence = 'observed_now'", 'current observed precipitation evidence');
+requireText(truth, 'Positive recent accumulation is history', 'recent accumulation non-current guard');
 requireText(truth, "multi.consensus === 'dry'", 'dry consensus conflict handling');
 requireText(truth, "multi.consensus === 'wet'", 'wet consensus corroboration handling');
 requireText(truth, 'originalPrecipitationMm <= 0.5', 'weak modeled-rain downgrade ceiling');
 requireText(truth, "label = 'Precipitación modelada · sin corroboración suficiente'", 'model-only rain honesty label');
+requireText(truth, 'DMC_MODEL_TEMPERATURE_ALIGNMENT_C', 'DMC/model temperature coherence guard');
 requireText(truth, "temperatureStrategy = 'multi_model_median'", 'stable multi-model temperature fallback');
-requireText(truth, "temperatureStrategy = 'dmc_observed'", 'nearby DMC temperature strategy');
+requireText(truth, "temperatureStrategy = 'dmc_observed'", 'nearby coherent DMC temperature strategy');
 
 requireText(client, 'fetchCurrentWeatherTruthContext(location)', 'truth context fetch in primary client');
 requireText(client, 'applyCurrentWeatherTruth(data, truthContext)', 'truth application in primary client');
@@ -45,14 +51,14 @@ forbidText(protectedOrb, 'fetchNearestDmcObservation', 'DMC fetch inside Golden 
 forbidText(protectedOrb, 'fetchTrueMultiModelConsensus', 'multi-model fetch inside Golden Orb');
 
 if (failures.length) {
-  console.error('OC-19 Current Weather Truth gate: FAIL');
+  console.error('OC-22K Current Weather Truth gate: FAIL');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('OC-19 Current Weather Truth gate: PASS');
-console.log('- model current is explicitly distinguished from observation');
-console.log('- DMC can control current state only when nearby/fresh/strong');
-console.log('- weak modeled rain can be rejected by independent dry evidence');
-console.log('- current temperature provenance is explicit');
+console.log('OC-22K Current Weather Truth gate: PASS');
+console.log('- recent accumulation cannot masquerade as current rain');
+console.log('- DMC precipitation authority is restricted to the local 15 km radius');
+console.log('- DMC temperature must be local and coherent with tight multi-model evidence');
+console.log('- model-only rain remains conservatively downgradable');
 console.log('- Golden Orb remains outside meteorological arbitration');
