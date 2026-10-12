@@ -140,13 +140,13 @@ jobs:
           echo "QA_PACKAGE=com.orbi.clima.oc22qa"
           echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
           echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
-          echo "10629 must update in place over the installed 10628 baseline."
+          echo "10631 must update in place over the installed 10630 baseline."
           echo "This QA identity must never sign the production package com.orbi.clima."
-          grep -n "versionCode 10629" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-UPDATE-CHECK-QA10629"' android/app/build.gradle
+          grep -n "versionCode 10631" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-WIDGET-FLUID-V3-QA10631"' android/app/build.gradle
           grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
 
-      - name: Compile persistent OC-22 QA preview
+      - name: Compile persistent OC-22 Widget Fluid V3 QA preview
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
@@ -160,7 +160,7 @@ jobs:
 
           BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
           echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
-          echo "$BADGING" | grep -F "versionCode='10629'"
+          echo "$BADGING" | grep -F "versionCode='10631'"
 
           SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
           echo "$SIGNATURE_OUTPUT"
@@ -176,10 +176,10 @@ jobs:
             exit 1
           fi
 
-      - name: Upload 10629 persistent QA update-check APK
+      - name: Upload 10631 Widget Fluid V3 QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-persistent-update-check-qa-10629
+          name: orbi-clima-oc22-widget-fluid-v3-qa-10631
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 14
