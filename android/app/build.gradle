@@ -35,8 +35,8 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10632
-        versionName "1.0.6-OC22-WIDGET-PREVIEW-BRAND-QA10632"
+        versionCode 10633
+        versionName "1.0.6-OC22-SKYORB-COMMANDER-ORBITAL-V4-QA10633"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
