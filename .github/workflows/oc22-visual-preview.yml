@@ -128,10 +128,10 @@ jobs:
           echo "QA_PACKAGE=com.orbi.clima.oc22qa"
           echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
           echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
-          echo "10628 is the one-time migration baseline; 10629+ must update in place."
+          echo "10629 must update in place over the installed 10628 baseline."
           echo "This QA identity must never sign the production package com.orbi.clima."
-          grep -n "versionCode 10628" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-PERSISTENT-QA10628"' android/app/build.gradle
+          grep -n "versionCode 10629" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-UPDATE-CHECK-QA10629"' android/app/build.gradle
           grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
 
       - name: Compile persistent OC-22 QA preview
@@ -148,17 +148,17 @@ jobs:
 
           BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
           echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
-          echo "$BADGING" | grep -F "versionCode='10628'"
+          echo "$BADGING" | grep -F "versionCode='10629'"
 
           SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
           echo "$SIGNATURE_OUTPUT"
           APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
           test "$APK_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
 
-      - name: Upload 10628 persistent QA update-channel APK
+      - name: Upload 10629 persistent QA update-check APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-persistent-update-channel-qa-10628
+          name: orbi-clima-oc22-persistent-update-check-qa-10629
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 14
