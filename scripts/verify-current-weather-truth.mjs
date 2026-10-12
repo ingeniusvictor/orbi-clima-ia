@@ -25,6 +25,7 @@ requireText(truth, "type ObservedPrecipitationState = 'wet' | 'dry' | 'recent' |
 requireText(truth, "'recent_only'", 'recent precipitation evidence metadata');
 requireText(truth, "precipitationEvidence = 'observed_now'", 'current observed precipitation evidence');
 requireText(truth, 'Positive recent accumulation is history', 'recent accumulation non-current guard');
+requireText(truth, 'const observedTraceMm = Math.max', 'observed current-rain trace floor');
 requireText(truth, "multi.consensus === 'dry'", 'dry consensus conflict handling');
 requireText(truth, "multi.consensus === 'wet'", 'wet consensus corroboration handling');
 requireText(truth, 'originalPrecipitationMm <= 0.5', 'weak modeled-rain downgrade ceiling');
@@ -40,6 +41,7 @@ requireText(client, 'applyTruthToForecast(fallbackData, truthContextPromise)', '
 
 requireText(adapter, 'currentTruthBand:', 'truth band exposure');
 requireText(adapter, 'currentTruthLabel:', 'truth label exposure');
+requireText(adapter, 'precipitationEvidence:', 'precipitation evidence exposure');
 requireText(adapter, 'temperatureStrategy:', 'temperature provenance exposure');
 requireText(adapter, 'multiModelCurrentConsensus:', 'current consensus exposure');
 
@@ -59,6 +61,7 @@ if (failures.length) {
 console.log('OC-22K Current Weather Truth gate: PASS');
 console.log('- recent accumulation cannot masquerade as current rain');
 console.log('- DMC precipitation authority is restricted to the local 15 km radius');
+console.log('- explicit present rain always carries a non-zero trace');
 console.log('- DMC temperature must be local and coherent with tight multi-model evidence');
-console.log('- model-only rain remains conservatively downgradable');
+console.log('- precipitation provenance is exposed to diagnostics');
 console.log('- Golden Orb remains outside meteorological arbitration');
