@@ -82,6 +82,14 @@ jobs:
       - name: Premium Widget Snapshot gate
         run: npm run android:verify-premium-widget
 
+      # Compile native widget sources before the Zen packaging gate. This does
+      # not bypass audio integrity: it simply makes Kotlin regressions visible
+      # independently, while the final APK remains blocked by the strict Zen gate.
+      - name: Compile native widget Kotlin source gate
+        working-directory: android
+        shell: bash
+        run: gradle --no-daemon --stacktrace :app:compileOc21PreviewKotlin
+
       - name: Build current web bundle
         run: npm run build
 
