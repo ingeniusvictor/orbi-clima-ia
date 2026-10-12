@@ -85,13 +85,13 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
-      - name: Require persistent ORBI preview signing identity
+      - name: Restore persistent ORBI preview signing identity when configured
+        if: ${{ env.ORBI_ANDROID_KEYSTORE_B64 != '' }}
         shell: bash
         run: |
-          test -n "$ORBI_ANDROID_KEYSTORE_B64" || { echo "Missing ORBI Android keystore secret"; exit 1; }
-          test -n "$ORBI_KEYSTORE_PASSWORD" || { echo "Missing ORBI keystore password"; exit 1; }
-          test -n "$ORBI_KEY_ALIAS" || { echo "Missing ORBI key alias"; exit 1; }
-          test -n "$ORBI_KEY_PASSWORD" || { echo "Missing ORBI key password"; exit 1; }
+          test -n "$ORBI_KEYSTORE_PASSWORD"
+          test -n "$ORBI_KEY_ALIAS"
+          test -n "$ORBI_KEY_PASSWORD"
           printf '%s' "$ORBI_ANDROID_KEYSTORE_B64" | base64 --decode > "$ORBI_KEYSTORE_PATH"
           chmod 600 "$ORBI_KEYSTORE_PATH"
           test -s "$ORBI_KEYSTORE_PATH"
@@ -101,12 +101,17 @@ jobs:
         run: |
           echo "VISUAL QA ONLY"
           echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
-          echo "Preview package is persistently signed so future QA APKs can update in place."
+          if [ -n "$ORBI_ANDROID_KEYSTORE_B64" ]; then
+            echo "SIGNING_MODE=PERSISTENT_ORBI"
+          else
+            echo "SIGNING_MODE=EPHEMERAL_DEBUG"
+            echo "WARNING: Android cannot update a preview APK from another runner unless the previous preview is uninstalled first."
+          fi
           echo "Do not promote this artifact to stable/release."
           grep -n "versionCode 10624" android/app/build.gradle
           grep -n 'versionName "1.0.6-OC22-ADAPTIVE-WIDGETS"' android/app/build.gradle
 
-      - name: Compile persistent-signed side-by-side OC-22 visual preview
+      - name: Compile side-by-side OC-22 visual preview
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
@@ -118,10 +123,10 @@ jobs:
           test -n "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
 
-      - name: Upload 10624 persistent-signed adaptive widget visual QA APK
+      - name: Upload 10624 adaptive widget visual QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-adaptive-widgets-persistent-signed-10624
+          name: orbi-clima-oc22-adaptive-widgets-visual-preview-10624
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 7
