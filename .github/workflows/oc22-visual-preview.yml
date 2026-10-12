@@ -90,7 +90,7 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
-      - name: Build non-installable 10631 native recovery payload
+      - name: Build non-installable 10632 native recovery payload
         shell: bash
         run: |
           set -euo pipefail
@@ -100,16 +100,16 @@ jobs:
           )
           APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
           test -n "$APK"
-          rm -rf "$RUNNER_TEMP/orbi-10631-payload"
-          mkdir -p "$RUNNER_TEMP/orbi-10631-payload"
-          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10631-payload"
-          rm -rf "$RUNNER_TEMP/orbi-10631-payload/assets/public/audio"
-          rm -rf "$RUNNER_TEMP/orbi-10631-payload/META-INF"
+          rm -rf "$RUNNER_TEMP/orbi-10632-payload"
+          mkdir -p "$RUNNER_TEMP/orbi-10632-payload"
+          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10632-payload"
+          rm -rf "$RUNNER_TEMP/orbi-10632-payload/assets/public/audio"
+          rm -rf "$RUNNER_TEMP/orbi-10632-payload/META-INF"
           (
-            cd "$RUNNER_TEMP/orbi-10631-payload"
-            zip -qr "$GITHUB_WORKSPACE/orbi-10631-widget-v3-non-audio-payload.zip" .
+            cd "$RUNNER_TEMP/orbi-10632-payload"
+            zip -qr "$GITHUB_WORKSPACE/orbi-10632-widget-preview-brand-non-audio-payload.zip" .
           )
-          test -s "$GITHUB_WORKSPACE/orbi-10631-widget-v3-non-audio-payload.zip"
+          test -s "$GITHUB_WORKSPACE/orbi-10632-widget-preview-brand-non-audio-payload.zip"
 
       - name: Verify bundled Zen audio integrity after Capacitor copy
         id: zen_integrity
@@ -119,8 +119,8 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-widget-fluid-v3-native-payload-10631
-          path: orbi-10631-widget-v3-non-audio-payload.zip
+          name: orbi-clima-oc22-widget-preview-brand-native-payload-10632
+          path: orbi-10632-widget-preview-brand-non-audio-payload.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -161,13 +161,13 @@ jobs:
           echo "QA_PACKAGE=com.orbi.clima.oc22qa"
           echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
           echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
-          echo "10631 must update in place over the installed 10630 baseline."
+          echo "10632 must update in place over the installed 10631 baseline."
           echo "This QA identity must never sign the production package com.orbi.clima."
-          grep -n "versionCode 10631" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-WIDGET-FLUID-V3-QA10631"' android/app/build.gradle
+          grep -n "versionCode 10632" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-WIDGET-PREVIEW-BRAND-QA10632"' android/app/build.gradle
           grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
 
-      - name: Compile persistent OC-22 Widget Fluid V3 QA preview
+      - name: Compile persistent OC-22 Widget Preview + Brand QA
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
@@ -180,7 +180,7 @@ jobs:
           test -n "$APK"
           BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
           echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
-          echo "$BADGING" | grep -F "versionCode='10631'"
+          echo "$BADGING" | grep -F "versionCode='10632'"
           SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
           echo "$SIGNATURE_OUTPUT"
           APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
@@ -194,10 +194,10 @@ jobs:
             exit 1
           fi
 
-      - name: Upload 10631 Widget Fluid V3 QA APK
+      - name: Upload 10632 Widget Preview + Brand QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-widget-fluid-v3-qa-10631
+          name: orbi-clima-oc22-widget-preview-brand-qa-10632
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 14
