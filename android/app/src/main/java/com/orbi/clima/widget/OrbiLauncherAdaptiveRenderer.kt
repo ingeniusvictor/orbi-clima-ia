@@ -6,12 +6,12 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * OC-22O launcher-adaptive renderer.
+ * OC-22O/P launcher-adaptive renderer.
  *
  * V3 paints directly into the exact launcher bitmap. There is no fixed-size
  * intermediate composition and no fit-center scale in the healthy path.
- * This preserves visual hierarchy across OEM grids while keeping V2 available
- * only as a safe exceptional fallback.
+ * Official ORBI Clima branding is applied after rendering so V3 and the
+ * deterministic V2 emergency fallback share the same app identity.
  */
 object OrbiLauncherAdaptiveRenderer {
     private const val MIN_DIMENSION_PX = 180
@@ -44,7 +44,7 @@ object OrbiLauncherAdaptiveRenderer {
             fallbackHeight = fallback.second,
         )
 
-        return try {
+        val rendered = try {
             OrbiFluidNativeWidgetRendererV3.render(
                 context = context,
                 state = state,
@@ -57,6 +57,12 @@ object OrbiLauncherAdaptiveRenderer {
             // normal launcher path after OC-22O.
             OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)
         }
+
+        return OrbiWidgetBrandOverlay.apply(
+            context = context,
+            source = rendered,
+            variant = variant,
+        )
     }
 
     private fun fallbackSurface(
