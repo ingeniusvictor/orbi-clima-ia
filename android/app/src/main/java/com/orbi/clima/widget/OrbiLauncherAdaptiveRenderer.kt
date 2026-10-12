@@ -2,28 +2,16 @@ package com.orbi.clima.widget
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RadialGradient
-import android.graphics.RectF
-import android.graphics.Shader
-import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * OC-22J launcher-adaptive snapshot wrapper.
+ * OC-22O launcher-adaptive renderer.
  *
- * V2 owns the visual language. This layer only adapts that already-certified
- * composition to the exact launcher allocation so OEM cell geometry cannot
- * stretch the ORBI artwork horizontally or vertically.
- *
- * The output bitmap always matches the launcher aspect ratio. V2 content is
- * fit-centered with a uniform scale over a native obsidian/atmospheric surface.
- * That preserves circles, typography and orbital geometry during resize.
+ * V3 paints directly into the exact launcher bitmap. There is no fixed-size
+ * intermediate composition and no fit-center scale in the healthy path.
+ * This preserves visual hierarchy across OEM grids while keeping V2 available
+ * only as a safe exceptional fallback.
  */
 object OrbiLauncherAdaptiveRenderer {
     private const val MIN_DIMENSION_PX = 180
@@ -47,56 +35,39 @@ object OrbiLauncherAdaptiveRenderer {
         launcherWidthDp: Float,
         launcherHeightDp: Float,
     ): Bitmap {
-        val base = OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)
-        val target = resolveTargetPixels(context, launcherWidthDp, launcherHeightDp, base.width, base.height)
-
-        if (target.first == base.width && target.second == base.height) {
-            return base
-        }
-
-        val output = Bitmap.createBitmap(target.first, target.second, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(output)
-        val minSide = min(target.first, target.second).toFloat()
-        val radius = (minSide * 0.075f).coerceAtLeast(18f)
-        val outer = RectF(0f, 0f, target.first.toFloat(), target.second.toFloat())
-        val clip = Path().apply {
-            addRoundRect(outer, radius, radius, Path.Direction.CW)
-        }
-
-        canvas.save()
-        canvas.clipPath(clip)
-        drawAdaptiveBackdrop(canvas, state, outer)
-
-        val uniformScale = min(
-            target.first.toFloat() / base.width.toFloat(),
-            target.second.toFloat() / base.height.toFloat(),
+        val fallback = fallbackSurface(variant)
+        val target = resolveTargetPixels(
+            context = context,
+            widthDp = launcherWidthDp,
+            heightDp = launcherHeightDp,
+            fallbackWidth = fallback.first,
+            fallbackHeight = fallback.second,
         )
-        val fittedWidth = base.width * uniformScale
-        val fittedHeight = base.height * uniformScale
-        val left = (target.first - fittedWidth) / 2f
-        val top = (target.second - fittedHeight) / 2f
-        val destination = RectF(left, top, left + fittedWidth, top + fittedHeight)
-        val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-            isDither = true
-        }
-        canvas.drawBitmap(base, null, destination, bitmapPaint)
 
-        val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeWidth = (minSide * 0.004f).coerceIn(1.5f, 4f)
-            color = Color.argb(105, 103, 232, 249)
+        return try {
+            OrbiFluidNativeWidgetRendererV3.render(
+                context = context,
+                state = state,
+                variant = variant,
+                width = target.first,
+                height = target.second,
+            )
+        } catch (_: Throwable) {
+            // V2 remains a deterministic emergency fallback only. It is not the
+            // normal launcher path after OC-22O.
+            OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)
         }
-        val inset = edge.strokeWidth / 2f + 1f
-        canvas.drawRoundRect(
-            RectF(inset, inset, target.first - inset, target.second - inset),
-            radius - inset,
-            radius - inset,
-            edge,
-        )
-        canvas.restore()
+    }
 
-        base.recycle()
-        return output
+    private fun fallbackSurface(
+        variant: OrbiNativeWidgetSnapshotRendererV2.Variant,
+    ): Pair<Int, Int> = when (variant) {
+        OrbiNativeWidgetSnapshotRendererV2.Variant.MINI -> 560 to 560
+        OrbiNativeWidgetSnapshotRendererV2.Variant.PANEL -> 980 to 430
+        OrbiNativeWidgetSnapshotRendererV2.Variant.CINEMATIC_BAR -> 1120 to 430
+        OrbiNativeWidgetSnapshotRendererV2.Variant.FIELD_COMMAND,
+        OrbiNativeWidgetSnapshotRendererV2.Variant.COMMAND,
+        OrbiNativeWidgetSnapshotRendererV2.Variant.PREMIUM_COMMAND -> 820 to 820
     }
 
     private fun resolveTargetPixels(
@@ -122,47 +93,4 @@ object OrbiLauncherAdaptiveRenderer {
         }
         return width to height
     }
-
-    private fun drawAdaptiveBackdrop(canvas: Canvas, state: OrbiWidgetContract, bounds: RectF) {
-        val accent = conditionAccent(state)
-        val base = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(
-                0f,
-                0f,
-                bounds.width(),
-                bounds.height(),
-                intArrayOf(0xFF030712.toInt(), 0xFF07101F.toInt(), 0xFF050A16.toInt()),
-                floatArrayOf(0f, 0.55f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-        }
-        canvas.drawRect(bounds, base)
-
-        val ambient = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                bounds.centerX(),
-                bounds.centerY(),
-                maxOf(bounds.width(), bounds.height()) * 0.68f,
-                intArrayOf(withAlpha(accent, 54), withAlpha(0xFF8B5CF6.toInt(), 18), Color.TRANSPARENT),
-                floatArrayOf(0f, 0.6f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-        }
-        canvas.drawRect(bounds, ambient)
-    }
-
-    private fun conditionAccent(state: OrbiWidgetContract): Int {
-        val condition = "${state.conditionCode} ${state.conditionLabel}".lowercase()
-        return when {
-            condition.contains("snow") || condition.contains("nev") || condition.contains("frost") || condition.contains("cold") -> 0xFFBAE6FD.toInt()
-            condition.contains("storm") || condition.contains("torment") -> 0xFF8B5CF6.toInt()
-            condition.contains("rain") || condition.contains("lluv") -> 0xFF3B82F6.toInt()
-            condition.contains("sun") || condition.contains("sol") || condition.contains("hot") || condition.contains("calor") -> 0xFFFFD166.toInt()
-            condition.contains("wind") || condition.contains("vient") -> 0xFF2DD4BF.toInt()
-            else -> 0xFF67E8F9.toInt()
-        }
-    }
-
-    private fun withAlpha(color: Int, alpha: Int): Int =
-        Color.argb(alpha.coerceIn(0, 255), Color.red(color), Color.green(color), Color.blue(color))
 }
