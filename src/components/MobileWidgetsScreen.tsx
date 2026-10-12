@@ -35,12 +35,12 @@ export default function MobileWidgetsScreen({
         </div>
         <div>
           <h2 className="text-sm font-sans font-bold text-slate-100 uppercase tracking-wider">Widgets Android</h2>
-          <p className="text-[10px] text-slate-400 font-mono">NATIVE CANVAS V2 · PARIDAD DE LAUNCHER</p>
+          <p className="text-[10px] text-slate-400 font-mono">NATIVE CANVAS V3 · FLUID LAUNCHER</p>
         </div>
       </div>
 
       <div className="p-4 rounded-2xl bg-[#090f1e]/40 border border-white/5 space-y-3">
-        <span className="text-[9px] font-mono text-cyan-400 block uppercase tracking-wider">Vista previa del widget real</span>
+        <span className="text-[9px] font-mono text-cyan-400 block uppercase tracking-wider">Vista previa de paridad nativa V3</span>
         <NativeWidgetParityPreview
           current={currentWeather}
           hourly={hourlyForecast}
