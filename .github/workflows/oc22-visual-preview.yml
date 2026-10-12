@@ -7,7 +7,10 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
+      - 'android/app/src/**'
       - 'android/app/build.gradle'
+      - 'scripts/verify-native-widget-parity.mjs'
+      - 'scripts/verify-premium-widget-snapshot.mjs'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/oc22-visual-preview.yml'
@@ -64,6 +67,12 @@ jobs:
       - name: Weather Truth gate
         run: npm run weather:verify-current-truth
 
+      - name: Native Widget Parity gate
+        run: npm run android:verify-widget-parity
+
+      - name: Premium Widget Snapshot gate
+        run: npm run android:verify-premium-widget
+
       - name: Build current web bundle
         run: npm run build
 
@@ -76,18 +85,18 @@ jobs:
           echo "VISUAL QA ONLY"
           echo "This side-by-side APK intentionally does not certify the inherited Zen MP3."
           echo "Do not promote this artifact to stable/release."
-          grep -n "versionCode 10622" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-AUTO-TRUTH-V11"' android/app/build.gradle
+          grep -n "versionCode 10623" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-WIDGET-PARITY-V2"' android/app/build.gradle
 
       - name: Compile side-by-side OC-22 visual preview
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
 
-      - name: Upload 10622 AUTO truth visual QA APK
+      - name: Upload 10623 widget parity visual QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-auto-truth-v11-visual-preview-10622
+          name: orbi-clima-oc22-widget-parity-v2-visual-preview-10623
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 7
