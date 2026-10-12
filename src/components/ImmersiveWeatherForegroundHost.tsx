@@ -118,6 +118,8 @@ export default function ImmersiveWeatherForegroundHost() {
       className={`orbi-immersive-weather-foreground ${active ? 'is-active' : 'is-paused'}`}
       data-scene={model.scene}
       data-quality={model.quality}
+      data-precipitation-kind={model.precipitationKind}
+      data-precipitation-intensity={model.precipitationIntensity}
       data-debug-scene={debugPreset}
       aria-hidden="true"
     >
@@ -135,6 +137,8 @@ export default function ImmersiveWeatherForegroundHost() {
             scene={model.scene}
             quality={model.quality}
             precipitationStrength={model.precipitationStrength}
+            precipitationKind={model.precipitationKind}
+            precipitationIntensity={model.precipitationIntensity}
             windStrength={model.windStrength}
             active={active}
           />
