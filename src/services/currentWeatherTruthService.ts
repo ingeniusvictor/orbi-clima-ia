@@ -14,6 +14,14 @@ export type CurrentWeatherTruthBand =
   | 'conflicted'
   | 'model_only';
 
+export type CurrentPrecipitationEvidence =
+  | 'observed_now'
+  | 'observed_dry'
+  | 'recent_only'
+  | 'model_consensus_wet'
+  | 'model_only'
+  | 'none';
+
 export interface CurrentWeatherTruthContext {
   dmc: DmcObservationSnapshot | null;
   multiModel: MultiModelConsensusReport | null;
@@ -31,6 +39,7 @@ export interface CurrentWeatherTruthMetadata {
   resolvedTemperatureC: number | null;
   originalPrecipitationMm: number;
   resolvedPrecipitationMm: number;
+  precipitationEvidence: CurrentPrecipitationEvidence;
   temperatureStrategy: 'dmc_observed' | 'multi_model_median' | 'primary_model';
   stationName: string | null;
   stationDistanceKm: number | null;
@@ -46,6 +55,8 @@ type RawWithTruth = OpenMeteoRawResponse & {
   orbi_current_truth?: CurrentWeatherTruthMetadata;
 };
 
+type ObservedPrecipitationState = 'wet' | 'dry' | 'recent' | 'unknown';
+
 const WET_GROUPS = new Set([
   'llovizna',
   'llovizna_engelante',
@@ -56,6 +67,14 @@ const WET_GROUPS = new Set([
   'nieve_chubascos',
   'tormenta',
 ]);
+
+const LOCAL_OBSERVATION_RADIUS_KM = 15;
+const STRONG_STATION_RADIUS_KM = 25;
+const OBSERVATION_MAX_AGE_MINUTES = 90;
+const RECENT_PRECIP_TRACE_MM = 0.05;
+const MODEL_TEMPERATURE_MAX_SPREAD_C = 2.5;
+const DMC_MODEL_TEMPERATURE_ALIGNMENT_C = 1.5;
+const MODEL_TEMPERATURE_CORRECTION_C = 1.5;
 
 function finiteOrNull(value: unknown): number | null {
   const parsed = Number(value);
@@ -182,13 +201,20 @@ function modelCurrentConsensus(report: MultiModelConsensusReport | null): {
   };
 }
 
-function observedPrecipitationState(observation: DmcObservationSnapshot | null): 'wet' | 'dry' | 'unknown' {
+function observedPrecipitationState(observation: DmcObservationSnapshot | null): ObservedPrecipitationState {
   if (!observation || !observation.isFresh) return 'unknown';
-  const label = observation.presentWeatherLabel ?? '';
+
+  const label = (observation.presentWeatherLabel ?? '').trim();
   if (/llovizna|lluvia|chubasco|tormenta|nieve/i.test(label)) return 'wet';
+  if (/sin\s+precipit|despejado|nublado|cubierto|niebla|neblina|bruma/i.test(label)) return 'dry';
+
   if (observation.precipitationRecentMm !== null) {
-    return observation.precipitationRecentMm > 0.05 ? 'wet' : 'dry';
+    // DMC recent precipitation is an accumulation/history signal. A positive
+    // accumulation means it rained recently, not necessarily that it is
+    // raining at the user's GPS right now.
+    return observation.precipitationRecentMm > RECENT_PRECIP_TRACE_MM ? 'recent' : 'dry';
   }
+
   return 'unknown';
 }
 
@@ -237,27 +263,23 @@ function stationCanControlCurrent(observation: DmcObservationSnapshot | null): b
   return !!observation
     && observation.isFresh
     && observation.quality === 'strong'
-    && observation.distanceKm <= 25
-    && observation.ageMinutes <= 90;
+    && observation.distanceKm <= STRONG_STATION_RADIUS_KM
+    && observation.ageMinutes <= OBSERVATION_MAX_AGE_MINUTES;
 }
 
-function applyObservedScalarFields(current: Record<string, any>, observation: DmcObservationSnapshot): void {
-  if (observation.distanceKm > 25 || observation.ageMinutes > 90) return;
+function stationCanControlLocalPrecipitation(observation: DmcObservationSnapshot | null): boolean {
+  return stationCanControlCurrent(observation)
+    && !!observation
+    && observation.distanceKm <= LOCAL_OBSERVATION_RADIUS_KM;
+}
 
-  const oldTemperature = finiteOrNull(current.temperature_2m);
-  if (observation.temperatureC !== null) {
-    current.temperature_2m = observation.temperatureC;
-    const oldFeels = finiteOrNull(current.apparent_temperature);
-    if (oldTemperature !== null && oldFeels !== null) {
-      current.apparent_temperature = oldFeels + (observation.temperatureC - oldTemperature);
-    }
-  }
+function applyObservedNonTemperatureFields(current: Record<string, any>, observation: DmcObservationSnapshot): void {
+  if (observation.distanceKm > STRONG_STATION_RADIUS_KM || observation.ageMinutes > OBSERVATION_MAX_AGE_MINUTES) return;
 
-  // Pressure and temperature remain useful regional observation anchors across
-  // the full strong-station radius. Wind, visibility, humidity and cloud cover
-  // are more micro-local, so keep the original tighter 15 km control radius.
+  // Pressure remains a useful regional observation anchor. Wind, visibility,
+  // humidity and cloud cover are more micro-local and retain the tighter radius.
   if (observation.pressureHpa !== null) current.pressure_msl = observation.pressureHpa;
-  if (observation.distanceKm <= 15) {
+  if (observation.distanceKm <= LOCAL_OBSERVATION_RADIUS_KM) {
     if (observation.humidityPct !== null) current.relative_humidity_2m = observation.humidityPct;
     if (observation.windSpeedKmh !== null) current.wind_speed_10m = observation.windSpeedKmh;
     if (observation.visibilityM !== null) current.visibility = observation.visibilityM;
@@ -265,10 +287,28 @@ function applyObservedScalarFields(current: Record<string, any>, observation: Dm
   }
 }
 
+function applyObservedTemperature(current: Record<string, any>, observation: DmcObservationSnapshot): void {
+  if (observation.temperatureC === null) return;
+  const oldTemperature = finiteOrNull(current.temperature_2m);
+  const oldFeels = finiteOrNull(current.apparent_temperature);
+  current.temperature_2m = observation.temperatureC;
+  if (oldTemperature !== null && oldFeels !== null) {
+    current.apparent_temperature = oldFeels + (observation.temperatureC - oldTemperature);
+  }
+}
+
 function clearCurrentPrecipitation(current: Record<string, any>): void {
   current.precipitation = 0;
   current.rain = 0;
   current.showers = 0;
+}
+
+function localDryCode(current: Record<string, any>, observation: DmcObservationSnapshot | null): number {
+  if (observation) {
+    const observedCode = observedWeatherCode(observation);
+    if (!isWetCode(observedCode)) return observedCode;
+  }
+  return dryCodeFromCloudCover(current);
 }
 
 export function applyCurrentWeatherTruth(
@@ -282,45 +322,72 @@ export function applyCurrentWeatherTruth(
   const originalCode = finiteOrNull(current.weather_code) ?? 3;
   const originalTemperatureC = finiteOrNull(current.temperature_2m);
   const originalPrecipitationMm = finiteOrNull(current.precipitation) ?? 0;
-  const modelWet = isWetCode(originalCode) || originalPrecipitationMm > 0.05;
+  const modelWet = isWetCode(originalCode) || originalPrecipitationMm > RECENT_PRECIP_TRACE_MM;
 
   const multi = modelCurrentConsensus(context.multiModel);
   const observedState = observedPrecipitationState(context.dmc);
   const strongObservation = stationCanControlCurrent(context.dmc);
+  const localObservation = stationCanControlLocalPrecipitation(context.dmc);
 
   let resolvedCode = originalCode;
   let band: CurrentWeatherTruthBand = 'model_only';
   let label = 'Modelo actual sin corroboración local';
   let detail = 'La condición actual proviene de un modelo meteorológico; no equivale a una observación física en el punto GPS.';
+  let precipitationEvidence: CurrentPrecipitationEvidence = modelWet ? 'model_only' : 'none';
 
   if (strongObservation && context.dmc) {
-    applyObservedScalarFields(current, context.dmc);
+    applyObservedNonTemperatureFields(current, context.dmc);
+  }
 
+  if (localObservation && context.dmc) {
     if (observedState === 'wet') {
       resolvedCode = observedWeatherCode(context.dmc);
       current.weather_code = resolvedCode;
       current.precipitation = Math.max(originalPrecipitationMm, context.dmc.precipitationRecentMm ?? 0.1);
       current.rain = Math.max(finiteOrNull(current.rain) ?? 0, context.dmc.precipitationRecentMm ?? 0.1);
       band = 'observed';
-      label = 'Condición corroborada por observación DMC';
+      label = 'Precipitación actual observada por DMC';
       detail = `${context.dmc.stationName} · ${context.dmc.distanceKm.toFixed(1)} km · ${context.dmc.ageMinutes} min de antigüedad.`;
-    } else if (observedState === 'dry') {
-      if (modelWet && (multi.consensus === 'dry' || context.dmc.distanceKm <= 15)) {
-        resolvedCode = multi.dryCode ?? observedWeatherCode(context.dmc);
+      precipitationEvidence = 'observed_now';
+    } else if (observedState === 'dry' || observedState === 'recent') {
+      precipitationEvidence = observedState === 'dry' ? 'observed_dry' : 'recent_only';
+
+      if (modelWet) {
+        // A local fresh station that does not report current precipitation must
+        // prevent a model-only wet code from becoming the strong "Lluvia Activa"
+        // presentation. Positive recent accumulation is history, not proof of now.
+        resolvedCode = localDryCode(current, context.dmc);
         current.weather_code = resolvedCode;
         clearCurrentPrecipitation(current);
-        band = 'observed';
-        label = 'Condición seca corroborada localmente';
-        detail = 'DMC no observa precipitación y el modelo de lluvia fue descartado para la lectura actual.';
-      } else if (!modelWet) {
-        band = 'corroborated';
-        label = 'Condición seca corroborada';
-        detail = 'Modelo y observación DMC coinciden en ausencia de precipitación actual.';
+        band = observedState === 'dry' ? 'observed' : 'conflicted';
+        label = observedState === 'dry'
+          ? 'Condición seca corroborada localmente'
+          : 'Precipitación reciente · no activa ahora';
+        detail = observedState === 'dry'
+          ? 'DMC no observa precipitación actual; la señal modelada de lluvia fue descartada para la lectura presente.'
+          : 'DMC registra acumulación reciente, pero no un fenómeno de precipitación presente; ORBI mantiene la escena actual como seca/nublada.';
       } else {
-        band = 'conflicted';
-        label = 'Precipitación modelada · no confirmada';
-        detail = 'El modelo indica precipitación, pero la estación DMC cercana no la confirma todavía.';
+        band = 'corroborated';
+        label = observedState === 'dry'
+          ? 'Condición seca corroborada'
+          : 'Sin precipitación activa corroborada';
+        detail = observedState === 'dry'
+          ? 'Modelo y observación DMC coinciden en ausencia de precipitación actual.'
+          : 'Existe precipitación reciente acumulada, pero no evidencia suficiente de precipitación activa ahora.';
       }
+    } else if (modelWet && multi.consensus !== 'wet') {
+      resolvedCode = dryCodeFromCloudCover(current);
+      current.weather_code = resolvedCode;
+      clearCurrentPrecipitation(current);
+      band = 'conflicted';
+      label = 'Precipitación modelada · no confirmada';
+      detail = 'La estación local no reporta un fenómeno presente y el consenso multi-modelo no confirma lluvia activa.';
+      precipitationEvidence = 'model_only';
+    } else if (modelWet && multi.consensus === 'wet') {
+      band = 'corroborated';
+      label = 'Precipitación corroborada por modelos';
+      detail = `${multi.wetVotes}/${multi.available} modelos independientes coinciden en condición húmeda actual; DMC no aporta fenómeno presente.`;
+      precipitationEvidence = 'model_consensus_wet';
     }
   } else if (modelWet && multi.consensus === 'dry') {
     if (originalPrecipitationMm <= 0.5) {
@@ -331,23 +398,23 @@ export function applyCurrentWeatherTruth(
     band = 'conflicted';
     label = 'Precipitación modelada · consenso no la confirma';
     detail = `${multi.dryVotes}/${multi.available} modelos independientes indican condición seca en la hora actual.`;
+    precipitationEvidence = 'model_only';
   } else if (modelWet && multi.consensus === 'wet') {
     band = 'corroborated';
     label = 'Precipitación corroborada por modelos';
     detail = `${multi.wetVotes}/${multi.available} modelos independientes coinciden en condición húmeda actual.`;
+    precipitationEvidence = 'model_consensus_wet';
   } else if (!modelWet && multi.consensus === 'dry') {
     band = 'corroborated';
     label = 'Condición seca corroborada por modelos';
     detail = `${multi.dryVotes}/${multi.available} modelos independientes coinciden en condición seca actual.`;
+    precipitationEvidence = 'none';
   } else if (modelWet) {
     band = 'conflicted';
     label = 'Precipitación modelada · sin corroboración suficiente';
     detail = 'ORBI evita tratar una señal modelada aislada como lluvia activa confirmada.';
+    precipitationEvidence = 'model_only';
 
-    // The protected Golden Orb intentionally has only coarse visual themes.
-    // A weak, uncorroborated model signal must therefore not be promoted to
-    // its strong "active rain" state. Keep the original amount in truth
-    // metadata while presenting current conditions conservatively.
     if (originalPrecipitationMm <= 0.5) {
       resolvedCode = dryCodeFromCloudCover(current);
       current.weather_code = resolvedCode;
@@ -358,18 +425,27 @@ export function applyCurrentWeatherTruth(
   current.weather_code = resolvedCode;
 
   let temperatureStrategy: CurrentWeatherTruthMetadata['temperatureStrategy'] = 'primary_model';
-  if (
-    strongObservation
+  const dmcTemperature = context.dmc?.temperatureC ?? null;
+  const localDmcTemperature = strongObservation
     && context.dmc !== null
-    && context.dmc.temperatureC !== null
-  ) {
+    && context.dmc.distanceKm <= LOCAL_OBSERVATION_RADIUS_KM
+    && dmcTemperature !== null;
+  const tightModelTemperature = multi.medianTemperatureC !== null
+    && multi.temperatureSpreadC !== null
+    && multi.temperatureSpreadC <= MODEL_TEMPERATURE_MAX_SPREAD_C;
+  const localDmcAgreesWithModels = !tightModelTemperature
+    || dmcTemperature === null
+    || multi.medianTemperatureC === null
+    || Math.abs(dmcTemperature - multi.medianTemperatureC) <= DMC_MODEL_TEMPERATURE_ALIGNMENT_C;
+
+  if (localDmcTemperature && context.dmc && localDmcAgreesWithModels) {
+    applyObservedTemperature(current, context.dmc);
     temperatureStrategy = 'dmc_observed';
   } else if (
-    multi.medianTemperatureC !== null
-    && multi.temperatureSpreadC !== null
-    && multi.temperatureSpreadC <= 2.5
+    tightModelTemperature
+    && multi.medianTemperatureC !== null
     && originalTemperatureC !== null
-    && Math.abs(originalTemperatureC - multi.medianTemperatureC) >= 2
+    && Math.abs(originalTemperatureC - multi.medianTemperatureC) >= MODEL_TEMPERATURE_CORRECTION_C
   ) {
     const delta = multi.medianTemperatureC - originalTemperatureC;
     current.temperature_2m = multi.medianTemperatureC;
@@ -391,6 +467,7 @@ export function applyCurrentWeatherTruth(
     resolvedTemperatureC,
     originalPrecipitationMm,
     resolvedPrecipitationMm,
+    precipitationEvidence,
     temperatureStrategy,
     stationName: context.dmc?.stationName ?? null,
     stationDistanceKm: context.dmc?.distanceKm ?? null,
