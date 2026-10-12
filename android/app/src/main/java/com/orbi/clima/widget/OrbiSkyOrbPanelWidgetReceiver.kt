@@ -12,9 +12,10 @@ class OrbiSkyOrbPanelWidgetReceiver : GlanceAppWidgetReceiver() {
 
 class OrbiSkyOrbPanelWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val state = OrbiWidgetStateReader.read(context)
+        val snapshot = OrbiNativeWidgetSnapshotRendererV2.renderPanel(context, state)
         provideContent {
-            val state = OrbiWidgetStateReader.read(context)
-            OrbiSkyPanelContent(state)
+            OrbiNativeWidgetSnapshotHost(snapshot, "ORBI SkyPanel")
         }
     }
 }
