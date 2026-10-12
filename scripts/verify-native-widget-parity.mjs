@@ -6,7 +6,8 @@ const expect = (condition, message) => {
   if (!condition) failures.push(message);
 };
 
-const renderer = read('android/app/src/main/java/com/orbi/clima/widget/OrbiNativeWidgetSnapshotRendererV2.kt');
+const rendererV2 = read('android/app/src/main/java/com/orbi/clima/widget/OrbiNativeWidgetSnapshotRendererV2.kt');
+const rendererV3 = read('android/app/src/main/java/com/orbi/clima/widget/OrbiFluidNativeWidgetRendererV3.kt');
 const adaptive = read('android/app/src/main/java/com/orbi/clima/widget/OrbiLauncherAdaptiveRenderer.kt');
 const host = read('android/app/src/main/java/com/orbi/clima/widget/OrbiNativeWidgetSnapshotHost.kt');
 const exactBase = read('android/app/src/main/java/com/orbi/clima/widget/OrbiExactNativeWidget.kt');
@@ -23,29 +24,58 @@ const cinematicProvider = read('android/app/src/main/res/xml/orbi_cinematic_bar_
 const mobile = read('src/components/MobileWidgetsScreen.tsx');
 const preview = read('src/components/NativeWidgetParityPreview.tsx');
 
-for (const variant of ['MINI', 'PANEL', 'COMMAND', 'PREMIUM_COMMAND', 'FIELD_COMMAND', 'CINEMATIC_BAR']) {
-  expect(renderer.includes(variant), `Native renderer missing ${variant} variant.`);
+const variants = ['MINI', 'PANEL', 'COMMAND', 'PREMIUM_COMMAND', 'FIELD_COMMAND', 'CINEMATIC_BAR'];
+for (const variant of variants) {
+  expect(rendererV2.includes(variant), `Native V2 fallback missing ${variant} variant.`);
+  expect(rendererV3.includes(`Variant.${variant}`), `Native Fluid V3 renderer missing ${variant} variant.`);
 }
 
-expect(renderer.includes('Bitmap.createBitmap'), 'Native V2 renderer must paint deterministic bitmaps.');
-expect(renderer.includes('Canvas(bitmap)'), 'Native V2 renderer must use Android Canvas.');
-expect(renderer.includes('drawOrbitalAura'), 'Native V2 renderer must keep premium orbital depth.');
-expect(renderer.includes('drawMetricCard'), 'Native V2 renderer must keep premium metric hierarchy.');
-expect(renderer.includes('"snow", "cold", "frost" -> ICE'), 'Native V2 renderer must preserve first-class snow/ice treatment.');
-expect(renderer.includes('frozen Golden Orb'), 'Native V2 renderer must document Golden Orb isolation.');
+// V2 remains a deterministic emergency fallback, not the primary adaptive path.
+expect(rendererV2.includes('Bitmap.createBitmap'), 'Native V2 fallback must remain deterministic.');
+expect(rendererV2.includes('Canvas(bitmap)'), 'Native V2 fallback must remain Canvas based.');
+expect(rendererV2.includes('frozen Golden Orb'), 'Native V2 fallback must retain Golden Orb isolation documentation.');
+
+// OC-22O: final launcher geometry is now the render geometry.
+expect(rendererV3.includes('object OrbiFluidNativeWidgetRendererV3'), 'Fluid V3 renderer object is missing.');
+expect(rendererV3.includes('Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)'), 'Fluid V3 must create the final bitmap at the requested launcher width/height.');
+expect(rendererV3.includes('val canvas = Canvas(bitmap)'), 'Fluid V3 must paint directly with Android Canvas.');
+expect(rendererV3.includes('drawWeatherAtmosphere(canvas, bounds, profile)'), 'Fluid V3 must render weather-specific native atmosphere.');
+expect(rendererV3.includes('drawFittedText(') && rendererV3.includes('fitText('), 'Fluid V3 must adapt typography to real launcher geometry.');
+expect(rendererV3.includes('state.conditionLabel'), 'Fluid V3 must preserve the exact Weather Truth condition label.');
+expect(rendererV3.includes('resolveOrbDrawable(state)'), 'Fluid V3 must retain deterministic native orb artwork.');
+expect(rendererV3.includes('frozen Golden Orb'), 'Fluid V3 must explicitly remain isolated from the frozen Golden Orb.');
+
+for (const family of ['CLEAR', 'CLOUD', 'FOG', 'DRIZZLE', 'RAIN', 'STORM', 'SNOW', 'WIND', 'NIGHT']) {
+  expect(rendererV3.includes(family), `Fluid V3 weather family ${family} is missing.`);
+}
+for (const atmosphere of [
+  'drawSolarAtmosphere',
+  'drawCloudAtmosphere',
+  'drawFogAtmosphere',
+  'drawRainAtmosphere',
+  'drawStormAtmosphere',
+  'drawSnowAtmosphere',
+  'drawWindAtmosphere',
+  'drawNightAtmosphere',
+]) {
+  expect(rendererV3.includes(atmosphere), `Fluid V3 native atmosphere primitive ${atmosphere} is missing.`);
+}
 
 expect(adaptive.includes('launcherWidthDp') && adaptive.includes('launcherHeightDp'), 'Adaptive renderer must consume launcher width/height.');
 expect(adaptive.includes('MAX_BITMAP_PIXELS = 1_250_000'), 'Adaptive renderer must cap total bitmap pixels.');
 expect(adaptive.includes('MAX_DIMENSION_PX = 1440'), 'Adaptive renderer must cap individual bitmap dimensions.');
-expect(adaptive.includes('val uniformScale = min('), 'Adaptive renderer must use uniform scaling rather than aspect distortion.');
-expect(adaptive.includes('val destination = RectF(left, top, left + fittedWidth, top + fittedHeight)'), 'Adaptive renderer must fit-center V2 content.');
-expect(adaptive.includes('OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)'), 'Adaptive renderer must preserve the certified V2 composition.');
-expect(adaptive.includes('base.recycle()'), 'Adaptive renderer must release the intermediate fixed-size bitmap.');
+expect(adaptive.includes('OrbiFluidNativeWidgetRendererV3.render('), 'Adaptive renderer must route the healthy path through Fluid V3.');
+expect(adaptive.includes('OrbiNativeWidgetSnapshotRendererV2.render(context, state, variant)'), 'Adaptive renderer must retain V2 as emergency fallback.');
+expect(adaptive.includes('catch (_: Throwable)'), 'Adaptive renderer must isolate unexpected V3 failures behind the certified V2 fallback.');
+expect(!adaptive.includes('uniformScale'), 'Adaptive renderer must not scale a fixed V2 composition in the healthy V3 path.');
+expect(!adaptive.includes('fitScale'), 'Adaptive renderer must not fit-scale a fixed bitmap in the healthy V3 path.');
+expect(!adaptive.includes('Canvas(output).drawBitmap(base'), 'Adaptive renderer must not copy a fixed intermediate bitmap into launcher geometry.');
+expect(!adaptive.includes('base.recycle()'), 'Fluid V3 path must not depend on recycling a fixed V2 intermediate bitmap.');
 
 expect(host.includes('ImageProvider(bitmap)'), 'Glance host must display the native bitmap.');
 expect(host.includes('LocalSize.current'), 'Shared host must read the actual Glance launcher size.');
 expect(host.includes('OrbiLauncherAdaptiveRenderer.render('), 'Shared host must route through launcher-adaptive rendering.');
-expect(host.includes('ContentScale.Fit'), 'Shared host must use non-distorting ContentScale.Fit.');
+expect(host.includes('ContentScale.Fit'), 'Shared host must keep non-distorting ContentScale.Fit.');
 expect(!host.includes('ContentScale.FillBounds'), 'Shared host must never stretch widget artwork with FillBounds.');
 expect(exactBase.includes('SizeMode.Exact'), 'All native widget families must compose for exact launcher geometry.');
 expect(exactBase.includes('OrbiAdaptiveNativeWidgetSnapshotHost('), 'Exact-size base must invoke the adaptive native host.');
@@ -61,7 +91,7 @@ const exactFamilies = [
 ];
 for (const [source, label, variant] of exactFamilies) {
   expect(source.includes('OrbiExactNativeWidget('), `${label} must use the exact-size native widget base.`);
-  if (variant) expect(source.includes(variant), `${label} must keep its dedicated V2 variant.`);
+  if (variant) expect(source.includes(variant), `${label} must keep its dedicated native variant.`);
 }
 
 expect(manifest.includes('.widget.OrbiFieldCommandWidgetReceiver'), 'Android launcher must register Field Command directly.');
@@ -73,24 +103,24 @@ expect(cinematicProvider.includes('android:targetCellWidth="5"') && cinematicPro
 
 expect(mobile.includes('import NativeWidgetParityPreview'), 'Widgets screen must use native parity preview.');
 expect(!mobile.includes('import WidgetsPreviews'), 'Widgets screen must not present the aspirational legacy preview as launcher truth.');
-expect(mobile.includes('NATIVE CANVAS V2 · PARIDAD DE LAUNCHER'), 'Widgets screen must explain the native-first rendering model.');
-expect(preview.includes('VISTA DE PARIDAD NATIVA · CANVAS V2'), 'Parity preview must identify itself as native parity.');
-expect(preview.includes("snow: 'Nevado'"), 'Parity preview must support snow explicitly.');
 expect(preview.includes("id: 'mini'"), 'Parity preview must expose Mini.');
 expect(preview.includes("id: 'panel'"), 'Parity preview must expose SkyPanel.');
 expect(preview.includes("id: 'command'"), 'Parity preview must expose Command.');
 expect(preview.includes("id: 'field'"), 'Parity preview must expose Field Command.');
 expect(preview.includes("id: 'cinematic'"), 'Parity preview must expose Cinematic Bar.');
+expect(preview.includes('conditionLabel'), 'Parity preview must preserve exact condition-label semantics.');
 
 if (failures.length) {
-  console.error('OC-22I/J Native Widget Parity + Adaptive Launcher gate: FAIL');
+  console.error('OC-22I/J/O Native Widget Parity + Fluid Launcher gate: FAIL');
   failures.forEach(failure => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('OC-22I/J Native Widget Parity + Adaptive Launcher gate: PASS');
-console.log('- all launcher variants retain deterministic Canvas V2 snapshots');
-console.log('- exact Glance size drives final bitmap aspect ratio');
-console.log('- uniform fit-center scaling prevents OEM stretch distortion');
-console.log('- bitmap dimensions are capped for Android memory/performance safety');
-console.log('- snow and Golden Orb isolation remain explicit');
+console.log('OC-22I/J/O Native Widget Parity + Fluid Launcher gate: PASS');
+console.log('- Fluid Canvas V3 paints directly at the exact launcher bitmap size');
+console.log('- no fixed-size fit-center scaling remains in the healthy launcher path');
+console.log('- deterministic weather micro-atmospheres cover clear/cloud/fog/drizzle/rain/storm/snow/wind/night');
+console.log('- exact condition labels and adaptive typography are required');
+console.log('- bitmap dimensions remain capped for Android memory/performance safety');
+console.log('- V2 remains available only as an emergency fallback');
+console.log('- Golden Orb remains isolated from native widget rendering');
