@@ -26,11 +26,25 @@ function rawCurrent(overrides: Record<string, unknown> = {}): OpenMeteoRawRespon
   };
 }
 
+function codeForGroup(group: string): number {
+  if (group === 'despejado') return 0;
+  if (group === 'mayormente_despejado') return 1;
+  if (group === 'parcial') return 2;
+  if (group === 'nublado') return 3;
+  if (group === 'niebla') return 45;
+  if (group === 'llovizna') return 51;
+  if (group === 'lluvia') return 61;
+  if (group === 'nieve') return 71;
+  if (group === 'chubascos') return 80;
+  if (group === 'tormenta') return 95;
+  return 3;
+}
+
 function models(groups: string[], temperatures = [14, 14.5, 15, 15.2]) {
   return {
     models: groups.map((group, index) => ({
       available: true,
-      currentWeatherCode: group === 'despejado' ? 0 : group === 'parcial' ? 2 : group === 'lluvia' ? 61 : 3,
+      currentWeatherCode: codeForGroup(group),
       currentConditionGroup: group,
       currentTemperatureC: temperatures[index] ?? 15,
     })),
@@ -87,6 +101,7 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.ok([0, 2, 3].includes(result.current.weather_code));
   assert.equal(result.orbi_current_truth.band, 'conflicted');
   assert.equal(result.orbi_current_truth.originalPrecipitationMm, 0.2);
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'model_only');
 }
 
 // 2) Even without enough multi-model agreement, an isolated weak rain model
@@ -101,7 +116,8 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(result.orbi_current_truth.band, 'conflicted');
 }
 
-// 3) Strong independent wet agreement is allowed to preserve current rain.
+// 3) Strong independent wet agreement is allowed to preserve current rain when
+// there is no authoritative local present-weather observation contradicting it.
 {
   const raw = rawCurrent({ precipitation: 0.4, rain: 0.4 });
   const result = applyCurrentWeatherTruth(raw, context({
@@ -110,19 +126,22 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(result.current.weather_code, 61);
   assert.equal(result.current.precipitation, 0.4);
   assert.equal(result.orbi_current_truth.band, 'corroborated');
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'model_consensus_wet');
 }
 
-// 4) A nearby/fresh/strong DMC dry observation can reject a weak modeled rain.
+// 4) A nearby/fresh/strong DMC dry observation rejects modeled rain and may
+// anchor temperature only when it is also coherent with the independent models.
 {
   const raw = rawCurrent();
   const result = applyCurrentWeatherTruth(raw, context({
     dmc: dmcObservation(),
-    multiModel: models(['despejado', 'parcial', 'despejado', 'parcial']),
+    multiModel: models(['despejado', 'parcial', 'despejado', 'parcial'], [13.8, 14.1, 14.4, 14.6]),
   })) as any;
   assert.equal(result.current.precipitation, 0);
   assert.equal(result.current.temperature_2m, 14);
   assert.equal(result.orbi_current_truth.temperatureStrategy, 'dmc_observed');
   assert.equal(result.orbi_current_truth.band, 'observed');
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'observed_dry');
 }
 
 // 5) If no nearby station exists but independent model temperatures are tightly
@@ -136,10 +155,8 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
   assert.equal(Math.round(result.current.temperature_2m), 14);
 }
 
-// 6) Physical QA exposed a consistency gap: DMC quality already defines a
-// strong station out to 25 km, but scalar temperature previously stopped at
-// 15 km. A fresh 22 km strong station must now anchor temperature while more
-// micro-local humidity/wind/cloud values retain the tighter radius.
+// 6) A strong station 22 km away remains useful for regional pressure/truth
+// metadata, but it must no longer overwrite the GPS temperature on its own.
 {
   const raw = rawCurrent({
     weather_code: 3,
@@ -155,19 +172,126 @@ function dmcObservation(overrides: Record<string, unknown> = {}) {
     dmc: dmcObservation({
       distanceKm: 22,
       temperatureC: 14,
+      pressureHpa: 1018,
       humidityPct: 61,
       windSpeedKmh: 4,
       cloudCoverPct: 100,
     }),
   })) as any;
 
-  assert.equal(result.current.temperature_2m, 14);
-  assert.equal(result.current.apparent_temperature, 13);
-  assert.equal(result.orbi_current_truth.temperatureStrategy, 'dmc_observed');
+  assert.equal(result.current.temperature_2m, 17);
+  assert.equal(result.current.apparent_temperature, 16);
+  assert.equal(result.orbi_current_truth.temperatureStrategy, 'primary_model');
   assert.equal(result.orbi_current_truth.stationDistanceKm, 22);
+  assert.equal(result.current.pressure_msl, 1018, 'Regional pressure may still be observed out to 25 km.');
   assert.equal(result.current.relative_humidity_2m, 70, 'Humidity remains model-local beyond 15 km.');
   assert.equal(result.current.wind_speed_10m, 9, 'Wind remains model-local beyond 15 km.');
   assert.equal(result.current.cloud_cover, 88, 'Cloud cover remains model-local beyond 15 km.');
 }
 
-console.log('OC-19 deterministic current-weather truth tests: PASS');
+// 7) The exact 2026-10-12 physical-QA temperature failure: a nearby DMC station
+// reports 13 C while the tightly grouped numerical models center on 15 C. The
+// station must not force the UI down to 13 C when it conflicts materially with
+// the broader local model field.
+{
+  const raw = rawCurrent({
+    weather_code: 3,
+    precipitation: 0,
+    rain: 0,
+    temperature_2m: 13,
+    apparent_temperature: 13,
+    cloud_cover: 90,
+  });
+  const result = applyCurrentWeatherTruth(raw, context({
+    dmc: dmcObservation({
+      distanceKm: 8,
+      temperatureC: 13,
+      cloudCoverPct: 95,
+      presentWeatherLabel: 'Nublado',
+    }),
+    multiModel: models(['nublado', 'nublado', 'nublado', 'parcial'], [14.6, 14.9, 15.1, 15.3]),
+  })) as any;
+
+  assert.equal(result.orbi_current_truth.temperatureStrategy, 'multi_model_median');
+  assert.equal(Math.round(result.current.temperature_2m), 15);
+  assert.equal(result.current.weather_code, 3);
+}
+
+// 8) Positive recent accumulation is history, not evidence of rain happening
+// now. This reproduces the false "Lluvia Activa" path from physical QA.
+{
+  const raw = rawCurrent({
+    weather_code: 61,
+    precipitation: 0.3,
+    rain: 0.3,
+    cloud_cover: 96,
+  });
+  const result = applyCurrentWeatherTruth(raw, context({
+    dmc: dmcObservation({
+      distanceKm: 8,
+      precipitationRecentMm: 1.4,
+      cloudCoverPct: 100,
+      presentWeatherLabel: null,
+    }),
+    multiModel: models(['lluvia', 'lluvia', 'nublado', 'lluvia'], [14.8, 15, 15.1, 15.3]),
+  })) as any;
+
+  assert.equal(result.current.weather_code, 3);
+  assert.equal(result.current.precipitation, 0);
+  assert.equal(result.current.rain, 0);
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'recent_only');
+  assert.equal(result.orbi_current_truth.band, 'conflicted');
+}
+
+// 9) An explicit present-weather label such as Nublado is stronger than a
+// recent rain accumulation and must suppress an active-rain scene.
+{
+  const raw = rawCurrent({
+    weather_code: 61,
+    precipitation: 0.6,
+    rain: 0.6,
+    cloud_cover: 92,
+  });
+  const result = applyCurrentWeatherTruth(raw, context({
+    dmc: dmcObservation({
+      distanceKm: 7,
+      precipitationRecentMm: 2.2,
+      cloudCoverPct: 100,
+      presentWeatherLabel: 'Nublado',
+    }),
+    multiModel: models(['lluvia', 'lluvia', 'lluvia', 'nublado']),
+  })) as any;
+
+  assert.equal(result.current.weather_code, 3);
+  assert.equal(result.current.precipitation, 0);
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'observed_dry');
+  assert.equal(result.orbi_current_truth.band, 'observed');
+}
+
+// 10) Genuine present rain remains first-class: an explicit DMC present-weather
+// phenomenon is allowed to produce the active rain scene even if the recent
+// accumulation field is zero or unavailable.
+{
+  const raw = rawCurrent({
+    weather_code: 3,
+    precipitation: 0,
+    rain: 0,
+    cloud_cover: 100,
+  });
+  const result = applyCurrentWeatherTruth(raw, context({
+    dmc: dmcObservation({
+      distanceKm: 6,
+      precipitationRecentMm: 0,
+      cloudCoverPct: 100,
+      presentWeatherLabel: 'Lluvia débil',
+    }),
+    multiModel: models(['nublado', 'lluvia', 'nublado', 'lluvia']),
+  })) as any;
+
+  assert.equal(result.current.weather_code, 61);
+  assert.ok(result.current.precipitation > 0);
+  assert.equal(result.orbi_current_truth.precipitationEvidence, 'observed_now');
+  assert.equal(result.orbi_current_truth.band, 'observed');
+}
+
+console.log('OC-22K deterministic current-weather truth tests: PASS');
