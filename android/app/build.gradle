@@ -35,8 +35,8 @@ android {
         applicationId "com.orbi.clima"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 10628
-        versionName "1.0.6-OC22-PERSISTENT-QA10628"
+        versionCode 10629
+        versionName "1.0.6-OC22-UPDATE-CHECK-QA10629"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [appLabel: "ORBI Clima IA"]
     }
@@ -73,8 +73,7 @@ android {
 
         oc21Preview {
             initWith debug
-            // 10628 establishes the persistent QA update channel. 10627 and older
-            // milestone-isolated packages remain separate one-off installs.
+            // 10628 established the persistent QA update channel.
             // From 10628 onward this suffix stays fixed so versionCode + certificate
             // determine whether Android offers Update.
             applicationIdSuffix ".oc22qa"
