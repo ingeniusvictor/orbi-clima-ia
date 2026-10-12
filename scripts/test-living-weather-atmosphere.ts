@@ -40,6 +40,7 @@ function daily(overrides: Partial<DailyForecast> = {}): DailyForecast {
 assert.equal(resolveAtmosphereScene('sunny'), 'clear');
 assert.equal(resolveAtmosphereScene('partly_cloudy'), 'partly-cloudy');
 assert.equal(resolveAtmosphereScene('cloudy'), 'cloudy');
+assert.equal(resolveAtmosphereScene('fog'), 'fog');
 assert.equal(resolveAtmosphereScene('rain'), 'rain');
 assert.equal(resolveAtmosphereScene('snow'), 'snow');
 assert.equal(resolveAtmosphereScene('storm'), 'storm');
@@ -53,6 +54,17 @@ const cloudy = buildWeatherAtmosphereModel({
 assert.equal(cloudy.scene, 'cloudy');
 assert.ok(cloudy.cloudOpacity >= 0.9, 'Cloudy scene should create a dense cloud field.');
 assert.ok(cloudy.mistStrength >= 0.2, 'Cloudy scene should keep atmospheric depth.');
+
+const fog = buildWeatherAtmosphereModel({
+  current: weather({ condition: 'fog', cloudCover: 78, humidity: 96, temperatureC: 9, feelsLikeC: 8, conditionLabel: 'Niebla' }),
+  quality: 'balanced',
+  timezone: 'UTC',
+  now: DAYTIME,
+});
+assert.equal(fog.scene, 'fog', 'Fog must remain a first-class scene instead of collapsing to cloudy.');
+assert.ok(fog.mistStrength >= 0.72, 'Fog must create a clearly stronger mist field than generic cloudiness.');
+assert.equal(fog.accentTemperature, 'cool');
+assert.ok(fog.luminance < cloudy.luminance, 'Fog should diffuse daylight more strongly than generic cloudiness at comparable daytime phase.');
 
 const drizzle = buildWeatherAtmosphereModel({
   current: Object.assign(
@@ -187,4 +199,4 @@ const daylightGuard = buildWeatherAtmosphereModel({
 assert.equal(daylightGuard.phase, 'day', 'Provider is_day=true must guard AUTO against an impossible night classification.');
 assert.equal(daylightGuard.solar.nightStrength, 0, 'Provider daylight guard must also repair the solar exposure state.');
 
-console.log('OC-22 Living Weather Atmosphere behavior tests: PASS');
+console.log('OC-22M Living Weather Atmosphere + phenomenon fidelity tests: PASS');
