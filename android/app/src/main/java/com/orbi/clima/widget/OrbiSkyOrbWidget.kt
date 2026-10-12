@@ -6,11 +6,11 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 
 class OrbiSkyOrbWidget : GlanceAppWidget() {
-
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val state = OrbiWidgetStateReader.read(context)
+        val snapshot = OrbiNativeWidgetSnapshotRendererV2.renderForHint(context, state)
         provideContent {
-            val state = OrbiWidgetStateReader.read(context)
-            OrbiWidgetSizeRouter(state)
+            OrbiNativeWidgetSnapshotHost(snapshot, "ORBI SkyOrb Widget")
         }
     }
 }
