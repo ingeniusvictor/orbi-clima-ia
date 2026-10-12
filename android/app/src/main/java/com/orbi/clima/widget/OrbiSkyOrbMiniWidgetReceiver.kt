@@ -12,9 +12,10 @@ class OrbiSkyOrbMiniWidgetReceiver : GlanceAppWidgetReceiver() {
 
 class OrbiSkyOrbMiniWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val state = OrbiWidgetStateReader.read(context)
+        val snapshot = OrbiNativeWidgetSnapshotRendererV2.renderMini(context, state)
         provideContent {
-            val state = OrbiWidgetStateReader.read(context)
-            OrbiSkyOrbMiniContent(state)
+            OrbiNativeWidgetSnapshotHost(snapshot, "ORBI SkyOrb Mini")
         }
     }
 }
