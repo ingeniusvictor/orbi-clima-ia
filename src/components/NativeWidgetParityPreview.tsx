@@ -68,14 +68,15 @@ function ConditionIcon({ condition, className = 'w-8 h-8' }: { condition: Weathe
   return <Sun className={className} />;
 }
 
+function sourceLabel(weatherSourceState?: any) {
+  if (weatherSourceState?.provider === 'mock') return 'DEMO';
+  if (weatherSourceState?.mode === 'cached') return 'CACHE';
+  if (weatherSourceState?.mode === 'fallback') return 'SEGURO';
+  return 'LIVE';
+}
+
 function SourceBadge({ weatherSourceState }: { weatherSourceState?: any }) {
-  const label = weatherSourceState?.provider === 'mock'
-    ? 'DEMO'
-    : weatherSourceState?.mode === 'cached'
-      ? 'CACHE'
-      : weatherSourceState?.mode === 'fallback'
-        ? 'SEGURO'
-        : 'LIVE';
+  const label = sourceLabel(weatherSourceState);
   const cls = label === 'LIVE'
     ? 'text-emerald-300 border-emerald-400/35 bg-emerald-400/10'
     : 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10';
@@ -98,6 +99,28 @@ function BrandHeader({ weatherSourceState, compact = false }: { weatherSourceSta
         </div>
       </div>
       <SourceBadge weatherSourceState={weatherSourceState} />
+    </div>
+  );
+}
+
+function OrbitalBrandHeader({ weatherSourceState }: { weatherSourceState?: any }) {
+  const now = new Date();
+  const date = now.toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: 'short' }).replaceAll('.', '').toUpperCase();
+  const time = now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className="absolute left-4 right-4 top-3.5 z-30 flex items-start justify-between pointer-events-none">
+      <div className="flex items-center gap-2">
+        <img src="/orbi-clima-app-icon.jpg" alt="" aria-hidden="true" className="w-8 h-8 rounded-[9px] object-cover border border-cyan-300/30 shadow-[0_0_14px_rgba(34,211,238,.20)]" />
+        <div className="leading-tight">
+          <div><span className="text-[11px] font-black text-white">ORBI</span> <span className="text-[11px] font-black text-cyan-300">CLIMA IA</span></div>
+          <div className="text-[7px] tracking-[.18em] font-mono text-cyan-300/70">SKYCORE ORBITAL</div>
+        </div>
+      </div>
+      <div className="text-right leading-tight">
+        <div className="text-[7px] font-bold text-slate-400 tracking-wide">{date}</div>
+        <div className="text-[19px] font-light text-white mt-0.5">{time}</div>
+        <div className="text-[7px] text-cyan-300 mt-0.5">↻ {sourceLabel(weatherSourceState)}</div>
+      </div>
     </div>
   );
 }
@@ -131,17 +154,18 @@ function NativeOrb({ current, size = 112 }: { current: CurrentWeather; size?: nu
   );
 }
 
-function MetricBubble({ label, value, tone }: { label: string; value: string; tone: 'blue' | 'cyan' | 'violet' | 'amber' }) {
+function MetricBubble({ label, value, tone, sub }: { label: string; value: string; tone: 'blue' | 'cyan' | 'violet' | 'amber'; sub?: string }) {
   const style = {
-    blue: 'border-blue-400/50 text-blue-300 shadow-[0_0_18px_rgba(59,130,246,.10)]',
-    cyan: 'border-cyan-300/50 text-cyan-300 shadow-[0_0_18px_rgba(34,211,238,.10)]',
-    violet: 'border-violet-400/50 text-violet-300 shadow-[0_0_18px_rgba(139,92,246,.10)]',
-    amber: 'border-amber-300/50 text-amber-200 shadow-[0_0_18px_rgba(251,191,36,.10)]',
+    blue: 'border-blue-400/50 text-blue-300 shadow-[0_0_20px_rgba(59,130,246,.14)]',
+    cyan: 'border-cyan-300/50 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,.14)]',
+    violet: 'border-violet-400/50 text-violet-300 shadow-[0_0_20px_rgba(139,92,246,.14)]',
+    amber: 'border-amber-300/50 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,.14)]',
   }[tone];
   return (
-    <div className={`w-[70px] h-[70px] rounded-full border bg-[#07101f]/78 flex flex-col items-center justify-center ${style}`}>
-      <span className="text-[7px] leading-none font-mono font-black tracking-[.04em]">{label}</span>
-      <span className="text-[18px] leading-none font-black text-white mt-1">{value}</span>
+    <div className={`w-[66px] h-[66px] rounded-full border bg-[radial-gradient(circle_at_35%_25%,rgba(255,255,255,.08),rgba(7,16,31,.90)_58%,rgba(2,6,17,.96))] flex flex-col items-center justify-center ${style}`}>
+      <span className="text-[6px] leading-none font-mono font-black tracking-[.04em]">{label}</span>
+      <span className="text-[17px] leading-none font-black text-white mt-1">{value}</span>
+      {sub && <span className="text-[6px] leading-none text-slate-400 mt-1">{sub}</span>}
     </div>
   );
 }
@@ -151,6 +175,56 @@ function MetricCard({ label, value, tone = 'text-cyan-300' }: { label: string; v
     <div className="rounded-xl border border-white/[.07] bg-slate-900/70 px-3 py-2.5 min-w-0">
       <div className={`text-[7px] font-mono font-black tracking-[.12em] ${tone}`}>{label}</div>
       <div className="text-[12px] font-black text-white mt-1 truncate">{value}</div>
+    </div>
+  );
+}
+
+function readDailyPreview(hourly: HourlyForecast[], current: CurrentWeather) {
+  try {
+    const raw = localStorage.getItem('orbi_clima_last_weather_bundle_v1');
+    const daily = raw ? JSON.parse(raw)?.data?.daily : null;
+    if (Array.isArray(daily) && daily.length >= 3) return daily.slice(0, 3);
+  } catch {
+    // Fall through to deterministic hourly fallback.
+  }
+  return hourly.slice(0, 3).map((h, index) => ({
+    date: '',
+    minTempC: h.temperatureC,
+    maxTempC: h.temperatureC,
+    condition: h.condition,
+    conditionLabel: h.conditionLabel,
+    fallbackLabel: index === 0 ? 'HOY' : `+${index + 1}H`,
+  })).concat([]).slice(0, 3).map((item, index) => ({
+    ...item,
+    condition: item.condition || current.condition,
+    conditionLabel: item.conditionLabel || current.conditionLabel,
+    fallbackLabel: item.fallbackLabel || (index === 0 ? 'HOY' : `+${index + 1}H`),
+  }));
+}
+
+function dayLabel(item: any, index: number) {
+  if (index === 0) return 'HOY';
+  if (!item?.date) return item?.fallbackLabel || `+${index + 1}H`;
+  try {
+    return new Date(`${item.date}T12:00:00`)
+      .toLocaleDateString('es-CL', { weekday: 'short' })
+      .replaceAll('.', '')
+      .slice(0, 3)
+      .toUpperCase();
+  } catch {
+    return item?.fallbackLabel || `+${index + 1}H`;
+  }
+}
+
+function ForecastBubble({ item, index }: { item: any; index: number }) {
+  const condition = (item?.condition || 'cloudy') as WeatherCondition;
+  const max = Math.round(item?.maxTempC ?? item?.temperatureC ?? 0);
+  const min = Math.round(item?.minTempC ?? item?.temperatureC ?? 0);
+  return (
+    <div className="w-[68px] h-[68px] rounded-full border border-cyan-300/35 bg-[radial-gradient(circle_at_35%_25%,rgba(255,255,255,.10),rgba(11,27,52,.88)_46%,rgba(2,6,17,.98)_100%)] shadow-[0_0_22px_rgba(34,211,238,.13)] flex flex-col items-center justify-center">
+      <div className="text-[7px] font-black text-white leading-none">{dayLabel(item, index)}</div>
+      <ConditionIcon condition={condition} className="w-5 h-5 text-white/90 mt-1" />
+      <div className="text-[7px] font-black leading-none mt-1"><span className="text-cyan-300">{max}°</span><span className="text-slate-500"> / </span><span className="text-amber-300">{min}°</span></div>
     </div>
   );
 }
@@ -166,35 +240,49 @@ export default function NativeWidgetParityPreview({
   const [variant, setVariant] = useState<NativeVariant>('command');
   const tone = accent(current.condition);
   const next = useMemo(() => hourly.slice(0, 3), [hourly]);
+  const dailyPreview = useMemo(() => readDailyPreview(hourly, current), [hourly, current]);
   const rainProbability = next[0]?.precipitationProbability ?? 0;
   const exactLabel = exactConditionLabel(current);
 
   const commandPreview = (
-    <Frame className="w-full max-w-[390px] aspect-square rounded-[30px] p-4 mx-auto">
-      <BrandHeader weatherSourceState={weatherSourceState} />
-      <div className="relative h-[72%] mt-2">
-        <div className="absolute inset-[10%_18%] rounded-[50%] border border-cyan-300/20 rotate-[-12deg]" />
-        <div className="absolute inset-[15%_14%] rounded-[50%] border border-violet-300/20 rotate-[16deg]" />
-        <div className="absolute left-[2%] top-[15%]"><MetricBubble label="LLUVIA" value={`${rainProbability}%`} tone="blue" /></div>
-        <div className="absolute right-[2%] top-[15%]"><MetricBubble label="HUMEDAD" value={`${current.humidity}%`} tone="cyan" /></div>
-        <div className="absolute left-[2%] bottom-[10%]"><MetricBubble label="VIENTO" value={`${current.windSpeedKmh}`} tone="violet" /></div>
-        <div className="absolute right-[2%] bottom-[10%]"><MetricBubble label="UV" value={`${current.uvIndex}`} tone="amber" /></div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
-          <NativeOrb current={current} size={126} />
-          <div className="text-[39px] leading-none font-black text-white -mt-1">{current.temperatureC}°</div>
-          <div className={`max-w-[210px] text-center text-[10px] leading-tight font-black mt-2 ${tone.text}`}>{exactLabel}</div>
-          <div className="text-[10px] text-slate-300 font-bold mt-1">{locationName}</div>
-        </div>
+    <Frame className="w-full max-w-[420px] aspect-square rounded-[32px] mx-auto">
+      <OrbitalBrandHeader weatherSourceState={weatherSourceState} />
+
+      <div className="absolute left-1/2 top-[49%] w-[75%] h-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/15" />
+      <div className="absolute left-1/2 top-[49%] w-[68%] h-[68%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/15" />
+      {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
+        const angle = (Math.PI * 2 * i) / 8 - Math.PI / 2;
+        const x = 50 + Math.cos(angle) * 35;
+        const y = 49 + Math.sin(angle) * 35;
+        return <span key={i} className="absolute w-1 h-1 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,.9)]" style={{ left: `${x}%`, top: `${y}%` }} />;
+      })}
+
+      <div className="absolute left-[15%] top-[18%]"><ForecastBubble item={dailyPreview[1] || dailyPreview[0]} index={1} /></div>
+      <div className="absolute left-1/2 top-[11%] -translate-x-1/2"><ForecastBubble item={dailyPreview[0]} index={0} /></div>
+      <div className="absolute right-[15%] top-[18%]"><ForecastBubble item={dailyPreview[2] || dailyPreview[0]} index={2} /></div>
+
+      <div
+        className="absolute left-1/2 top-[49%] w-[190px] h-[190px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-200/55 flex flex-col items-center justify-center shadow-[0_0_44px_rgba(34,211,238,.20),inset_0_0_36px_rgba(255,255,255,.06)]"
+        style={{ background: `radial-gradient(circle at 34% 25%, rgba(255,255,255,.18), ${tone.a}55 23%, ${tone.b}d9 60%, #030817 100%)` }}
+      >
+        <div className="absolute inset-[5%] rounded-full border border-violet-300/18" />
+        <ConditionIcon condition={current.condition} className="w-10 h-10 text-white/90 relative z-10 -mt-1" />
+        <div className="text-[50px] leading-none font-light text-white relative z-10 mt-1">{current.temperatureC}°</div>
+        <div className="max-w-[150px] text-center text-[10px] leading-tight font-semibold text-white relative z-10 mt-1.5">{exactLabel}</div>
+        <div className="text-[9px] text-cyan-300 font-bold relative z-10 mt-1">{locationName}</div>
+        <div className="text-[7px] text-slate-400 relative z-10 mt-0.5">Sensación {current.feelsLikeC}°</div>
+        <div className="text-[7px] text-amber-300 relative z-10 mt-0.5">UV {current.uvIndex}</div>
       </div>
-      <div className="rounded-xl border border-cyan-300/15 bg-slate-900/72 px-3 py-2">
-        <div className="flex gap-2 items-center min-w-0">
-          <span className="text-[8px] font-black text-cyan-300 shrink-0">ORBI IA</span>
-          <span className="text-[8px] text-slate-100 font-semibold truncate">{shortNarrative || 'Condición meteorológica actual sincronizada.'}</span>
-        </div>
-        <div className="flex justify-between gap-2 mt-1.5 text-[7px] text-slate-500">
-          <span className="truncate">{next.map(h => `${h.time} ${h.temperatureC}°`).join(' · ') || 'Evolución horaria sincronizada'}</span>
-          <span className="text-cyan-300/75 font-black shrink-0">SKYORB COMMAND</span>
-        </div>
+
+      <div className="absolute left-[17%] top-[69%]"><MetricBubble label="LLUVIA" value={`${rainProbability}%`} sub="Probabilidad" tone="blue" /></div>
+      <div className="absolute left-1/2 top-[72%] -translate-x-1/2"><MetricBubble label="VIENTO" value={`${current.windSpeedKmh}`} sub="km/h" tone="violet" /></div>
+      <div className="absolute right-[17%] top-[69%]"><MetricBubble label="HUMEDAD" value={`${current.humidity}%`} sub={current.humidity >= 70 ? 'Alta' : 'Normal'} tone="cyan" /></div>
+
+      <div className="absolute left-[9%] right-[9%] bottom-[4.5%] h-[42px] rounded-full border border-cyan-300/20 bg-slate-950/78 px-3 flex items-center gap-2 shadow-[0_0_20px_rgba(34,211,238,.06)]">
+        <span className="w-5 h-5 rounded-full flex items-center justify-center bg-cyan-400/10 text-cyan-300 text-[12px] shrink-0">✦</span>
+        <span className="text-[8px] font-black text-cyan-300 shrink-0">ORBI IA</span>
+        <span className="text-[8px] text-slate-200 font-medium truncate flex-1">{shortNarrative || 'Condición meteorológica actual sincronizada.'}</span>
+        <span className="text-cyan-300 text-[13px]">›</span>
       </div>
     </Frame>
   );
@@ -277,8 +365,8 @@ export default function NativeWidgetParityPreview({
         <div className="flex items-start gap-2">
           <span className="mt-0.5 w-2 h-2 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,.8)] shrink-0" />
           <div>
-            <p className="text-[10px] font-mono font-black tracking-[.12em] text-cyan-300">VISTA DE PARIDAD NATIVA · CANVAS V3</p>
-            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">El preview replica la jerarquía y proporciones del renderer Fluid V3 real. El launcher sólo puede variar márgenes externos según fabricante, densidad y cuadrícula.</p>
+            <p className="text-[10px] font-mono font-black tracking-[.12em] text-cyan-300">SKYORB COMMANDER · ORBITAL V4</p>
+            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">Commander 4×4 replica la arquitectura orbital nativa V4: núcleo dominante, pronóstico superior, métricas inferiores y rail ORBI IA. Los demás formatos permanecen en Fluid V3.</p>
           </div>
         </div>
       </div>
@@ -292,13 +380,13 @@ export default function NativeWidgetParityPreview({
             className={`rounded-xl border px-3 py-2 text-left transition-all ${variant === item.id ? 'border-cyan-400/45 bg-cyan-400/10' : 'border-white/[.06] bg-white/[.025]'}`}
           >
             <span className={`block text-[10px] font-black ${variant === item.id ? 'text-cyan-300' : 'text-slate-300'}`}>{item.label}</span>
-            <span className="block text-[8px] font-mono text-slate-500 mt-0.5">NATIVO V3 · {item.size}</span>
+            <span className="block text-[8px] font-mono text-slate-500 mt-0.5">{item.id === 'command' ? 'ORBITAL V4' : 'NATIVO V3'} · {item.size}</span>
           </button>
         ))}
       </div>
 
       <div className="py-2">{preview}</div>
-      <p className="text-[9px] text-slate-500 text-center font-mono">OC-22P · WIDGET PREVIEW PARITY + BRAND</p>
+      <p className="text-[9px] text-slate-500 text-center font-mono">OC-22Q · SKYORB COMMANDER ORBITAL V4</p>
     </div>
   );
 }
