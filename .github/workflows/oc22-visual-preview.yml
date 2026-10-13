@@ -90,7 +90,7 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
-      - name: Build non-installable 10633 Orbital V4 native recovery payload
+      - name: Build non-installable 10634 Alerts Inbox native recovery payload
         shell: bash
         run: |
           set -euo pipefail
@@ -100,16 +100,16 @@ jobs:
           )
           APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
           test -n "$APK"
-          rm -rf "$RUNNER_TEMP/orbi-10633-payload"
-          mkdir -p "$RUNNER_TEMP/orbi-10633-payload"
-          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10633-payload"
-          rm -rf "$RUNNER_TEMP/orbi-10633-payload/assets/public/audio"
-          rm -rf "$RUNNER_TEMP/orbi-10633-payload/META-INF"
+          rm -rf "$RUNNER_TEMP/orbi-10634-payload"
+          mkdir -p "$RUNNER_TEMP/orbi-10634-payload"
+          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10634-payload"
+          rm -rf "$RUNNER_TEMP/orbi-10634-payload/assets/public/audio"
+          rm -rf "$RUNNER_TEMP/orbi-10634-payload/META-INF"
           (
-            cd "$RUNNER_TEMP/orbi-10633-payload"
-            zip -qr "$GITHUB_WORKSPACE/orbi-10633-skyorb-commander-orbital-v4-non-audio-payload.zip" .
+            cd "$RUNNER_TEMP/orbi-10634-payload"
+            zip -qr "$GITHUB_WORKSPACE/orbi-10634-alerts-inbox-non-audio-payload.zip" .
           )
-          test -s "$GITHUB_WORKSPACE/orbi-10633-skyorb-commander-orbital-v4-non-audio-payload.zip"
+          test -s "$GITHUB_WORKSPACE/orbi-10634-alerts-inbox-non-audio-payload.zip"
 
       - name: Verify bundled Zen audio integrity after Capacitor copy
         id: zen_integrity
@@ -119,8 +119,8 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-skyorb-commander-orbital-v4-native-payload-10633
-          path: orbi-10633-skyorb-commander-orbital-v4-non-audio-payload.zip
+          name: orbi-clima-oc22-alerts-inbox-native-payload-10634
+          path: orbi-10634-alerts-inbox-non-audio-payload.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -161,13 +161,13 @@ jobs:
           echo "QA_PACKAGE=com.orbi.clima.oc22qa"
           echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
           echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
-          echo "10633 must update in place over the installed 10632 baseline."
+          echo "10634 must update in place over the installed 10633 baseline."
           echo "This QA identity must never sign the production package com.orbi.clima."
-          grep -n "versionCode 10633" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-SKYORB-COMMANDER-ORBITAL-V4-QA10633"' android/app/build.gradle
+          grep -n "versionCode 10634" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-ALERTS-INBOX-QA10634"' android/app/build.gradle
           grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
 
-      - name: Compile persistent OC-22 SkyOrb Commander Orbital V4 QA
+      - name: Compile persistent OC-22 Alerts Inbox QA
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
@@ -180,7 +180,7 @@ jobs:
           test -n "$APK"
           BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
           echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
-          echo "$BADGING" | grep -F "versionCode='10633'"
+          echo "$BADGING" | grep -F "versionCode='10634'"
           SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
           echo "$SIGNATURE_OUTPUT"
           APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
@@ -194,10 +194,10 @@ jobs:
             exit 1
           fi
 
-      - name: Upload 10633 SkyOrb Commander Orbital V4 QA APK
+      - name: Upload 10634 Alerts Inbox QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-skyorb-commander-orbital-v4-qa-10633
+          name: orbi-clima-oc22-alerts-inbox-qa-10634
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 14
