@@ -56,9 +56,10 @@ export function mapWmoCodeToOrbiCondition(code?: number, isDay?: boolean, precip
     case 2:
       return 'partly_cloudy';
     case 3:
+      return 'cloudy';
     case 45:
     case 48:
-      return 'cloudy';
+      return 'fog';
     case 51:
     case 53:
     case 55:
@@ -79,7 +80,7 @@ export function mapWmoCodeToOrbiCondition(code?: number, isDay?: boolean, precip
     case 77:
     case 85:
     case 86:
-      return 'cold';
+      return 'snow';
     case 95:
     case 96:
     case 99:
@@ -111,7 +112,7 @@ export function getWmoHumanLabel(code?: number): string {
     case 71: return 'Nevada ligera';
     case 73: return 'Nevada moderada';
     case 75: return 'Nevada intensa';
-    case 77: return 'Granizo menudo';
+    case 77: return 'Granos de nieve';
     case 80: return 'Chubascos ligeros';
     case 81: return 'Chubascos moderados';
     case 82: return 'Chubascos violentos';

@@ -14,6 +14,8 @@ const requiredRefreshes = [
   'OrbiSkyOrbPanelWidget().updateAll(context)',
   'OrbiSkyOrbCommandWidget().updateAll(context)',
   'OrbiSkyOrbCommandPremiumWidget().updateAll(context)',
+  'OrbiFieldCommandWidget().updateAll(context)',
+  'OrbiCinematicBarWidget().updateAll(context)',
 ];
 
 const assertions = [
@@ -22,7 +24,7 @@ const assertions = [
   ['bridge persists the widget contract before refresh', bridge.includes('putString("orbi_skyorb_widget_contract_v1", contractJson)')],
   ...requiredRefreshes.map((needle) => [`bridge refreshes ${needle.split('().')[0]}`, bridge.includes(needle)]),
   ['refreshes are isolated per family', bridge.includes('refreshSafely(') && bridge.includes('Widget refresh failed for $name')],
-  ['bridge schedules five widget families', bridge.includes('ret.put("widgetFamilies", 5)')],
+  ['bridge schedules seven widget families', bridge.includes('ret.put("widgetFamilies", 7)')],
 ];
 
 let failed = false;
@@ -34,5 +36,5 @@ for (const [label, ok] of assertions) {
 if (failed) {
   process.exitCode = 1;
 } else {
-  console.log('OC-16 Immediate Multi-Widget Refresh source gate: PASS');
+  console.log('OC-16/OC-22I Immediate Multi-Widget Refresh source gate: PASS');
 }

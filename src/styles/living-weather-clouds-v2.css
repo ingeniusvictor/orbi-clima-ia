@@ -1,0 +1,103 @@
+/*
+ * OC-22 cloud renderer v2.
+ *
+ * The first Living Weather pass used large blurred ellipses. On physical Android
+ * hardware those read visually as translucent ovals rather than clouds. Replace
+ * them with pre-shaped SVG cloud masses that already contain their own soft
+ * lighting and lower shadow. No runtime blur/filter is required.
+ */
+
+.living-weather-atmosphere .lwa-cloud {
+  height: auto;
+  aspect-ratio: 600 / 260;
+  border-radius: 0;
+  filter: none;
+  -webkit-filter: none;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 1;
+}
+
+.living-weather-atmosphere .lwa-cloud-a,
+.living-weather-atmosphere .lwa-cloud-d {
+  background-image: url('/weather/clouds/cloud-soft-a.svg');
+}
+
+.living-weather-atmosphere .lwa-cloud-b,
+.living-weather-atmosphere .lwa-cloud-e {
+  background-image: url('/weather/clouds/cloud-soft-b.svg');
+}
+
+.living-weather-atmosphere .lwa-cloud-c {
+  background-image: url('/weather/clouds/cloud-soft-c.svg');
+}
+
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud {
+  background-image: url('/weather/clouds/cloud-storm.svg');
+}
+
+.living-weather-atmosphere .lwa-cloud-field-far {
+  top: 2%;
+  height: 31%;
+}
+
+.living-weather-atmosphere .lwa-cloud-field-mid {
+  top: 8%;
+  height: 39%;
+}
+
+.living-weather-atmosphere .lwa-cloud-field-near {
+  top: 18%;
+  height: 43%;
+}
+
+.living-weather-atmosphere .lwa-cloud-a {
+  left: 2%;
+  top: 4%;
+  width: 34%;
+}
+
+.living-weather-atmosphere .lwa-cloud-b {
+  left: 44%;
+  top: 15%;
+  width: 38%;
+}
+
+.living-weather-atmosphere .lwa-cloud-c {
+  left: 12%;
+  top: 9%;
+  width: 42%;
+}
+
+.living-weather-atmosphere .lwa-cloud-d {
+  left: 61%;
+  top: 3%;
+  width: 31%;
+}
+
+.living-weather-atmosphere .lwa-cloud-e {
+  left: 31%;
+  top: 11%;
+  width: 47%;
+}
+
+/* Cloudier scenes need a recognisable deck, but do not enlarge individual
+   silhouettes into screen-sized blobs. */
+.living-weather-atmosphere[data-scene='cloudy'] .lwa-cloud-field-mid,
+.living-weather-atmosphere[data-scene='rain'] .lwa-cloud-field-mid,
+.living-weather-atmosphere[data-scene='storm'] .lwa-cloud-field-mid {
+  opacity: min(1, calc(var(--lwa-cloud-mid-opacity) + 0.08));
+}
+
+/* Android keeps the exact same shaped cloud art. Movement happens only at the
+   parent-field level, so child cloud masses remain simple rasterised surfaces. */
+html.capacitor-android .living-weather-atmosphere .lwa-cloud,
+html.android-webview .living-weather-atmosphere .lwa-cloud {
+  filter: none !important;
+  -webkit-filter: none !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+}

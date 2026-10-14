@@ -33,9 +33,9 @@ class OrbiWidgetBridgePlugin : Plugin() {
                 .putLong("orbi_skyorb_widget_updated_at", System.currentTimeMillis())
                 .apply()
 
-            // OC-16: every native widget family consumes the same persisted contract,
-            // so a weather-state change must fan out immediately instead of waiting
-            // for each launcher's periodic update window.
+            // OC-16 / OC-22I: every native widget family consumes the same
+            // persisted contract. Weather changes fan out immediately so all
+            // launcher surfaces stay visually and meteorologically aligned.
             CoroutineScope(Dispatchers.Default).launch {
                 refreshAllWidgetFamilies(appContext)
             }
@@ -43,7 +43,7 @@ class OrbiWidgetBridgePlugin : Plugin() {
             val ret = JSObject()
             ret.put("success", true)
             ret.put("refreshScheduled", true)
-            ret.put("widgetFamilies", 5)
+            ret.put("widgetFamilies", 7)
             call.resolve(ret)
         } catch (e: Exception) {
             call.reject("Failed to save contract", e)
@@ -65,6 +65,12 @@ class OrbiWidgetBridgePlugin : Plugin() {
         }
         refreshSafely("CommandPremium") {
             OrbiSkyOrbCommandPremiumWidget().updateAll(context)
+        }
+        refreshSafely("FieldCommand") {
+            OrbiFieldCommandWidget().updateAll(context)
+        }
+        refreshSafely("CinematicBar") {
+            OrbiCinematicBarWidget().updateAll(context)
         }
     }
 

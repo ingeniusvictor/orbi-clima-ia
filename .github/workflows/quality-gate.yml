@@ -56,6 +56,10 @@ jobs:
         if: steps.typecheck.outcome == 'success'
         run: npm run ui:verify-premium-home
 
+      - name: OC-22 Living Weather Atmosphere gate
+        if: steps.typecheck.outcome == 'success'
+        run: npm run ui:verify-living-atmosphere
+
       - name: Current Weather Truth source gate
         if: steps.typecheck.outcome == 'success'
         run: npm run weather:verify-current-truth
@@ -87,6 +91,15 @@ jobs:
       - name: Production build
         if: steps.typecheck.outcome == 'success'
         run: npm run build
+
+      - name: Upload OC-22 compiled web bundle
+        if: steps.typecheck.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-oc22-web-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
 
   android-native-build:
     needs: web-quality
@@ -147,6 +160,9 @@ jobs:
 
       - name: Verify Premium Home Atmosphere after Capacitor copy
         run: npm run ui:verify-premium-home
+
+      - name: Verify OC-22 Living Weather Atmosphere after Capacitor copy
+        run: npm run ui:verify-living-atmosphere
 
       - name: Verify Current Weather Truth after Capacitor copy
         run: npm run weather:verify-current-truth

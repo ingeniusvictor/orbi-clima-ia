@@ -9,6 +9,8 @@
 
     <application
         android:allowBackup="true"
+        android:icon="@drawable/orbi_clima_app_icon"
+        android:roundIcon="@drawable/orbi_clima_app_icon"
         android:label="${appLabel}"
         android:supportsRtl="true">
 
@@ -32,7 +34,6 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/orbi_skyorb_widget_info" />
@@ -46,7 +47,6 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/orbi_skyorb_mini_widget_info" />
@@ -60,7 +60,6 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/orbi_skyorb_panel_widget_info" />
@@ -74,7 +73,6 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/orbi_skyorb_command_widget_info" />
@@ -88,10 +86,35 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/orbi_skyorb_command_premium_widget_info" />
+        </receiver>
+
+        <!-- ORBI Field Command Widget Registration -->
+        <receiver
+            android:name=".widget.OrbiFieldCommandWidgetReceiver"
+            android:exported="true"
+            android:label="@string/orbi_field_command_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/orbi_field_command_widget_info" />
+        </receiver>
+
+        <!-- ORBI Cinematic Bar Widget Registration -->
+        <receiver
+            android:name=".widget.OrbiCinematicBarWidgetReceiver"
+            android:exported="true"
+            android:label="@string/orbi_cinematic_bar_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/orbi_cinematic_bar_widget_info" />
         </receiver>
 
     </application>

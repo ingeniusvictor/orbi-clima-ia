@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Headphones, ShieldCheck, Music, CheckCircle2, Upload, Download, Play, Pause, Trash2 } from 'lucide-react';
-import { saveCustomAudioTrack, getCustomAudioTrack, deleteCustomAudioTrack } from '../utils/audioDb';
+import React, { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, Headphones, Music, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { deleteCustomAudioTrack, saveCustomAudioTrack } from '../utils/audioDb';
+
+const BUILT_IN_TRACK_ID = 'crystal_arch';
 
 export default function OrbiZenSoundSettingsCard() {
   const [isEnabled, setIsEnabled] = useState<boolean>(() => {
@@ -13,9 +15,10 @@ export default function OrbiZenSoundSettingsCard() {
 
   const [selectedTrackId, setSelectedTrackId] = useState<string>(() => {
     try {
-      return localStorage.getItem('orbiZenSoundTrackId') || 'crystal_arch';
+      const stored = localStorage.getItem('orbiZenSoundTrackId') || BUILT_IN_TRACK_ID;
+      return stored === 'custom' ? 'custom' : BUILT_IN_TRACK_ID;
     } catch {
-      return 'crystal_arch';
+      return BUILT_IN_TRACK_ID;
     }
   });
 
@@ -27,7 +30,7 @@ export default function OrbiZenSoundSettingsCard() {
     }
   });
 
-  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,47 +38,55 @@ export default function OrbiZenSoundSettingsCard() {
     const handlePreferenceChange = () => {
       try {
         setIsEnabled(localStorage.getItem('orbiZenSoundEnabled') === 'true');
-        setSelectedTrackId(localStorage.getItem('orbiZenSoundTrackId') || 'crystal_arch');
+        const stored = localStorage.getItem('orbiZenSoundTrackId') || BUILT_IN_TRACK_ID;
+        setSelectedTrackId(stored === 'custom' ? 'custom' : BUILT_IN_TRACK_ID);
         setCustomFileName(localStorage.getItem('orbiZenSoundCustomName') || '');
-      } catch (e) {
-        // Fallback
+      } catch {
+        // Keep current UI state when local storage is unavailable.
       }
     };
 
     window.addEventListener('orbi_zen_sound_preference_changed', handlePreferenceChange);
-    return () => {
-      window.removeEventListener('orbi_zen_sound_preference_changed', handlePreferenceChange);
-    };
+    return () => window.removeEventListener('orbi_zen_sound_preference_changed', handlePreferenceChange);
   }, []);
 
+  const notifyPreferenceChanged = () => {
+    window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
+  };
+
   const handleToggle = () => {
-    const nextVal = !isEnabled;
-    setIsEnabled(nextVal);
+    const nextValue = !isEnabled;
+    setIsEnabled(nextValue);
     try {
-      localStorage.setItem('orbiZenSoundEnabled', nextVal ? 'true' : 'false');
-      window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
-    } catch (e) {
-      console.warn('Could not save Zen Sound preference:', e);
+      localStorage.setItem('orbiZenSoundEnabled', nextValue ? 'true' : 'false');
+      notifyPreferenceChanged();
+    } catch (error) {
+      console.warn('Could not save Zen Sound preference:', error);
     }
   };
 
-  const handleSelectTrack = (trackId: string) => {
+  const handleSelectTrack = (trackId: 'crystal_arch' | 'custom') => {
+    if (trackId === 'custom' && !customFileName) {
+      fileInputRef.current?.click();
+      return;
+    }
+
     setSelectedTrackId(trackId);
     try {
       localStorage.setItem('orbiZenSoundTrackId', trackId);
-      window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
-    } catch (e) {
-      console.warn('Could not save track selection:', e);
+      notifyPreferenceChanged();
+    } catch (error) {
+      console.warn('Could not save Zen Sound source:', error);
     }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
 
-    // Validate type (should be audio)
     if (!file.type.startsWith('audio/')) {
-      setUploadError('Por favor selecciona un archivo de audio válido (.mp3, .ogg, .wav, .m4a, etc.)');
+      setUploadError('Selecciona un archivo de audio válido del dispositivo.');
       return;
     }
 
@@ -85,114 +96,56 @@ export default function OrbiZenSoundSettingsCard() {
     try {
       await saveCustomAudioTrack(file);
       setCustomFileName(file.name);
+      setSelectedTrackId('custom');
       localStorage.setItem('orbiZenSoundCustomName', file.name);
       localStorage.setItem('orbiZenSoundTrackId', 'custom');
-      setSelectedTrackId('custom');
-
-      // Dispatch event to notify controller on the main screen to update the track source immediately
-      window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
-    } catch (err) {
-      console.error('Error storing custom track:', err);
-      setUploadError('Error al guardar el archivo de música local en la base de datos de tu celular.');
+      notifyPreferenceChanged();
+    } catch (error) {
+      console.error('Error storing custom Zen audio:', error);
+      setUploadError('No fue posible guardar este audio en ORBI Zen.');
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleDeleteCustomTrack = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Avoid selecting track
+  const handleDeleteCustomTrack = async (event: React.MouseEvent) => {
+    event.stopPropagation();
     try {
       await deleteCustomAudioTrack();
       setCustomFileName('');
       localStorage.removeItem('orbiZenSoundCustomName');
 
       if (selectedTrackId === 'custom') {
-        setSelectedTrackId('crystal_arch');
-        localStorage.setItem('orbiZenSoundTrackId', 'crystal_arch');
+        setSelectedTrackId(BUILT_IN_TRACK_ID);
+        localStorage.setItem('orbiZenSoundTrackId', BUILT_IN_TRACK_ID);
       }
 
-      window.dispatchEvent(new Event('orbi_zen_sound_preference_changed'));
-    } catch (err) {
-      console.error('Error deleting custom track:', err);
+      notifyPreferenceChanged();
+    } catch (error) {
+      console.error('Error deleting custom Zen audio:', error);
+      setUploadError('No fue posible eliminar el audio local.');
     }
   };
-
-  const handleExportCustomTrack = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUploadError(null);
-
-    try {
-      const track = await getCustomAudioTrack();
-      if (!track?.blob) {
-        setUploadError('No se encontró la copia local de esta pista para respaldarla.');
-        return;
-      }
-
-      const fileName = track.name || customFileName || `ORBI-Zen-backup-${Date.now()}.mp3`;
-      const type = track.type || track.blob.type || 'audio/mpeg';
-      const file = new File([track.blob], fileName, {
-        type,
-        lastModified: track.updatedAt || Date.now(),
-      });
-
-      const shareData: ShareData = {
-        files: [file],
-        title: 'Respaldo ORBI Zen Sound',
-      };
-
-      if (
-        typeof navigator.share === 'function' &&
-        (typeof navigator.canShare !== 'function' || navigator.canShare(shareData))
-      ) {
-        await navigator.share(shareData);
-        return;
-      }
-
-      const objectUrl = URL.createObjectURL(file);
-      const anchor = document.createElement('a');
-      anchor.href = objectUrl;
-      anchor.download = fileName;
-      anchor.style.display = 'none';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return;
-      }
-      console.error('Error exporting custom track:', err);
-      setUploadError('No fue posible crear el respaldo de la pista. Inténtalo nuevamente.');
-    }
-  };
-
-  const triggerFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const tracks = [
-    { id: 'crystal_arch', name: 'Beneath the Crystal Arch', desc: 'Melodía premium inmersiva (Recomendada)', isLocal: true },
-    { id: 'zen_loop', name: 'Orbi Zen Loop v1', desc: 'Tonos solfeggio armónicos puros', isLocal: true },
-    { id: 'classic_ambient', name: 'Orbi Zen Ambient', desc: 'Frecuencia ambiental clásica suave', isLocal: true }
-  ];
 
   return (
-    <div id="orbi-zen-sound-settings-card" className="p-5 rounded-2xl bg-[#090f1e]/80 border border-white/5 shadow-xl transition-all hover:border-white/10 text-left">
+    <div
+      id="orbi-zen-sound-settings-card"
+      className="p-5 rounded-2xl bg-[#090f1e]/80 border border-white/5 shadow-xl transition-all hover:border-white/10 text-left"
+    >
       <div className="flex items-center gap-3 mb-3">
         <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400">
           <Headphones className="w-5 h-5" />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-slate-100 font-sans">ORBI Zen Sound</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Música y sonidos ambientales</p>
+          <p className="text-xs text-slate-400 mt-0.5">Ambiente relajante opcional</p>
         </div>
       </div>
 
       <p className="text-xs text-slate-300 mb-4 leading-relaxed font-sans">
-        Acompaña la experiencia visual de la esfera climática con un sonido ambiental armónico relajante en segundo plano. ¡Puedes usar nuestras pistas premium o elegir tu propia música desde tu celular!
+        Añade un fondo sonoro suave a la experiencia climática. Usa la pista Zen incluida de ORBI o elige un audio de tu propio dispositivo.
       </p>
 
-      {/* Main Toggle Action Card */}
       <button
         onClick={handleToggle}
         className={`w-full p-4 rounded-xl border text-left flex items-start justify-between gap-4 transition-all duration-300 cursor-pointer mb-5 ${
@@ -204,9 +157,7 @@ export default function OrbiZenSoundSettingsCard() {
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-200 font-sans">
-              Sonido de Fondo en la Esfera
-            </span>
+            <span className="text-xs font-bold text-slate-200 font-sans">Sonido Zen</span>
             <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${
               isEnabled
                 ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/15'
@@ -217,8 +168,8 @@ export default function OrbiZenSoundSettingsCard() {
           </div>
           <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed font-sans">
             {isEnabled
-              ? 'Sonando de forma sutil mientras contemplas el clima en tiempo real.'
-              : 'Silenciado. Toca aquí para activar y comenzar la reproducción ambiental.'}
+              ? 'Reproducción ambiental activa en segundo plano.'
+              : 'Actívalo cuando quieras acompañar la experiencia con audio relajante.'}
           </p>
         </div>
 
@@ -231,128 +182,111 @@ export default function OrbiZenSoundSettingsCard() {
         </div>
       </button>
 
-      {/* Track Selection Section */}
-      <div className="space-y-3 mb-4">
-        <h4 className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider mb-2">
-          Seleccionar Pista Musical
+      <div className="space-y-2.5">
+        <h4 className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider">
+          Fuente de audio
         </h4>
 
-        {/* Predefined Tracks */}
-        <div className="grid grid-cols-1 gap-2">
-          {tracks.map((track) => (
-            <button
-              key={track.id}
-              onClick={() => handleSelectTrack(track.id)}
-              className={`w-full p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all ${
-                selectedTrackId === track.id
-                  ? 'bg-cyan-500/10 border-cyan-500/30 text-slate-100'
-                  : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.03] text-slate-400'
-              }`}
-            >
-              <Music className={`w-3.5 h-3.5 shrink-0 ${selectedTrackId === track.id ? 'text-cyan-400' : 'text-slate-500'}`} />
+        <button
+          onClick={() => handleSelectTrack(BUILT_IN_TRACK_ID)}
+          className={`w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${
+            selectedTrackId === BUILT_IN_TRACK_ID
+              ? 'bg-cyan-500/10 border-cyan-500/30 text-slate-100'
+              : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.03] text-slate-400'
+          }`}
+        >
+          <Music className={`w-4 h-4 shrink-0 ${selectedTrackId === BUILT_IN_TRACK_ID ? 'text-cyan-400' : 'text-slate-500'}`} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] font-semibold text-slate-200">Beneath the Crystal Arch</p>
+              <span className="text-[8px] font-mono font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/15 px-1.5 py-0.5 rounded uppercase">
+                ORBI
+              </span>
+            </div>
+            <p className="text-[9px] text-slate-500 mt-0.5">Pista Zen integrada · lista para usar</p>
+          </div>
+          {selectedTrackId === BUILT_IN_TRACK_ID && <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />}
+        </button>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="audio/*"
+          className="hidden"
+        />
+
+        {customFileName ? (
+          <div
+            onClick={() => handleSelectTrack('custom')}
+            className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
+              selectedTrackId === 'custom'
+                ? 'bg-purple-500/10 border-purple-500/30 text-slate-100'
+                : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.03] text-slate-400'
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Music className={`w-4 h-4 shrink-0 ${selectedTrackId === 'custom' ? 'text-purple-400' : 'text-slate-500'}`} />
               <div className="min-w-0 flex-1">
-                <p className={`text-[11px] font-medium leading-tight ${selectedTrackId === track.id ? 'text-cyan-300' : 'text-slate-300'}`}>
-                  {track.name}
-                </p>
-                <p className="text-[9px] text-slate-500 mt-0.5 truncate">{track.desc}</p>
-              </div>
-              {selectedTrackId === track.id && (
-                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-white/5 my-3"></div>
-
-        {/* Custom Track option */}
-        <div className="space-y-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="audio/*"
-            className="hidden"
-          />
-
-          {customFileName ? (
-            <div
-              onClick={() => handleSelectTrack('custom')}
-              className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                selectedTrackId === 'custom'
-                  ? 'bg-purple-500/10 border-purple-500/30 text-slate-100'
-                  : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.03] text-slate-400'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <Music className={`w-3.5 h-3.5 shrink-0 ${selectedTrackId === 'custom' ? 'text-purple-400' : 'text-slate-500'}`} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono text-purple-400 uppercase font-black tracking-wider bg-purple-500/10 px-1 py-0.2 rounded border border-purple-500/20">Mi Música</span>
-                    <span className="text-[10px] text-slate-400 font-sans font-medium truncate">Música del Celular</span>
-                  </div>
-                  <p className="text-[11px] text-slate-200 truncate mt-1 font-mono">{customFileName}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                {selectedTrackId === 'custom' && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                )}
-                <button
-                  onClick={handleExportCustomTrack}
-                  className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 active:scale-95 transition-all cursor-pointer"
-                  title="Guardar copia de la música importada"
-                  aria-label="Guardar copia de la música importada"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={handleDeleteCustomTrack}
-                  className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-95 transition-all cursor-pointer"
-                  title="Eliminar música importada"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <p className="text-[11px] font-semibold text-slate-200 truncate">{customFileName}</p>
+                <p className="text-[9px] text-slate-500 mt-0.5">Audio elegido desde tu dispositivo</p>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={triggerFileSelect}
-              disabled={isUploading}
-              className="w-full p-3 rounded-xl border border-dashed border-white/10 bg-white/[0.01] hover:bg-white/[0.03] hover:border-cyan-500/30 text-center flex flex-col items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Upload className="w-5 h-5 text-slate-500 animate-bounce" />
-              <div>
-                <p className="text-[11px] font-medium text-slate-300 font-sans">Elegir música de mi celular</p>
-                <p className="text-[9px] text-slate-500 mt-0.5">Sube cualquier archivo .mp3, .ogg o .wav</p>
-              </div>
-            </button>
-          )}
 
-          {isUploading && (
-            <div className="flex items-center justify-center gap-2 py-1">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-              <span className="text-[10px] font-mono text-slate-400">Importando y guardando de forma segura en tu celular...</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+                className="px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/15 text-[9px] font-semibold text-purple-300 hover:bg-purple-500/20 active:scale-95 transition-all cursor-pointer"
+              >
+                Cambiar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCustomTrack}
+                className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-95 transition-all cursor-pointer"
+                title="Eliminar audio local de ORBI Zen"
+                aria-label="Eliminar audio local de ORBI Zen"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
-          )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full p-3 rounded-xl border border-dashed border-white/10 bg-white/[0.01] hover:bg-white/[0.03] hover:border-purple-500/30 text-left flex items-center gap-3 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4 text-purple-400 shrink-0" />
+            <div>
+              <p className="text-[11px] font-semibold text-slate-300">Elegir audio de mi celular</p>
+              <p className="text-[9px] text-slate-500 mt-0.5">MP3, M4A, OGG, WAV u otro formato compatible</p>
+            </div>
+          </button>
+        )}
 
-          {uploadError && (
-            <p className="text-[10px] font-medium text-red-400 mt-1">{uploadError}</p>
-          )}
-        </div>
+        {isUploading && (
+          <p className="text-[10px] font-mono text-slate-400">Guardando audio local en ORBI Zen…</p>
+        )}
+
+        {uploadError && (
+          <p className="text-[10px] font-medium text-red-400">{uploadError}</p>
+        )}
       </div>
 
-      {/* Privacy and UX Microcopy */}
       <div className="mt-4 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-start gap-2.5">
         <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
+        <div>
           <span className="text-[9.5px] font-mono text-emerald-400 uppercase font-bold tracking-wider">
-            Garantía de Privacidad y UX
+            Audio local privado
           </span>
-          <p className="text-[10.5px] text-slate-400 leading-normal font-sans">
-            La música importada se guarda directamente en la memoria local de la aplicación dentro de tu dispositivo. No se sube a internet ni se comparte con ningún servidor. Puedes guardar una copia desde el botón de respaldo antes de reinstalar o cambiar de dispositivo.
+          <p className="text-[10.5px] text-slate-400 leading-normal font-sans mt-0.5">
+            Si eliges un audio del teléfono, ORBI lo conserva solo dentro de la aplicación. No se sube ni se comparte con servidores.
           </p>
         </div>
       </div>

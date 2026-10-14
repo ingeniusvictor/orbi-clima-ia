@@ -4,12 +4,34 @@ export type WeatherCondition =
   | 'sunny'
   | 'partly_cloudy'
   | 'cloudy'
+  | 'fog'
   | 'rain'
+  | 'snow'
   | 'storm'
   | 'wind'
   | 'cold'
   | 'hot'
   | 'night';
+
+export type WeatherPhenomenonKind =
+  | 'none'
+  | 'drizzle'
+  | 'freezing_drizzle'
+  | 'rain'
+  | 'freezing_rain'
+  | 'showers'
+  | 'snow'
+  | 'storm'
+  | 'unknown';
+
+export type WeatherPhenomenonIntensity = 'none' | 'trace' | 'light' | 'moderate' | 'heavy' | 'violent';
+
+export interface WeatherPhenomenonSemantics {
+  weatherCode?: number;
+  conditionLabel?: string;
+  precipitationKind?: WeatherPhenomenonKind;
+  precipitationIntensity?: WeatherPhenomenonIntensity;
+}
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -23,7 +45,7 @@ export interface WeatherLocation {
   timezone: string;
 }
 
-export interface CurrentWeather {
+export interface CurrentWeather extends WeatherPhenomenonSemantics {
   temperatureC: number;
   feelsLikeC: number;
   humidity: number;
@@ -35,9 +57,10 @@ export interface CurrentWeather {
   uvIndex: number;
   condition: WeatherCondition;
   updatedAt: string;
+  isDay?: boolean;
 }
 
-export interface HourlyForecast {
+export interface HourlyForecast extends WeatherPhenomenonSemantics {
   time: string;
   temperatureC: number;
   precipitationProbability: number;
@@ -49,7 +72,7 @@ export interface HourlyForecast {
   condition: WeatherCondition;
 }
 
-export interface DailyForecast {
+export interface DailyForecast extends WeatherPhenomenonSemantics {
   date: string;
   minTempC: number;
   maxTempC: number;

@@ -17,6 +17,11 @@ export function saveLastWeatherBundle(bundle: any): void {
       data: bundle
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+
+    // Same-tab storage events are not emitted by browsers. Publish an explicit,
+    // payload-free signal so visual consumers can refresh from the canonical cache
+    // without coupling themselves to App state or duplicating weather data.
+    window.dispatchEvent(new Event('orbi-weather-bundle-updated'));
   } catch (e) {
     console.error('Failed to save weather bundle to cache:', e);
   }
@@ -51,6 +56,7 @@ export function loadLastWeatherBundleTimestamp(): number | null {
 export function clearWeatherCache(): void {
   try {
     localStorage.removeItem(CACHE_KEY);
+    window.dispatchEvent(new Event('orbi-weather-bundle-updated'));
   } catch (e) {
     console.error('Failed to clear weather cache:', e);
   }

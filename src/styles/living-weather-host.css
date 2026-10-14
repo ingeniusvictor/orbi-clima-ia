@@ -1,0 +1,26 @@
+.orbi-living-weather-host {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .orbi-living-weather-host {
+    inset: auto;
+    left: 50%;
+    top: 50%;
+    width: 428px;
+    height: 830px;
+    transform: translate(-50%, -50%);
+    border-radius: 30px;
+  }
+}
+
+/*
+ * The application content is already promoted to z-10 inside App.tsx.
+ * The host sits above the opaque phone shell background but below the content,
+ * so atmospheric motion remains visible through translucent ORBI cards without
+ * ever becoming an input or scroll layer.
+ */

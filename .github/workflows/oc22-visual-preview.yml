@@ -1,0 +1,216 @@
+name: ORBI Clima OC-22 Visual Preview
+
+on:
+  push:
+    branches:
+      - feature/oc-22-living-weather-atmosphere
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'android/app/src/**'
+      - 'android/app/build.gradle'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/oc22-visual-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ORBI_QA_KEYSTORE_PATH: ${{ github.workspace }}/android/app/orbi-qa-test.p12
+      ORBI_QA_STORE_PASSWORD: orbiqa
+      ORBI_QA_KEY_ALIAS: orbi-qa
+      ORBI_QA_KEY_PASSWORD: orbiqa
+      ORBI_QA_CERT_SHA256: a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc
+      ORBI_ZEN_SHA256: 7717bd6f5461f6ab3a0e4a297fd9db4288656a183039d3d08f833ec167ff0341
+      VITE_OC22_ATMOSPHERIC_TRANSITIONS: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Setup pinned Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript gate
+        run: npm run typecheck
+
+      - name: OC-22 atmosphere gate
+        run: npm run ui:verify-living-atmosphere
+
+      - name: Weather Truth gate
+        run: npm run weather:verify-current-truth
+
+      - name: Native Widget Parity gate
+        run: npm run android:verify-widget-parity
+
+      - name: Premium Widget Snapshot gate
+        run: npm run android:verify-premium-widget
+
+      - name: Compile native widget Kotlin source gate
+        working-directory: android
+        shell: bash
+        run: gradle --no-daemon --stacktrace :app:compileOc21PreviewKotlin
+
+      - name: Declare OC-22H physical QA feature gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VITE_OC22_ATMOSPHERIC_TRANSITIONS" = "1"
+          grep -n 'VITE_OC22_ATMOSPHERIC_TRANSITIONS' src/config/oc22Features.ts
+          grep -n 'ANDROID_CLOUD_FAMILY_BUDGET = 2' src/components/LivingWeatherAtmosphereTransitionV11.tsx
+          grep -n 'scene === animatedCloudScene' src/components/LivingWeatherAtmosphereTransitionV11.tsx
+          echo "OC22H_TRANSITIONS=ENABLED_FOR_VISUAL_PREVIEW_ONLY"
+          echo "ANDROID_COMPOSITOR_BUDGET=2_CLOUD_FAMILIES_1_ANIMATED"
+          echo "Normal/default builds remain opt-in OFF."
+
+      - name: Build current web bundle with OC-22H transitions
+        run: npm run build
+
+      - name: Copy web bundle into Android preview
+        run: npx cap copy android
+
+      - name: Build non-installable 10636 Android Compositor Fix native recovery payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd android
+            gradle --no-daemon --stacktrace :app:assembleOc21Preview
+          )
+          APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          rm -rf "$RUNNER_TEMP/orbi-10636-payload"
+          mkdir -p "$RUNNER_TEMP/orbi-10636-payload"
+          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10636-payload"
+          rm -rf "$RUNNER_TEMP/orbi-10636-payload/assets/public/audio"
+          rm -rf "$RUNNER_TEMP/orbi-10636-payload/META-INF"
+          (
+            cd "$RUNNER_TEMP/orbi-10636-payload"
+            zip -qr "$GITHUB_WORKSPACE/orbi-10636-android-compositor-fix-non-audio-payload.zip" .
+          )
+          test -s "$GITHUB_WORKSPACE/orbi-10636-android-compositor-fix-non-audio-payload.zip"
+
+      - name: Verify bundled Zen audio integrity after Capacitor copy
+        id: zen_integrity
+        run: npm run android:verify-audio-assets
+
+      - name: Archive non-audio recovery payload after Zen result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-oc22-android-compositor-fix-native-payload-10636
+          path: orbi-10636-android-compositor-fix-non-audio-payload.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Prepare fixed QA signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          QA_KEY_PK8="$RUNNER_TEMP/orbi-qa-testkey.pk8"
+          QA_CERT_PEM="$RUNNER_TEMP/orbi-qa-testkey.x509.pem"
+          QA_KEY_PEM="$RUNNER_TEMP/orbi-qa-testkey.pem"
+
+          curl -fsSL 'https://android.googlesource.com/platform/build/+/31f843f/target/product/security/testkey.pk8?format=TEXT' \
+            | base64 --decode > "$QA_KEY_PK8"
+          curl -fsSL 'https://android.googlesource.com/platform/build/+/31f843f/target/product/security/testkey.x509.pem?format=TEXT' \
+            | base64 --decode > "$QA_CERT_PEM"
+
+          test -s "$QA_KEY_PK8"
+          test -s "$QA_CERT_PEM"
+          ACTUAL_CERT_SHA256="$(openssl x509 -in "$QA_CERT_PEM" -outform DER | sha256sum | awk '{print $1}')"
+          echo "QA_CERT_SHA256=$ACTUAL_CERT_SHA256"
+          test "$ACTUAL_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
+
+          openssl pkcs8 -inform DER -nocrypt -in "$QA_KEY_PK8" -out "$QA_KEY_PEM"
+          openssl pkcs12 -export \
+            -inkey "$QA_KEY_PEM" \
+            -in "$QA_CERT_PEM" \
+            -name "$ORBI_QA_KEY_ALIAS" \
+            -out "$ORBI_QA_KEYSTORE_PATH" \
+            -passout pass:"$ORBI_QA_STORE_PASSWORD"
+          chmod 600 "$ORBI_QA_KEYSTORE_PATH"
+          test -s "$ORBI_QA_KEYSTORE_PATH"
+
+      - name: Declare persistent QA update channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "VISUAL QA ONLY"
+          echo "QA_PACKAGE=com.orbi.clima.oc22qa"
+          echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
+          echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
+          echo "10636 must update in place over the installed 10635 baseline."
+          echo "This QA identity must never sign the production package com.orbi.clima."
+          grep -n "versionCode 10636" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-ANDROID-COMPOSITOR-FIX-QA10636"' android/app/build.gradle
+          grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
+
+      - name: Compile persistent OC-22 Android Compositor Fix QA
+        working-directory: android
+        shell: bash
+        run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
+
+      - name: Verify QA package, signing identity and final Zen payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
+          echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
+          echo "$BADGING" | grep -F "versionCode='10636'"
+          SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
+          echo "$SIGNATURE_OUTPUT"
+          APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
+          test "$APK_CERT_SHA256" = "$ORBI_QA_CERT_SHA256"
+          for AUDIO in orbi-zen-ambient.mp3 orbi-zen-loop-v1.mp3; do
+            ACTUAL_ZEN_SHA256="$(unzip -p "$APK" "assets/public/audio/$AUDIO" | sha256sum | awk '{print $1}')"
+            test "$ACTUAL_ZEN_SHA256" = "$ORBI_ZEN_SHA256"
+          done
+          if unzip -Z1 "$APK" | grep -Eq '^assets/public/audio/.*\.ogg$'; then
+            echo "Unexpected legacy OGG Zen payload in APK"
+            exit 1
+          fi
+
+      - name: Upload 10636 Android Compositor Fix QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-clima-oc22-android-compositor-fix-qa-10636
+          path: android/app/build/outputs/apk/oc21Preview/*.apk
+          if-no-files-found: error
+          retention-days: 14

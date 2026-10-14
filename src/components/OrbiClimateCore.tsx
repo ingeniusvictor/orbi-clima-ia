@@ -10,10 +10,11 @@ interface OrbiClimateCoreProps {
   condition: WeatherCondition | 'fog' | string;
   temperature: number;
   feelsLike: number;
+  conditionLabel?: string;
   isLoading?: boolean;
 }
 
-export default function OrbiClimateCore({ condition, temperature, feelsLike, isLoading }: OrbiClimateCoreProps) {
+export default function OrbiClimateCore({ condition, temperature, feelsLike, conditionLabel, isLoading }: OrbiClimateCoreProps) {
   const [fxQuality, setFxQuality] = useState<FxQuality>(() => getFxQuality());
 
   useEffect(() => {
@@ -228,6 +229,11 @@ export default function OrbiClimateCore({ condition, temperature, feelsLike, isL
 
   const currentTheme = getThemeConfig(condition);
   const IconComponent = currentTheme.icon;
+  const isSetupCondition = condition === 'setup' || condition === 'neutral' || condition === 'initial_setup' || condition === 'loading';
+  const exactConditionLabel = conditionLabel?.trim();
+  const displayConditionLabel = !isSetupCondition && exactConditionLabel
+    ? exactConditionLabel
+    : currentTheme.labelText;
 
   // Particle list configuration based on FX quality
   const getParticleCount = () => {
@@ -440,7 +446,7 @@ export default function OrbiClimateCore({ condition, temperature, feelsLike, isL
         <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[#0a1020]/85 border border-white/15 text-[15.5px] text-slate-200 font-sans backdrop-blur-md shadow-lg">
           <span className={`w-3 h-3 rounded-full ${isLoading ? 'bg-cyan-400 animate-spin' : 'bg-emerald-400 animate-pulse'}`} />
           <span className="font-mono tracking-wide font-medium">
-            {isLoading ? 'Sincronizando satélite...' : currentTheme.labelText}
+            {isLoading ? 'Sincronizando satélite...' : displayConditionLabel}
           </span>
         </div>
         <span className="text-[14px] text-slate-300 font-sans italic opacity-90 tracking-wide mt-0.5">

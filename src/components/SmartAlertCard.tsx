@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SmartWeatherAlert } from '../types/weatherTypes';
-import { getAlertSeverityLabel, getAlertSeverityColorToken } from '../utils/skyCoreAlertFormatter';
-import { Umbrella, Wind, Sun, Thermometer, Flame, Droplets, CloudLightning, HardHat, Zap, AlertTriangle, Info, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { getAlertSeverityLabel } from '../utils/skyCoreAlertFormatter';
+import { Umbrella, Wind, Sun, Thermometer, Flame, Droplets, CloudLightning, HardHat, Zap, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SmartAlertCardProps {
   alert: SmartWeatherAlert;
@@ -12,9 +12,7 @@ interface SmartAlertCardProps {
 export default function SmartAlertCard({ alert, onDismiss }: SmartAlertCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const label = getAlertSeverityLabel(alert.severity);
-  const colorToken = getAlertSeverityColorToken(alert.severity);
 
-  // Map category to Lucide Icon component
   const getIcon = () => {
     switch (alert.category) {
       case 'rain':
@@ -23,7 +21,7 @@ export default function SmartAlertCard({ alert, onDismiss }: SmartAlertCardProps
       case 'gusts':
         return <Wind className="w-5 h-5 text-cyan-400" />;
       case 'uv':
-        return <Sun className="w-5 h-5 text-amber-400 animate-pulse" />;
+        return <Sun className="w-5 h-5 text-amber-400" />;
       case 'cold':
         return <Thermometer className="w-5 h-5 text-sky-400" />;
       case 'heat':
@@ -43,37 +41,31 @@ export default function SmartAlertCard({ alert, onDismiss }: SmartAlertCardProps
     }
   };
 
-  // Border & background styling based on severity
   const getSeverityStyles = () => {
     switch (alert.severity) {
       case 'critical':
         return {
           bg: 'bg-red-500/10 hover:bg-red-500/15 border-red-500/30',
-          text: 'text-red-400',
           badge: 'bg-red-500/20 text-red-300 border-red-500/30'
         };
       case 'warning':
         return {
           bg: 'bg-orange-500/10 hover:bg-orange-500/15 border-orange-500/30',
-          text: 'text-orange-400',
           badge: 'bg-orange-500/20 text-orange-300 border-orange-500/30'
         };
       case 'watch':
         return {
           bg: 'bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/25',
-          text: 'text-amber-400',
           badge: 'bg-amber-500/10 text-amber-300 border-amber-500/25'
         };
       case 'info':
         return {
           bg: 'bg-cyan-500/5 hover:bg-cyan-500/10 border-cyan-500/20',
-          text: 'text-cyan-400',
           badge: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
         };
       default:
         return {
           bg: 'bg-white/5 hover:bg-white/10 border-white/10',
-          text: 'text-white/80',
           badge: 'bg-white/10 text-white/90 border-white/10'
         };
     }
@@ -82,17 +74,17 @@ export default function SmartAlertCard({ alert, onDismiss }: SmartAlertCardProps
   const styles = getSeverityStyles();
 
   return (
-    <div 
+    <div
       className={`p-4 rounded-2xl border ${styles.bg} transition-all duration-300 flex flex-col gap-3 text-left`}
       id={`smart-alert-card-${alert.id}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-black/45 border border-white/5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-2 rounded-xl bg-black/45 border border-white/5 shrink-0">
             {getIcon()}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${styles.badge}`}>
                 {label}
               </span>
@@ -100,54 +92,49 @@ export default function SmartAlertCard({ alert, onDismiss }: SmartAlertCardProps
                 {alert.timeLabel}
               </span>
             </div>
-            <h4 className="text-sm font-sans font-bold text-white mt-1">
+            <h4 className="text-sm font-sans font-bold text-white mt-1 leading-snug">
               {alert.title}
             </h4>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {onDismiss && (
-            <button
-              onClick={() => onDismiss(alert.id)}
-              className="text-[10px] font-mono text-white/30 hover:text-white/70 bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md transition-all cursor-pointer"
-            >
-              OCULTAR
-            </button>
-          )}
-        </div>
+        {onDismiss && (
+          <button
+            onClick={() => onDismiss(alert.id)}
+            className="text-[10px] font-mono text-white/30 hover:text-white/70 bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md transition-all cursor-pointer shrink-0"
+          >
+            ARCHIVAR
+          </button>
+        )}
       </div>
 
       <p className="text-xs text-white/80 leading-relaxed font-sans">
         {alert.message}
       </p>
 
-      {/* Accordion Toggle */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between py-1.5 px-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-mono font-bold text-slate-300 transition-all cursor-pointer"
+        className="w-full flex items-center justify-between py-2 px-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-mono font-bold text-slate-300 transition-all cursor-pointer"
       >
-        <span>{isExpanded ? 'OCULTAR ACCIONES Y DETALLES' : 'VER ACCIONES DE MITIGACIÓN'}</span>
+        <span>{isExpanded ? 'OCULTAR RECOMENDACIÓN' : 'QUÉ HACER'}</span>
         {isExpanded ? <ChevronUp className="w-3 h-3 text-cyan-400" /> : <ChevronDown className="w-3 h-3 text-cyan-400" />}
       </button>
 
       {isExpanded && (
         <div className="flex flex-col gap-3 animate-fadeIn">
-          {/* Recommended Action / Active Mitigation */}
           <div className="p-3 rounded-xl bg-black/35 border border-white/5 flex flex-col gap-1">
             <span className="text-[9px] font-mono text-amber-400/80 uppercase font-bold tracking-wider block">
-              MITIGACIÓN RECOMENDADA SKYCORE
+              RECOMENDACIÓN
             </span>
-            <p className="text-[11px] text-white/70 leading-normal font-sans">
+            <p className="text-[11px] text-white/75 leading-normal font-sans">
               {alert.recommendation}
             </p>
           </div>
 
-          {/* Applicable Profile badge and status */}
-          <div className="flex items-center justify-between border-t border-white/5 pt-2.5 text-[9px] font-mono text-white/40">
-            <span>ORIGEN: SKYCORE ANALYTICS</span>
-            <span className="uppercase">
-              PERFIL: {alert.profile === 'field_tech' ? 'TÉCNICO TERRENO' : 'PERSONA'}
+          <div className="flex items-center justify-between border-t border-white/5 pt-2.5 text-[9px] font-mono text-white/40 gap-3">
+            <span>FUENTE: SKYCORE</span>
+            <span className="uppercase text-right">
+              {alert.profile === 'field_tech' ? 'PERFIL: TÉCNICO TERRENO' : 'PERFIL: PERSONA'}
             </span>
           </div>
         </div>

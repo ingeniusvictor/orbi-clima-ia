@@ -1,0 +1,50 @@
+/*
+ * OC-22C Natural Cloud Canvas V4
+ *
+ * One fixed 2D canvas replaces illustrated/SVG cloud objects. The canvas itself
+ * never moves, blurs or requests GPU promotion; only pixels inside it are redrawn
+ * at a capped frame rate. This keeps the approved Golden Orb in its own paint path.
+ */
+
+.living-weather-atmosphere .lwa-natural-cloud-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  opacity: 1;
+  filter: none;
+  -webkit-filter: none;
+  transform: none;
+  -webkit-transform: none;
+  will-change: auto;
+}
+
+/* V4 fully retires the illustrated cloud DOM renderer. */
+.living-weather-atmosphere .lwa-cloud-field,
+.living-weather-atmosphere .lwa-cloud {
+  display: none !important;
+}
+
+html.capacitor-android .living-weather-atmosphere .lwa-natural-cloud-canvas,
+html.android-webview .living-weather-atmosphere .lwa-natural-cloud-canvas {
+  isolation: auto;
+  contain: none;
+  filter: none !important;
+  -webkit-filter: none !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+}
+
+.living-weather-atmosphere.is-muted .lwa-natural-cloud-canvas {
+  opacity: 0.28;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .living-weather-atmosphere .lwa-natural-cloud-canvas {
+    opacity: 0.92;
+  }
+}
