@@ -6,6 +6,7 @@ import {
 } from './atmosphereTransitionProfiles';
 
 export type AtmosphereTransitionPhase = 'stable' | 'transitioning';
+export type AtmosphereSceneWeights = Partial<Record<AtmosphereScene, number>>;
 
 export interface AtmosphereTransitionSnapshot {
   phase: AtmosphereTransitionPhase;
@@ -17,8 +18,25 @@ export interface AtmosphereTransitionSnapshot {
   progress: number;
   cloudFamilyFromWeight: number;
   cloudFamilyToWeight: number;
+  sceneWeights: AtmosphereSceneWeights;
+  wetGlassIntensity: number;
+  stormEnergy: number;
   model: AtmosphereModel;
 }
+
+const SCENES: AtmosphereScene[] = [
+  'setup',
+  'clear',
+  'partly-cloudy',
+  'cloudy',
+  'fog',
+  'rain',
+  'snow',
+  'storm',
+  'wind',
+  'cold',
+  'hot',
+];
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
@@ -34,6 +52,49 @@ const remap01 = (value: number, start: number, end: number) => {
   if (end <= start) return value >= end ? 1 : 0;
   return clamp01((value - start) / (end - start));
 };
+
+function oneHotScene(scene: AtmosphereScene): AtmosphereSceneWeights {
+  return { [scene]: 1 };
+}
+
+function normalizeSceneWeights(weights: AtmosphereSceneWeights): AtmosphereSceneWeights {
+  const candidates = SCENES
+    .map((scene) => [scene, clamp01(weights[scene] ?? 0)] as const)
+    .filter(([, weight]) => weight > 0.001)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  const total = candidates.reduce((sum, [, weight]) => sum + weight, 0);
+  if (total <= 0) return { setup: 1 };
+  return Object.fromEntries(candidates.map(([scene, weight]) => [scene, weight / total])) as AtmosphereSceneWeights;
+}
+
+function interpolateSceneWeights(
+  origin: AtmosphereSceneWeights,
+  targetScene: AtmosphereScene,
+  t: number,
+): AtmosphereSceneWeights {
+  const next: AtmosphereSceneWeights = {};
+  for (const scene of SCENES) {
+    const fromWeight = origin[scene] ?? 0;
+    const toWeight = scene === targetScene ? 1 : 0;
+    const weight = lerp(fromWeight, toWeight, t);
+    if (weight > 0.001) next[scene] = weight;
+  }
+  return normalizeSceneWeights(next);
+}
+
+function dominantScene(weights: AtmosphereSceneWeights): AtmosphereScene {
+  let selected: AtmosphereScene = 'setup';
+  let selectedWeight = -1;
+  for (const scene of SCENES) {
+    const weight = weights[scene] ?? 0;
+    if (weight > selectedWeight) {
+      selected = scene;
+      selectedWeight = weight;
+    }
+  }
+  return selected;
+}
 
 function interpolateSolar(from: SolarLightingState, to: SolarLightingState, t: number): SolarLightingState {
   return {
@@ -54,10 +115,11 @@ function interpolateModel(
   to: AtmosphereModel,
   easedProgress: number,
   precipitationProgress: number,
+  sceneWeights: AtmosphereSceneWeights,
 ): AtmosphereModel {
   const discreteTarget = easedProgress >= 0.5;
   return {
-    scene: discreteTarget ? to.scene : from.scene,
+    scene: dominantScene(sceneWeights),
     phase: discreteTarget ? to.phase : from.phase,
     quality: to.quality,
     cloudOpacity: lerp(from.cloudOpacity, to.cloudOpacity, easedProgress),
@@ -100,6 +162,7 @@ function materiallyEqual(from: AtmosphereModel, to: AtmosphereModel): boolean {
 export class AtmosphereTransitionController {
   private origin: AtmosphereModel | null = null;
   private target: AtmosphereModel | null = null;
+  private originSceneWeights: AtmosphereSceneWeights = { setup: 1 };
   private fromScene: AtmosphereScene = 'setup';
   private toScene: AtmosphereScene = 'setup';
   private reason: AtmosphereTransitionReason = 'weather-truth';
@@ -112,6 +175,7 @@ export class AtmosphereTransitionController {
     if (!this.target) {
       this.origin = target;
       this.target = target;
+      this.originSceneWeights = oneHotScene(target.scene);
       this.fromScene = target.scene;
       this.toScene = target.scene;
       this.reason = reason;
@@ -125,6 +189,7 @@ export class AtmosphereTransitionController {
     if (materiallyEqual(previous.model, target)) {
       this.origin = target;
       this.target = target;
+      this.originSceneWeights = oneHotScene(target.scene);
       this.fromScene = target.scene;
       this.toScene = target.scene;
       this.reason = reason;
@@ -137,6 +202,7 @@ export class AtmosphereTransitionController {
     if (target.quality === 'static') {
       this.origin = target;
       this.target = target;
+      this.originSceneWeights = oneHotScene(target.scene);
       this.fromScene = target.scene;
       this.toScene = target.scene;
       this.reason = reason;
@@ -147,13 +213,15 @@ export class AtmosphereTransitionController {
     }
 
     const wasInterrupted = previous.phase === 'transitioning';
-    const nextProfile = resolveAtmosphereTransitionProfile(previous.toScene, target.scene, reason);
+    const nextFromScene = dominantScene(previous.sceneWeights);
+    const nextProfile = resolveAtmosphereTransitionProfile(nextFromScene, target.scene, reason);
     const remainingDistance = visualDistance(previous.model, target);
     const interruptionScale = wasInterrupted ? Math.max(0.25, remainingDistance) : 1;
 
     this.origin = previous.model;
     this.target = target;
-    this.fromScene = previous.phase === 'transitioning' ? previous.toScene : previous.model.scene;
+    this.originSceneWeights = previous.sceneWeights;
+    this.fromScene = nextFromScene;
     this.toScene = target.scene;
     this.reason = reason;
     this.startedAt = nowMs;
@@ -169,6 +237,7 @@ export class AtmosphereTransitionController {
     }
 
     if (this.transitionPhase === 'stable' || this.durationMs <= 0) {
+      const stableWeights = oneHotScene(this.target.scene);
       return {
         phase: 'stable',
         reason: this.reason,
@@ -179,6 +248,9 @@ export class AtmosphereTransitionController {
         progress: 1,
         cloudFamilyFromWeight: 0,
         cloudFamilyToWeight: 1,
+        sceneWeights: stableWeights,
+        wetGlassIntensity: this.target.precipitationStrength,
+        stormEnergy: this.target.scene === 'storm' ? 1 : 0,
         model: this.target,
       };
     }
@@ -195,10 +267,24 @@ export class AtmosphereTransitionController {
       this.profile.cloudCrossfadeStart,
       this.profile.cloudCrossfadeEnd,
     ));
-    const model = interpolateModel(this.origin, this.target, easedProgress, precipitationProgress);
+    const sceneWeights = interpolateSceneWeights(this.originSceneWeights, this.target.scene, cloudProgress);
+    const model = interpolateModel(this.origin, this.target, easedProgress, precipitationProgress, sceneWeights);
+    const precipitationRising = this.target.precipitationStrength > this.origin.precipitationStrength;
+    const wetGlassProgress = smoothstep(remap01(
+      rawProgress,
+      precipitationRising ? Math.min(0.82, this.profile.precipitationRampStart + 0.14) : 0.28,
+      1,
+    ));
+    const wetGlassIntensity = lerp(
+      this.origin.precipitationStrength,
+      this.target.precipitationStrength,
+      wetGlassProgress,
+    );
+    const targetSceneWeight = sceneWeights[this.toScene] ?? 0;
 
     if (rawProgress >= 1) {
       this.origin = this.target;
+      this.originSceneWeights = oneHotScene(this.target.scene);
       this.fromScene = this.target.scene;
       this.toScene = this.target.scene;
       this.durationMs = 0;
@@ -213,6 +299,9 @@ export class AtmosphereTransitionController {
         progress: 1,
         cloudFamilyFromWeight: 0,
         cloudFamilyToWeight: 1,
+        sceneWeights: oneHotScene(this.target.scene),
+        wetGlassIntensity: this.target.precipitationStrength,
+        stormEnergy: this.target.scene === 'storm' ? 1 : 0,
         model: this.target,
       };
     }
@@ -225,8 +314,11 @@ export class AtmosphereTransitionController {
       startedAt: this.startedAt,
       durationMs: this.durationMs,
       progress: rawProgress,
-      cloudFamilyFromWeight: 1 - cloudProgress,
-      cloudFamilyToWeight: cloudProgress,
+      cloudFamilyFromWeight: 1 - targetSceneWeight,
+      cloudFamilyToWeight: targetSceneWeight,
+      sceneWeights,
+      wetGlassIntensity,
+      stormEnergy: sceneWeights.storm ?? 0,
       model,
     };
   }
