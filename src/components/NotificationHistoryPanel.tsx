@@ -10,7 +10,7 @@ import {
   resetNotificationReadState,
 } from '../services/notificationReadStateService';
 import { OrbiNotificationHistoryItem } from '../types/weatherTypes';
-import { Trash2, Bell, AlertTriangle, ShieldAlert, Info, Clock, CheckCheck, CheckCircle2 } from 'lucide-react';
+import { Trash2, Bell, AlertTriangle, ShieldAlert, Info, Clock, CheckCheck, CheckCircle2, X } from 'lucide-react';
 
 interface NotificationHistoryPanelProps {
   refreshTrigger?: number;
@@ -19,6 +19,7 @@ interface NotificationHistoryPanelProps {
 
 export default function NotificationHistoryPanel({ refreshTrigger = 0, mode = 'all' }: NotificationHistoryPanelProps) {
   const [history, setHistory] = useState<OrbiNotificationHistoryItem[]>([]);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const fetchHistory = useCallback(() => {
     setHistory(loadNotificationHistory());
@@ -36,6 +37,10 @@ export default function NotificationHistoryPanel({ refreshTrigger = 0, mode = 'a
     };
   }, [fetchHistory, refreshTrigger]);
 
+  useEffect(() => {
+    setConfirmClear(false);
+  }, [mode]);
+
   const visibleHistory = useMemo(
     () => mode === 'unread' ? getUnreadNotifications(history) : history,
     [history, mode]
@@ -44,6 +49,7 @@ export default function NotificationHistoryPanel({ refreshTrigger = 0, mode = 'a
   const handleClear = () => {
     clearNotificationHistory();
     resetNotificationReadState();
+    setConfirmClear(false);
     fetchHistory();
   };
 
@@ -125,8 +131,10 @@ export default function NotificationHistoryPanel({ refreshTrigger = 0, mode = 'a
 
         {isUnreadMode && visibleHistory.length > 0 && (
           <button
+            type="button"
             onClick={handleMarkAllRead}
             className="shrink-0 text-[10px] text-cyan-300 hover:text-cyan-200 flex items-center gap-1 bg-cyan-500/10 hover:bg-cyan-500/15 px-2.5 py-1.5 rounded-lg border border-cyan-500/20 transition-colors"
+            aria-label="Marcar todas las notificaciones como leídas"
           >
             <CheckCheck className="w-3.5 h-3.5" />
             Leer todas
@@ -135,15 +143,66 @@ export default function NotificationHistoryPanel({ refreshTrigger = 0, mode = 'a
 
         {!isUnreadMode && history.length > 0 && (
           <button
-            onClick={handleClear}
+            type="button"
+            onClick={() => setConfirmClear(true)}
             className="shrink-0 text-[10px] text-slate-500 hover:text-rose-300 flex items-center gap-1 transition-colors"
             id="btn-clear-history"
+            aria-label="Limpiar historial de avisos"
+            aria-expanded={confirmClear}
+            aria-controls="clear-history-confirmation"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Limpiar
           </button>
         )}
       </div>
+
+      <AnimatePresence initial={false}>
+        {!isUnreadMode && confirmClear && history.length > 0 && (
+          <motion.div
+            id="clear-history-confirmation"
+            role="alertdialog"
+            aria-labelledby="clear-history-title"
+            aria-describedby="clear-history-description"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="rounded-xl border border-rose-500/20 bg-rose-500/[0.055] px-3 py-3 flex flex-col gap-2.5"
+          >
+            <div className="flex items-start gap-2.5">
+              <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 shrink-0">
+                <Trash2 className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p id="clear-history-title" className="text-xs font-semibold text-slate-100">
+                  ¿Borrar todo el historial?
+                </p>
+                <p id="clear-history-description" className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                  Solo se eliminarán los avisos guardados. Las condiciones activas y el clima actual no se modificarán.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmClear(false)}
+                className="py-2 rounded-lg border border-white/10 bg-white/[0.025] text-[10px] font-semibold text-slate-300 hover:text-white transition-colors flex items-center justify-center gap-1.5"
+              >
+                <X className="w-3.5 h-3.5" />
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="py-2 rounded-lg border border-rose-500/25 bg-rose-500/10 text-[10px] font-semibold text-rose-200 hover:bg-rose-500/15 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Borrar historial
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="max-h-[360px] overflow-y-auto pr-1 flex flex-col gap-2.5 custom-scrollbar">
         <AnimatePresence initial={false}>
@@ -218,8 +277,10 @@ export default function NotificationHistoryPanel({ refreshTrigger = 0, mode = 'a
 
                     {!read ? (
                       <button
+                        type="button"
                         onClick={() => handleMarkRead(item.id)}
                         className="text-[10px] font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1.5 bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
+                        aria-label={`Marcar como leída: ${item.title}`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Marcar como leída
