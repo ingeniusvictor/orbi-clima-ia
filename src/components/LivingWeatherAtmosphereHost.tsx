@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import LivingWeatherAtmosphere from './LivingWeatherAtmosphere';
+import LivingWeatherAtmosphereTransitionV11 from './LivingWeatherAtmosphereTransitionV11';
 import { CurrentWeather, DailyForecast, WeatherLocation } from '../types/weatherTypes';
 import { loadLastWeatherBundle } from '../services/weatherCacheService';
+import { OC22_ATMOSPHERIC_TRANSITIONS_ENABLED } from '../config/oc22Features';
 import {
   ATMOSPHERE_DEBUG_EVENT,
   applyAtmosphereDebugPreset,
@@ -93,20 +95,37 @@ export default function LivingWeatherAtmosphereHost() {
 
   if (!onboardingDone || !snapshot || !renderedCurrent) return null;
 
+  const phaseOverride = debugPhase === 'auto' ? undefined : debugPhase;
+  const transitionReason = debugPreset !== 'live' || debugPhase !== 'auto'
+    ? 'atm-lab' as const
+    : 'weather-truth' as const;
+
   return (
     <div
       className="orbi-living-weather-host"
       data-debug-scene={debugPreset}
       data-debug-phase={debugPhase}
+      data-oc22-transitions={OC22_ATMOSPHERIC_TRANSITIONS_ENABLED ? 'enabled' : 'baseline'}
       aria-hidden="true"
     >
-      <LivingWeatherAtmosphere
-        currentWeather={renderedCurrent}
-        dailyForecast={snapshot.daily[0]}
-        timezone={snapshot.location.timezone}
-        active={homeVisible}
-        phaseOverride={debugPhase === 'auto' ? undefined : debugPhase}
-      />
+      {OC22_ATMOSPHERIC_TRANSITIONS_ENABLED ? (
+        <LivingWeatherAtmosphereTransitionV11
+          currentWeather={renderedCurrent}
+          dailyForecast={snapshot.daily[0]}
+          timezone={snapshot.location.timezone}
+          active={homeVisible}
+          phaseOverride={phaseOverride}
+          transitionReason={transitionReason}
+        />
+      ) : (
+        <LivingWeatherAtmosphere
+          currentWeather={renderedCurrent}
+          dailyForecast={snapshot.daily[0]}
+          timezone={snapshot.location.timezone}
+          active={homeVisible}
+          phaseOverride={phaseOverride}
+        />
+      )}
     </div>
   );
 }
