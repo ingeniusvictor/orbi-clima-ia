@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import ImmersivePrecipitationCanvas from './ImmersivePrecipitationCanvas';
 import SnowFrostCanvas from './SnowFrostCanvas';
+import ImmersiveWeatherForegroundTransitionV11 from './ImmersiveWeatherForegroundTransitionV11';
 import { CurrentWeather, DailyForecast, WeatherLocation } from '../types/weatherTypes';
 import { loadLastWeatherBundle } from '../services/weatherCacheService';
+import { OC22_ATMOSPHERIC_TRANSITIONS_ENABLED } from '../config/oc22Features';
 import {
   ATMOSPHERE_DEBUG_EVENT,
   applyAtmosphereDebugPreset,
@@ -105,13 +107,24 @@ export default function ImmersiveWeatherForegroundHost() {
 
   if (!onboardingDone || !snapshot || !renderedCurrent || !model) return null;
 
+  const active = homeVisible && pageVisible;
+
+  if (OC22_ATMOSPHERIC_TRANSITIONS_ENABLED) {
+    return (
+      <ImmersiveWeatherForegroundTransitionV11
+        targetModel={model}
+        active={active}
+        debugPreset={debugPreset}
+        transitionReason={debugPreset !== 'live' ? 'atm-lab' : 'weather-truth'}
+      />
+    );
+  }
+
   const snowScene = model.scene === 'snow';
   const rainScene = model.scene === 'rain'
     || model.scene === 'storm'
     || (!snowScene && model.precipitationStrength > 0.12);
   if (!snowScene && !rainScene) return null;
-
-  const active = homeVisible && pageVisible;
 
   return (
     <div
