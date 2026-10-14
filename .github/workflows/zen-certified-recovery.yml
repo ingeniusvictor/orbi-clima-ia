@@ -1,0 +1,155 @@
+name: ORBI Zen Certified Recovery
+
+on:
+  push:
+    branches:
+      - feature/oc-22-living-weather-atmosphere
+    paths:
+      - '.github/workflows/zen-certified-recovery.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  recover-certified-zen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HISTORICAL_SOURCE_BLOB: d7de052af61bd69596d0a9dfbe34b5961690eeab
+      EXPECTED_ZEN_SHA256: 7717bd6f5461f6ab3a0e4a297fd9db4288656a183039d3d08f833ec167ff0341
+      EXPECTED_ZEN_SIZE: '744609'
+    steps:
+      - name: Checkout OC-22 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/oc-22-living-weather-atmosphere
+
+      - name: Recover exact certified Zen bytes from historical Git blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/git/blobs/$HISTORICAL_SOURCE_BLOB" \
+            > "$RUNNER_TEMP/historical-blob.json"
+          jq -r '.content' "$RUNNER_TEMP/historical-blob.json" \
+            | tr -d '\n' \
+            | base64 --decode \
+            > "$RUNNER_TEMP/historical-source.zip"
+          test -s "$RUNNER_TEMP/historical-source.zip"
+          unzip -tq "$RUNNER_TEMP/historical-source.zip"
+
+          python - <<'PY'
+          import hashlib
+          import io
+          import os
+          import sys
+          import zipfile
+
+          expected = os.environ['EXPECTED_ZEN_SHA256']
+          expected_size = int(os.environ['EXPECTED_ZEN_SIZE'])
+          source = os.path.join(os.environ['RUNNER_TEMP'], 'historical-source.zip')
+          output = os.path.join(os.environ['RUNNER_TEMP'], 'orbi-zen-certified.mp3')
+          seen = set()
+
+          def scan_zip(payload: bytes, label: str, depth: int = 0) -> bool:
+              if depth > 5:
+                  return False
+              digest = hashlib.sha256(payload).hexdigest()
+              key = (digest, depth)
+              if key in seen:
+                  return False
+              seen.add(key)
+              try:
+                  archive = zipfile.ZipFile(io.BytesIO(payload))
+              except zipfile.BadZipFile:
+                  return False
+              with archive:
+                  for info in archive.infolist():
+                      if info.is_dir():
+                          continue
+                      data = archive.read(info)
+                      sha = hashlib.sha256(data).hexdigest()
+                      if len(data) == expected_size and sha == expected:
+                          with open(output, 'wb') as fh:
+                              fh.write(data)
+                          print(f'CERTIFIED_ZEN_FOUND={label}!{info.filename}')
+                          return True
+                      if info.filename.lower().endswith(('.zip', '.apk')):
+                          if scan_zip(data, f'{label}!{info.filename}', depth + 1):
+                              return True
+              return False
+
+          with open(source, 'rb') as fh:
+              root = fh.read()
+          if not scan_zip(root, 'historical-source.zip'):
+              print('Certified Zen payload not found in historical Git source blob.', file=sys.stderr)
+              sys.exit(2)
+          PY
+
+          test "$(stat -c%s "$RUNNER_TEMP/orbi-zen-certified.mp3")" = "$EXPECTED_ZEN_SIZE"
+          echo "$EXPECTED_ZEN_SHA256  $RUNNER_TEMP/orbi-zen-certified.mp3" | sha256sum -c -
+
+      - name: Restore canonical MP3 assets and remove legacy OGG
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/orbi-zen-certified.mp3"
+          install -m 0644 "$SOURCE" public/audio/orbi-zen-ambient.mp3
+          install -m 0644 "$SOURCE" public/audio/orbi-zen-loop-v1.mp3
+          mkdir -p android/app/src/main/assets/public/audio
+          install -m 0644 "$SOURCE" android/app/src/main/assets/public/audio/orbi-zen-ambient.mp3
+          install -m 0644 "$SOURCE" android/app/src/main/assets/public/audio/orbi-zen-loop-v1.mp3
+
+          rm -f \
+            public/audio/orbi-zen-ambient.ogg \
+            public/audio/orbi-zen-loop-v1.ogg \
+            android/app/src/main/assets/public/audio/orbi-zen-ambient.ogg \
+            android/app/src/main/assets/public/audio/orbi-zen-loop-v1.ogg
+
+          for AUDIO in \
+            public/audio/orbi-zen-ambient.mp3 \
+            public/audio/orbi-zen-loop-v1.mp3 \
+            android/app/src/main/assets/public/audio/orbi-zen-ambient.mp3 \
+            android/app/src/main/assets/public/audio/orbi-zen-loop-v1.mp3; do
+            test "$(stat -c%s "$AUDIO")" = "$EXPECTED_ZEN_SIZE"
+            echo "$EXPECTED_ZEN_SHA256  $AUDIO" | sha256sum -c -
+          done
+
+          if find public/audio android/app/src/main/assets/public/audio -maxdepth 1 -type f -name '*.ogg' | grep -q .; then
+            echo 'Legacy OGG remains after recovery.' >&2
+            exit 3
+          fi
+
+      - name: Commit certified recovery and self-clean temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/zen-certified-recovery.yml
+          git add \
+            public/audio/orbi-zen-ambient.mp3 \
+            public/audio/orbi-zen-loop-v1.mp3 \
+            android/app/src/main/assets/public/audio/orbi-zen-ambient.mp3 \
+            android/app/src/main/assets/public/audio/orbi-zen-loop-v1.mp3
+          git add -u public/audio android/app/src/main/assets/public/audio
+
+          printf '%s\n' \
+            '.github/workflows/zen-certified-recovery.yml' \
+            'android/app/src/main/assets/public/audio/orbi-zen-ambient.mp3' \
+            'android/app/src/main/assets/public/audio/orbi-zen-ambient.ogg' \
+            'android/app/src/main/assets/public/audio/orbi-zen-loop-v1.mp3' \
+            'android/app/src/main/assets/public/audio/orbi-zen-loop-v1.ogg' \
+            'public/audio/orbi-zen-ambient.mp3' \
+            'public/audio/orbi-zen-ambient.ogg' \
+            'public/audio/orbi-zen-loop-v1.mp3' \
+            'public/audio/orbi-zen-loop-v1.ogg' \
+            | sort > "$RUNNER_TEMP/expected-files.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-files.txt"
+          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/actual-files.txt"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(audio): restore certified Zen assets and remove legacy OGG'
+          git push origin HEAD:feature/oc-22-living-weather-atmosphere
