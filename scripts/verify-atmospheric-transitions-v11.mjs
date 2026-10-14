@@ -15,6 +15,9 @@ const controller = read('src/services/atmosphereTransitionController.ts');
 const profiles = read('src/services/atmosphereTransitionProfiles.ts');
 const featureFlags = read('src/config/oc22Features.ts');
 const transitionHook = read('src/hooks/useAtmosphereTransition.ts');
+const transitionHost = read('src/components/LivingWeatherAtmosphereHost.tsx');
+const transitionAtmosphere = read('src/components/LivingWeatherAtmosphereTransitionV11.tsx');
+const transitionSky = read('src/components/CinematicSkyTransitionCanvasV11.tsx');
 const viteEnv = read('src/vite-env.d.ts');
 const packageJson = read('package.json');
 const orbCore = read('src/components/OrbiClimateCore.tsx');
@@ -25,6 +28,7 @@ expect(baseline.includes('FROZEN REFERENCE — DO NOT REGRESS'), 'Validated phys
 expect(baseline.includes('10633 — SkyOrb Commander Orbital V4'), 'Commander V4 physical baseline is not frozen.');
 expect(baseline.includes('10634 — Alerts Inbox UX'), 'Alerts physical baseline is not frozen.');
 expect(design.includes('current interpolated visual state'), 'Transition interruption policy must remain explicit in the design.');
+expect(design.includes('VISUAL RUNTIME FEATURE-GATED'), 'OC-22H design must state that visual runtime remains feature-gated before physical QA.');
 
 expect(controller.includes('class AtmosphereTransitionController'), 'Transition controller class is missing.');
 expect(controller.includes('previous.model'), 'Retargeting must use the sampled current interpolated model.');
@@ -65,10 +69,34 @@ expect(transitionHook.includes("return 'time-phase'"), 'Automatic time-phase tra
 expect(!transitionHook.includes('OrbiClimateCore'), 'Transition sampler must not depend on Golden Orb implementation.');
 expect(!transitionHook.includes('WelcomeHeroSection'), 'Transition sampler must not depend on protected Hero implementation.');
 
+expect(transitionHost.includes('OC22_ATMOSPHERIC_TRANSITIONS_ENABLED ? ('), 'Atmosphere Host must explicitly branch between V11 and the approved baseline.');
+expect(transitionHost.includes('<LivingWeatherAtmosphereTransitionV11'), 'Feature-enabled Host path must mount the V11 transition atmosphere.');
+expect(transitionHost.includes('<LivingWeatherAtmosphere'), 'Feature-disabled Host path must retain the approved baseline renderer.');
+expect(transitionHost.includes("data-oc22-transitions={OC22_ATMOSPHERIC_TRANSITIONS_ENABLED ? 'enabled' : 'baseline'}"), 'Host must expose transition/baseline diagnostics.');
+
+expect(transitionAtmosphere.includes('useAtmosphereTransition(targetModel, !paused, transitionReason, true)'), 'V11 atmosphere must use the transition sampler only inside the opt-in component.');
+expect(transitionAtmosphere.includes('.slice(0, 3)'), 'V11 atmosphere must never render more than three cloud families.');
+expect(transitionAtmosphere.includes("transition.phase !== 'stable'"), 'V11 atmosphere must release transient scene-family models after completion.');
+expect(transitionAtmosphere.includes('sceneModelsRef.current = new Map([[stableModel.scene, stableModel]])'), 'V11 atmosphere must release outgoing cloud-family state when stable.');
+expect(transitionAtmosphere.includes('<NaturalCloudCanvas'), 'V11 must reuse the certified natural-cloud renderer rather than replace its procedural family design.');
+expect(transitionAtmosphere.includes('transition.stormEnergy > 0.62'), 'V11 background lightning must be delayed until storm energy crosses a safe threshold.');
+expect(!transitionAtmosphere.includes('OrbiClimateCore'), 'V11 atmosphere must not import or manipulate the Golden Orb.');
+expect(!transitionAtmosphere.includes('WelcomeHeroSection'), 'V11 atmosphere must not import or manipulate the protected Hero.');
+
+expect(transitionSky.includes('liveStateRef.current'), 'V11 sky must consume interpolated values through a live ref rather than recreating its Canvas each transition tick.');
+expect(transitionSky.includes("android ? 8"), 'V11 sky must retain the certified Android 8 FPS cap.');
+expect(transitionSky.includes("android ? 1.1"), 'V11 sky must retain the certified Android DPR cap.');
+expect(transitionSky.includes('weightedSceneExposure'), 'V11 sky exposure must blend scene-family weights rather than hard-switch.');
+expect(transitionSky.includes('sunnyDayWeight'), 'V11 clear-sky treatment must blend continuously by clear-family weight.');
+expect(transitionSky.includes('snowWeight'), 'V11 snow-sky treatment must blend continuously by snow-family weight.');
+expect(transitionSky.includes('}, [quality, active]);'), 'V11 sky Canvas lifecycle must not restart for every interpolated weather sample.');
+
 for (const forbidden of ['transform:none', 'animation:none', 'backdrop-filter', 'mix-blend-mode', 'translateZ']) {
   expect(!controller.includes(forbidden), `Transition controller contains forbidden compositor token: ${forbidden}`);
   expect(!profiles.includes(forbidden), `Transition profiles contain forbidden compositor token: ${forbidden}`);
   expect(!transitionHook.includes(forbidden), `Transition sampler contains forbidden compositor token: ${forbidden}`);
+  expect(!transitionAtmosphere.includes(forbidden), `V11 atmosphere contains forbidden compositor token: ${forbidden}`);
+  expect(!transitionSky.includes(forbidden), `V11 sky contains forbidden compositor token: ${forbidden}`);
 }
 
 expect(packageJson.includes('ui:verify-atmospheric-transitions'), 'Dedicated OC-22H verification command is not wired into package scripts.');
@@ -80,6 +108,7 @@ for (const protectedSource of [orbCore, orbCss, hero]) {
   expect(!protectedSource.includes('AtmosphereTransitionController'), 'Frozen Golden Orb surface imports the OC-22H controller.');
   expect(!protectedSource.includes('atmosphereTransitionProfiles'), 'Frozen Golden Orb surface imports OC-22H transition profiles.');
   expect(!protectedSource.includes('useAtmosphereTransition'), 'Frozen Golden Orb surface imports the OC-22H transition sampler.');
+  expect(!protectedSource.includes('LivingWeatherAtmosphereTransitionV11'), 'Frozen Golden Orb surface imports the OC-22H V11 renderer.');
 }
 
 console.log('OC-22H Atmospheric Transitions source gate: PASS');
