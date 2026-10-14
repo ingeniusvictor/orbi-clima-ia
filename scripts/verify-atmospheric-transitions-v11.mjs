@@ -26,8 +26,13 @@ expect(design.includes('current interpolated visual state'), 'Transition interru
 expect(controller.includes('class AtmosphereTransitionController'), 'Transition controller class is missing.');
 expect(controller.includes('previous.model'), 'Retargeting must use the sampled current interpolated model.');
 expect(controller.includes("previous.phase === 'transitioning'"), 'Interrupted transition handling is missing.');
+expect(controller.includes('originSceneWeights = previous.sceneWeights'), 'Interrupted scene-family blends must be preserved exactly at retarget time.');
+expect(controller.includes('sceneWeights'), 'Transition snapshot must expose scene-family weights.');
+expect(controller.includes('.slice(0, 3)'), 'Scene-family overlap must remain bounded to at most three families.');
 expect(controller.includes('cloudFamilyFromWeight'), 'Bounded outgoing cloud-family weight is missing.');
 expect(controller.includes('cloudFamilyToWeight'), 'Bounded incoming cloud-family weight is missing.');
+expect(controller.includes('wetGlassIntensity'), 'Delayed wet-glass transition channel is missing.');
+expect(controller.includes('stormEnergy'), 'Storm transition energy channel is missing for delayed lightning gating.');
 expect(controller.includes('precipitationRampStart'), 'Precipitation ramp timing is not consumed by the controller.');
 expect(controller.includes('precipitationRampEnd'), 'Precipitation ramp completion is not consumed by the controller.');
 expect(controller.includes("target.quality === 'static'"), 'Reduced-motion/static mode must not force animated transitions.');
