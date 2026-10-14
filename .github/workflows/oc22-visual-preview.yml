@@ -91,7 +91,10 @@ jobs:
           set -euo pipefail
           test "$VITE_OC22_ATMOSPHERIC_TRANSITIONS" = "1"
           grep -n 'VITE_OC22_ATMOSPHERIC_TRANSITIONS' src/config/oc22Features.ts
+          grep -n 'ANDROID_CLOUD_FAMILY_BUDGET = 2' src/components/LivingWeatherAtmosphereTransitionV11.tsx
+          grep -n 'scene === animatedCloudScene' src/components/LivingWeatherAtmosphereTransitionV11.tsx
           echo "OC22H_TRANSITIONS=ENABLED_FOR_VISUAL_PREVIEW_ONLY"
+          echo "ANDROID_COMPOSITOR_BUDGET=2_CLOUD_FAMILIES_1_ANIMATED"
           echo "Normal/default builds remain opt-in OFF."
 
       - name: Build current web bundle with OC-22H transitions
@@ -100,7 +103,7 @@ jobs:
       - name: Copy web bundle into Android preview
         run: npx cap copy android
 
-      - name: Build non-installable 10635 Atmospheric Transitions native recovery payload
+      - name: Build non-installable 10636 Android Compositor Fix native recovery payload
         shell: bash
         run: |
           set -euo pipefail
@@ -110,16 +113,16 @@ jobs:
           )
           APK="$(find android/app/build/outputs/apk/oc21Preview -name '*.apk' -type f | head -n 1)"
           test -n "$APK"
-          rm -rf "$RUNNER_TEMP/orbi-10635-payload"
-          mkdir -p "$RUNNER_TEMP/orbi-10635-payload"
-          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10635-payload"
-          rm -rf "$RUNNER_TEMP/orbi-10635-payload/assets/public/audio"
-          rm -rf "$RUNNER_TEMP/orbi-10635-payload/META-INF"
+          rm -rf "$RUNNER_TEMP/orbi-10636-payload"
+          mkdir -p "$RUNNER_TEMP/orbi-10636-payload"
+          unzip -q "$APK" -d "$RUNNER_TEMP/orbi-10636-payload"
+          rm -rf "$RUNNER_TEMP/orbi-10636-payload/assets/public/audio"
+          rm -rf "$RUNNER_TEMP/orbi-10636-payload/META-INF"
           (
-            cd "$RUNNER_TEMP/orbi-10635-payload"
-            zip -qr "$GITHUB_WORKSPACE/orbi-10635-atmospheric-transitions-non-audio-payload.zip" .
+            cd "$RUNNER_TEMP/orbi-10636-payload"
+            zip -qr "$GITHUB_WORKSPACE/orbi-10636-android-compositor-fix-non-audio-payload.zip" .
           )
-          test -s "$GITHUB_WORKSPACE/orbi-10635-atmospheric-transitions-non-audio-payload.zip"
+          test -s "$GITHUB_WORKSPACE/orbi-10636-android-compositor-fix-non-audio-payload.zip"
 
       - name: Verify bundled Zen audio integrity after Capacitor copy
         id: zen_integrity
@@ -129,8 +132,8 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-atmospheric-transitions-native-payload-10635
-          path: orbi-10635-atmospheric-transitions-non-audio-payload.zip
+          name: orbi-clima-oc22-android-compositor-fix-native-payload-10636
+          path: orbi-10636-android-compositor-fix-non-audio-payload.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -171,13 +174,13 @@ jobs:
           echo "QA_PACKAGE=com.orbi.clima.oc22qa"
           echo "SIGNING_MODE=FIXED_PUBLIC_AOSP_TEST_IDENTITY"
           echo "QA_CERT_SHA256=$ORBI_QA_CERT_SHA256"
-          echo "10635 must update in place over the installed 10634 baseline."
+          echo "10636 must update in place over the installed 10635 baseline."
           echo "This QA identity must never sign the production package com.orbi.clima."
-          grep -n "versionCode 10635" android/app/build.gradle
-          grep -n 'versionName "1.0.6-OC22-ATMOSPHERIC-TRANSITIONS-QA10635"' android/app/build.gradle
+          grep -n "versionCode 10636" android/app/build.gradle
+          grep -n 'versionName "1.0.6-OC22-ANDROID-COMPOSITOR-FIX-QA10636"' android/app/build.gradle
           grep -n 'applicationIdSuffix ".oc22qa"' android/app/build.gradle
 
-      - name: Compile persistent OC-22 Atmospheric Transitions QA
+      - name: Compile persistent OC-22 Android Compositor Fix QA
         working-directory: android
         shell: bash
         run: gradle --no-daemon --stacktrace :app:assembleOc21Preview
@@ -190,7 +193,7 @@ jobs:
           test -n "$APK"
           BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK")"
           echo "$BADGING" | grep -F "package: name='com.orbi.clima.oc22qa'"
-          echo "$BADGING" | grep -F "versionCode='10635'"
+          echo "$BADGING" | grep -F "versionCode='10636'"
           SIGNATURE_OUTPUT="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK")"
           echo "$SIGNATURE_OUTPUT"
           APK_CERT_SHA256="$(printf '%s\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
@@ -204,10 +207,10 @@ jobs:
             exit 1
           fi
 
-      - name: Upload 10635 Atmospheric Transitions QA APK
+      - name: Upload 10636 Android Compositor Fix QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: orbi-clima-oc22-atmospheric-transitions-qa-10635
+          name: orbi-clima-oc22-android-compositor-fix-qa-10636
           path: android/app/build/outputs/apk/oc21Preview/*.apk
           if-no-files-found: error
           retention-days: 14
