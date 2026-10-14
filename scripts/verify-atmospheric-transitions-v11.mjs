@@ -13,6 +13,9 @@ const baseline = read('docs/OC22_VALIDATED_BASELINE.md');
 const design = read('docs/oc-22h-atmospheric-transitions-design.md');
 const controller = read('src/services/atmosphereTransitionController.ts');
 const profiles = read('src/services/atmosphereTransitionProfiles.ts');
+const featureFlags = read('src/config/oc22Features.ts');
+const transitionHook = read('src/hooks/useAtmosphereTransition.ts');
+const viteEnv = read('src/vite-env.d.ts');
 const packageJson = read('package.json');
 const orbCore = read('src/components/OrbiClimateCore.tsx');
 const orbCss = read('src/styles/skycore-fx.css');
@@ -49,9 +52,23 @@ expect(profiles.includes("key('rain', 'storm')"), 'Rain → storm profile is mis
 expect(profiles.includes("key('storm', 'rain')"), 'Storm → rain profile is missing.');
 expect(profiles.includes("key('cloudy', 'clear')"), 'Cloudy → clear profile is missing.');
 
+expect(viteEnv.includes('VITE_OC22_ATMOSPHERIC_TRANSITIONS'), 'Vite transition feature flag declaration is missing.');
+expect(featureFlags.includes('VITE_OC22_ATMOSPHERIC_TRANSITIONS'), 'OC-22H runtime must be controlled by an explicit opt-in flag.');
+expect(featureFlags.includes("['1', 'true', 'on', 'enabled']"), 'OC-22H feature flag must remain false unless explicitly enabled.');
+expect(!featureFlags.includes("?? '1'"), 'OC-22H feature flag must never default to enabled.');
+expect(transitionHook.includes('useAtmosphereTransition'), 'Feature-gated transition sampler hook is missing.');
+expect(transitionHook.includes('REACT_SAMPLE_INTERVAL_MS = 100'), 'Transition sampler must remain throttled to 10Hz React publication.');
+expect(transitionHook.includes('if (!enabled)'), 'Transition sampler must preserve the approved baseline when the feature flag is disabled.');
+expect(transitionHook.includes('if (!enabled || !active'), 'Transition sampler must pause expensive scheduling while inactive.');
+expect(transitionHook.includes('cancelAnimationFrame(raf)'), 'Transition sampler must cancel scheduled work on lifecycle cleanup.');
+expect(transitionHook.includes("return 'time-phase'"), 'Automatic time-phase transition classification is missing.');
+expect(!transitionHook.includes('OrbiClimateCore'), 'Transition sampler must not depend on Golden Orb implementation.');
+expect(!transitionHook.includes('WelcomeHeroSection'), 'Transition sampler must not depend on protected Hero implementation.');
+
 for (const forbidden of ['transform:none', 'animation:none', 'backdrop-filter', 'mix-blend-mode', 'translateZ']) {
   expect(!controller.includes(forbidden), `Transition controller contains forbidden compositor token: ${forbidden}`);
   expect(!profiles.includes(forbidden), `Transition profiles contain forbidden compositor token: ${forbidden}`);
+  expect(!transitionHook.includes(forbidden), `Transition sampler contains forbidden compositor token: ${forbidden}`);
 }
 
 expect(packageJson.includes('ui:verify-atmospheric-transitions'), 'Dedicated OC-22H verification command is not wired into package scripts.');
@@ -62,6 +79,7 @@ expect(packageJson.includes('test-atmospheric-transitions.ts'), 'OC-22H transiti
 for (const protectedSource of [orbCore, orbCss, hero]) {
   expect(!protectedSource.includes('AtmosphereTransitionController'), 'Frozen Golden Orb surface imports the OC-22H controller.');
   expect(!protectedSource.includes('atmosphereTransitionProfiles'), 'Frozen Golden Orb surface imports OC-22H transition profiles.');
+  expect(!protectedSource.includes('useAtmosphereTransition'), 'Frozen Golden Orb surface imports the OC-22H transition sampler.');
 }
 
 console.log('OC-22H Atmospheric Transitions source gate: PASS');
