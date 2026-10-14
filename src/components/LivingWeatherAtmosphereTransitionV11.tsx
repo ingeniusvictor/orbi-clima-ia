@@ -43,11 +43,29 @@ const coldParticles = Array.from({ length: 12 }, (_, index) => index);
 const windStreams = Array.from({ length: 7 }, (_, index) => index);
 const heatWaves = Array.from({ length: 5 }, (_, index) => index);
 
+const DESKTOP_CLOUD_FAMILY_BUDGET = 3;
+const ANDROID_CLOUD_FAMILY_BUDGET = 2;
+const DESKTOP_CLOUD_MIN_WEIGHT = 0.008;
+const ANDROID_CLOUD_MIN_WEIGHT = 0.035;
+
+function isAndroidCompositorConstrained() {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement.classList.contains('capacitor-android')
+    || document.documentElement.classList.contains('android-webview');
+}
+
 function sceneEntries(sceneWeights: Partial<Record<AtmosphereScene, number>>) {
   return (Object.entries(sceneWeights) as Array<[AtmosphereScene, number]>)
-    .filter(([, weight]) => weight > 0.008)
+    .filter(([, weight]) => weight > DESKTOP_CLOUD_MIN_WEIGHT)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
+}
+
+function androidSceneEntries(sceneWeights: Partial<Record<AtmosphereScene, number>>) {
+  return (Object.entries(sceneWeights) as Array<[AtmosphereScene, number]>)
+    .filter(([, weight]) => weight > ANDROID_CLOUD_MIN_WEIGHT)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, ANDROID_CLOUD_FAMILY_BUDGET);
 }
 
 export default function LivingWeatherAtmosphereTransitionV11({
@@ -61,6 +79,7 @@ export default function LivingWeatherAtmosphereTransitionV11({
   const [quality, setQuality] = useState<AtmosphereQuality>(() => resolveAtmosphereQuality());
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== 'hidden');
   const [clockRevision, setClockRevision] = useState(0);
+  const [androidCompositorConstrained] = useState(() => isAndroidCompositorConstrained());
   const sceneModelsRef = useRef<Map<AtmosphereScene, AtmosphereModel>>(new Map());
 
   useEffect(() => {
@@ -94,7 +113,12 @@ export default function LivingWeatherAtmosphereTransitionV11({
   const paused = !active || !pageVisible;
   const transition = useAtmosphereTransition(targetModel, !paused, transitionReason, true);
   const model = transition.model;
-  const activeCloudFamilies = sceneEntries(transition.sceneWeights);
+  const activeCloudFamilies = androidCompositorConstrained
+    ? androidSceneEntries(transition.sceneWeights)
+    : sceneEntries(transition.sceneWeights).slice(0, DESKTOP_CLOUD_FAMILY_BUDGET);
+  const animatedCloudScene = activeCloudFamilies.some(([scene]) => scene === targetModel.scene)
+    ? targetModel.scene
+    : activeCloudFamilies[0]?.[0];
 
   useEffect(() => {
     if (transition.phase !== 'stable') return;
@@ -144,6 +168,8 @@ export default function LivingWeatherAtmosphereTransitionV11({
       data-transition-progress={transition.progress.toFixed(3)}
       data-storm-energy={transition.stormEnergy.toFixed(3)}
       data-snow-weight={snowWeight.toFixed(3)}
+      data-android-cloud-budget={androidCompositorConstrained ? ANDROID_CLOUD_FAMILY_BUDGET : DESKTOP_CLOUD_FAMILY_BUDGET}
+      data-animated-cloud-family={animatedCloudScene ?? 'none'}
       style={style}
       aria-hidden="true"
     >
@@ -180,6 +206,7 @@ export default function LivingWeatherAtmosphereTransitionV11({
             key={scene}
             className="lwa-transition-cloud-family"
             data-cloud-family={scene}
+            data-cloud-animation={scene === animatedCloudScene ? 'active' : 'frozen'}
             style={{
               position: 'absolute',
               inset: 0,
@@ -193,7 +220,7 @@ export default function LivingWeatherAtmosphereTransitionV11({
               cloudOpacity={familyModel.cloudOpacity}
               cloudSpeedSeconds={familyModel.cloudSpeed}
               windStrength={familyModel.windStrength}
-              active={!paused}
+              active={!paused && scene === animatedCloudScene}
             />
           </div>
         );
