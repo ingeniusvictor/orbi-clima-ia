@@ -1,8 +1,8 @@
 # OC-22H — Atmospheric Transitions
 
-Status: **DESIGN ONLY — RUNTIME BLOCKED**
+Status: **RUNTIME FOUNDATION ACTIVE — VISUAL RUNTIME FEATURE-GATED / PHYSICAL QA NOT YET PROMOTED**
 
-OC-22H must not be activated until the physical QA decision for 10619 / the accepted post-10619 visual line is complete.
+The accepted OC-22 physical line is frozen in `docs/OC22_VALIDATED_BASELINE.md`. OC-22H runtime foundation work is now authorized, but visual activation remains opt-in until a dedicated physical-QA build is promoted and accepted.
 
 ## Non-negotiable invariants
 
@@ -14,6 +14,8 @@ OC-22H must not be activated until the physical QA decision for 10619 / the acce
 - Never use `transform:none`, `animation:none`, animated Orb `border-radius`, CSS blur, `backdrop-filter`, `mix-blend-mode`, or forced 3D transforms as transition fixes.
 - Weather Truth is authoritative. ATM LAB overrides remain visual-only.
 - Existing independent Canvas planes remain independent.
+- Commander V4 10633 and Alerts Inbox 10634 remain frozen while OC-22H is developed.
+- `VITE_OC22_ATMOSPHERIC_TRANSITIONS` is opt-in; an unset flag must preserve the approved baseline behavior.
 
 ## Goal
 
@@ -30,8 +32,11 @@ The transition controller owns a visual state with:
 - `progress` in `[0, 1]`
 - `phase` (`stable`, `transitioning`)
 - `reason` (`weather-truth`, `atm-lab`, `time-phase`)
+- bounded `sceneWeights` for temporary scene-family overlap
+- `wetGlassIntensity`
+- `stormEnergy`
 
-A new target received while a transition is active starts from the **current interpolated visual state**, not from the previous discrete scene. This avoids visible snapping when Weather Truth changes twice in a short period.
+A new target received while a transition is active starts from the **current interpolated visual state**, not from the previous discrete scene. This avoids visible snapping when Weather Truth changes twice in a short period. Interrupted scene-family mixtures are also retained at retarget time and then normalized toward the new target.
 
 ## Interpolated channels
 
@@ -54,11 +59,11 @@ The controller should expose normalized channels instead of directly manipulatin
 - `precipitationIntensity`
 - `wetGlassIntensity`
 - `gustEnergy`
-- `lightningEnergy`
+- `lightningEnergy` / `stormEnergy`
 - `coldParticleIntensity`
 - `heatHazeIntensity`
 
-These channels are consumed by existing atmosphere renderers; the controller must not own Golden Orb rendering.
+These channels are consumed by atmosphere renderers; the controller must not own Golden Orb rendering.
 
 ## Easing
 
@@ -92,7 +97,7 @@ Durations are visual targets and may be tuned after physical Android QA.
 | Day → Dusk | continuous solar curve |
 | Dusk → Night | continuous solar curve |
 
-ATM LAB may use an accelerated QA multiplier so transitions can be validated without changing production timing.
+ATM LAB uses an accelerated QA multiplier so transitions can be validated without changing production timing.
 
 ## Scene sequences
 
@@ -135,19 +140,16 @@ Time-phase transition is driven by the solar curve rather than a weather-scene s
 
 ## Cloud crossfade architecture
 
-Do not morph one procedural texture into another in place. Maintain two cloud-family render states during a scene-family transition:
+Do not morph one procedural texture into another in place. Maintain bounded cloud-family render states during a scene-family transition. A normal transition uses outgoing + incoming families; interruption may temporarily preserve an additional current family, but the controller limits overlap to the three highest normalized family weights.
 
-- outgoing family weight = `1 - t`
-- incoming family weight = `t`
-
-Texture regeneration occurs only when the family target changes, not every frame. The two-family overlap must be temporary and bounded to avoid sustained double rendering cost.
+Texture regeneration occurs only when a family target changes, not every frame. Family overlap must be temporary and bounded to avoid sustained multi-rendering cost.
 
 On Android:
 
 - retain the existing cloud FPS cap;
 - avoid simultaneous high-resolution regeneration;
-- precompute the incoming texture once;
-- release the outgoing family after transition completion;
+- precompute an incoming texture once;
+- release outgoing families after transition completion;
 - lower crossfade resolution/complexity first under adaptive-quality pressure.
 
 ## Precipitation ramp
@@ -160,14 +162,14 @@ Rules:
 - first-drop phase may begin before full rain coverage;
 - wet-glass accumulation lags rainfall onset slightly;
 - stopping rain ramps particle spawn down before clearing residual wet-glass/rivulets;
-- storm flashes remain discrete stochastic events and are gated by storm transition progress.
+- storm flashes remain discrete stochastic events and are gated by storm transition energy.
 
 ## Interruption policy
 
 When a transition is interrupted:
 
-1. sample the current interpolated channels;
-2. make those channels the new transition origin;
+1. sample the current interpolated channels and scene-family weights;
+2. make those values the new transition origin;
 3. replace only the target scene;
 4. compute a duration proportional to remaining visual distance;
 5. never snap back to the old scene baseline.
@@ -188,6 +190,7 @@ When the app/Home is hidden or inactive:
 
 - pause expensive animation loops;
 - do not advance via per-frame background work;
+- the React transition sampler publishes at a bounded cadence and is cancelled while inactive;
 - on resume, derive progress from monotonic elapsed time and current target;
 - if elapsed time exceeds transition duration, resume directly at stable target state.
 
@@ -205,35 +208,42 @@ Priority under adaptive-quality pressure:
 6. reduce decorative particles;
 7. never solve load by freezing the Orb.
 
-## Proposed implementation boundaries after approval
+## Implementation boundaries
 
-Runtime implementation should remain outside frozen files. Preferred new units:
+Runtime implementation remains outside frozen files. Current dedicated units:
 
 - `src/services/atmosphereTransitionController.ts`
 - `src/services/atmosphereTransitionProfiles.ts`
+- `src/hooks/useAtmosphereTransition.ts`
+- `src/config/oc22Features.ts`
 - `scripts/verify-atmospheric-transitions-v11.mjs`
-- focused integration in `LivingWeatherAtmosphereHost` / atmosphere renderer inputs only
+- `scripts/test-atmospheric-transitions.ts`
 
-No implementation should begin merely because this document exists.
+Focused visual integration may occur only through `LivingWeatherAtmosphereHost` / atmosphere renderer inputs or new transition-specific renderer units. Frozen Golden Orb, Commander V4 and Alerts surfaces are outside OC-22H scope.
 
 ## Source gates required before physical APK
 
-The OC-22H gate should verify:
+The OC-22H gate verifies or must verify:
 
-- no frozen file is modified by the phase;
-- no transition stylesheet targets Golden Orb internals;
-- no `transform:none` / `animation:none` Orb fix appears;
+- validated physical-baseline guardrail remains present;
+- no frozen Golden Orb file imports the transition runtime;
+- no transition unit targets Golden Orb internals;
+- no forbidden Orb/compositor workaround is added;
 - Weather Truth remains independent from visual transition state;
 - ATM LAB overrides remain visual-only;
 - transition interruption starts from current interpolated state;
+- interrupted scene-family blend is preserved;
+- scene-family overlap stays bounded;
 - precipitation uses ramped intensity rather than scene hard-switch;
-- cloud crossfade is bounded and releases the outgoing family;
-- hidden/inactive lifecycle pauses expensive work;
+- wet-glass accumulation lags precipitation onset;
+- storm energy is available for delayed lightning gating;
+- hidden/inactive lifecycle pauses transition sampling;
+- visual runtime remains opt-in before physical QA;
 - Android renderer FPS caps remain unchanged.
 
 ## Physical QA matrix for OC-22H
 
-After 10619/post-10619 approval and only after runtime implementation:
+Only after the feature-gated visual runtime is complete and a dedicated QA build is promoted:
 
 1. Sunny → Partly Cloudy
 2. Partly Cloudy → Cloudy
@@ -257,8 +267,8 @@ For every case verify:
 - clouds remain visually distinct by family;
 - rain/storm V6 remains intact;
 - no stale QA override leaks into LIVE;
-- no sustained double-render performance penalty.
+- no sustained multi-render performance penalty.
 
 ## Activation gate
 
-OC-22H runtime work may start only after explicit physical acceptance of the selected 10619/post-10619 visual baseline. Until then this document is preparation only.
+The previously blocked design gate is satisfied by the accepted OC-22 baseline recorded in `docs/OC22_VALIDATED_BASELINE.md` and the explicit instruction to continue development. Runtime foundation is active, but **visual activation stays OFF by default** until the dedicated transition build is ready for physical QA. PR #27 remains OPEN + DRAFT and must not be merged before explicit final approval.
