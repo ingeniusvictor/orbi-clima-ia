@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { AtmosphereSceneWeights } from '../services/atmosphereTransitionController';
 import type {
   AtmospherePhase,
   AtmosphereQuality,
@@ -9,6 +10,7 @@ import '../styles/living-weather-cinematic-sky-v9.css';
 
 interface CinematicSkyTransitionCanvasV11Props {
   scene: AtmosphereScene;
+  sceneWeights: AtmosphereSceneWeights;
   phase: AtmospherePhase;
   quality: AtmosphereQuality;
   solar: SolarLightingState;
@@ -45,6 +47,17 @@ function sceneExposure(scene: AtmosphereScene) {
   }
 }
 
+function weightedSceneExposure(scene: AtmosphereScene, weights: AtmosphereSceneWeights) {
+  let total = 0;
+  let weighted = 0;
+  for (const [candidate, weight] of Object.entries(weights) as Array<[AtmosphereScene, number]>) {
+    const safeWeight = clamp01(weight ?? 0);
+    total += safeWeight;
+    weighted += sceneExposure(candidate) * safeWeight;
+  }
+  return total > 0.001 ? weighted / total : sceneExposure(scene);
+}
+
 function applyExposure(color: RGB, exposure: number): RGB {
   return [
     Math.max(0, Math.min(255, Math.round(color[0] * exposure))),
@@ -55,6 +68,7 @@ function applyExposure(color: RGB, exposure: number): RGB {
 
 export default function CinematicSkyTransitionCanvasV11({
   scene,
+  sceneWeights,
   phase,
   quality,
   solar,
@@ -63,8 +77,8 @@ export default function CinematicSkyTransitionCanvasV11({
   active,
 }: CinematicSkyTransitionCanvasV11Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const liveStateRef = useRef({ scene, phase, solar, cloudOpacity, luminance });
-  liveStateRef.current = { scene, phase, solar, cloudOpacity, luminance };
+  const liveStateRef = useRef({ scene, sceneWeights, phase, solar, cloudOpacity, luminance });
+  liveStateRef.current = { scene, sceneWeights, phase, solar, cloudOpacity, luminance };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -122,32 +136,44 @@ export default function CinematicSkyTransitionCanvasV11({
       const night = clamp01(current.solar.nightStrength);
       const day = 1 - night;
       const warm = clamp01(current.solar.twilightWarmth);
-      const exposure = sceneExposure(current.scene) * (0.74 + current.luminance * 0.34);
-      const sunnyDay = current.scene === 'clear' && current.phase === 'day' && day > 0.82;
-      const snowScene = current.scene === 'snow';
+      const clearWeight = clamp01(current.sceneWeights.clear ?? (current.scene === 'clear' ? 1 : 0));
+      const snowWeight = clamp01(current.sceneWeights.snow ?? (current.scene === 'snow' ? 1 : 0));
+      const sunnyDayWeight = current.phase === 'day' && day > 0.82 ? clearWeight : 0;
+      const exposure = weightedSceneExposure(current.scene, current.sceneWeights)
+        * (0.74 + current.luminance * 0.34);
 
       const nightTop: RGB = [2, 7, 18];
       const nightMid: RGB = [8, 23, 45];
       const nightBottom: RGB = [5, 10, 22];
-      const dayTop: RGB = sunnyDay ? [24, 77, 132] : [22, 72, 124];
-      const dayMid: RGB = sunnyDay ? [67, 139, 184] : [53, 128, 178];
-      const dayBottom: RGB = sunnyDay ? [148, 177, 185] : [100, 157, 189];
+      const baseDayTop: RGB = [22, 72, 124];
+      const baseDayMid: RGB = [53, 128, 178];
+      const baseDayBottom: RGB = [100, 157, 189];
+      const sunnyDayTop: RGB = [24, 77, 132];
+      const sunnyDayMid: RGB = [67, 139, 184];
+      const sunnyDayBottom: RGB = [148, 177, 185];
       const snowTop: RGB = [52, 79, 107];
       const snowMid: RGB = [104, 132, 153];
       const snowBottom: RGB = [177, 194, 202];
-      const warmTop: RGB = current.phase === 'dawn' ? [62, 72, 122] : [47, 49, 92];
-      const warmMid: RGB = current.phase === 'dawn' ? [205, 119, 112] : [196, 83, 91];
-      const warmBottom: RGB = current.phase === 'dawn' ? [244, 174, 117] : [244, 129, 79];
 
-      let top = mixRgb(nightTop, snowScene ? snowTop : dayTop, day);
-      let mid = mixRgb(nightMid, snowScene ? snowMid : dayMid, day);
-      let bottom = mixRgb(nightBottom, snowScene ? snowBottom : dayBottom, day);
+      const dayTop = mixRgb(mixRgb(baseDayTop, sunnyDayTop, sunnyDayWeight), snowTop, snowWeight);
+      const dayMid = mixRgb(mixRgb(baseDayMid, sunnyDayMid, sunnyDayWeight), snowMid, snowWeight);
+      const dayBottom = mixRgb(mixRgb(baseDayBottom, sunnyDayBottom, sunnyDayWeight), snowBottom, snowWeight);
+
+      const solarMidpoint = (current.solar.sunriseMinutes + current.solar.sunsetMinutes) / 2;
+      const morningWarmth = current.solar.localMinutes <= solarMidpoint;
+      const warmTop: RGB = morningWarmth ? [62, 72, 122] : [47, 49, 92];
+      const warmMid: RGB = morningWarmth ? [205, 119, 112] : [196, 83, 91];
+      const warmBottom: RGB = morningWarmth ? [244, 174, 117] : [244, 129, 79];
+
+      let top = mixRgb(nightTop, dayTop, day);
+      let mid = mixRgb(nightMid, dayMid, day);
+      let bottom = mixRgb(nightBottom, dayBottom, day);
       top = mixRgb(top, warmTop, warm * 0.72);
       mid = mixRgb(mid, warmMid, warm * 0.86);
       bottom = mixRgb(bottom, warmBottom, warm);
 
-      if (sunnyDay) {
-        const solarContinuity = clamp01(current.solar.sunAltitude) * (1 - warm) * 0.18;
+      const solarContinuity = clamp01(current.solar.sunAltitude) * (1 - warm) * 0.18 * sunnyDayWeight;
+      if (solarContinuity > 0.001) {
         mid = mixRgb(mid, [115, 157, 181], solarContinuity * 0.38);
         bottom = mixRgb(bottom, [232, 188, 132], solarContinuity);
       }
@@ -175,19 +201,19 @@ export default function CinematicSkyTransitionCanvasV11({
         horizonY,
         Math.max(width, height) * (0.44 + warm * 0.12),
       );
-      const horizonAlpha = (0.08 + warm * 0.3 + (sunnyDay ? 0.055 : 0))
+      const horizonAlpha = (0.08 + warm * 0.3 + 0.055 * sunnyDayWeight)
         * day
         * (1 - current.cloudOpacity * 0.38);
+      const coolHorizonCore: RGB = [167, 220, 255];
+      const sunnyHorizonCore: RGB = [255, 207, 139];
+      const coolHorizonOuter: RGB = [100, 190, 244];
+      const sunnyHorizonOuter: RGB = [255, 176, 102];
       horizon.addColorStop(0, warm > 0.28
         ? `rgba(255,184,118,${horizonAlpha})`
-        : sunnyDay
-          ? `rgba(255,207,139,${horizonAlpha * 0.82})`
-          : `rgba(167,220,255,${horizonAlpha * 0.75})`);
+        : rgb(mixRgb(coolHorizonCore, sunnyHorizonCore, sunnyDayWeight), horizonAlpha * lerp(0.75, 0.82, sunnyDayWeight)));
       horizon.addColorStop(0.44, warm > 0.28
         ? `rgba(255,130,91,${horizonAlpha * 0.36})`
-        : sunnyDay
-          ? `rgba(255,176,102,${horizonAlpha * 0.25})`
-          : `rgba(100,190,244,${horizonAlpha * 0.24})`);
+        : rgb(mixRgb(coolHorizonOuter, sunnyHorizonOuter, sunnyDayWeight), horizonAlpha * lerp(0.24, 0.25, sunnyDayWeight)));
       horizon.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = horizon;
       ctx.fillRect(0, height * 0.28, width, height * 0.72);
@@ -227,24 +253,26 @@ export default function CinematicSkyTransitionCanvasV11({
         const sunRadius = Math.max(7, width * lerp(warm > 0.35 ? 0.034 : 0.026, 0.016, highSun));
         const glowRadius = sunRadius * lerp(warm > 0.35 ? 7.5 : 7.2, 10.5, highSun);
         const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, glowRadius);
-        const coreGlowAlpha = lerp(0.48, sunnyDay ? 0.32 : 0.24, highSun) * visibility;
+        const daylightGlow = lerp(0.24, 0.32, sunnyDayWeight);
+        const coreGlowAlpha = lerp(0.48, daylightGlow, highSun) * visibility;
         glow.addColorStop(0, `rgba(255,245,215,${coreGlowAlpha})`);
         glow.addColorStop(0.28, warm > 0.3
           ? `rgba(255,179,110,${0.24 * visibility})`
-          : sunnyDay
-            ? `rgba(255,210,128,${lerp(0.2, 0.14, highSun) * visibility})`
-            : `rgba(220,242,255,${lerp(0.17, 0.11, highSun) * visibility})`);
+          : rgb(
+              mixRgb([220, 242, 255], [255, 210, 128], sunnyDayWeight),
+              lerp(lerp(0.17, 0.11, highSun), lerp(0.2, 0.14, highSun), sunnyDayWeight) * visibility,
+            ));
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow;
         ctx.fillRect(sunX - glowRadius, sunY - glowRadius, glowRadius * 2, glowRadius * 2);
 
+        const discDayAlpha = lerp(0.08, 0.14, sunnyDayWeight);
         const discAlpha = warm > 0.3
           ? 0.9 * visibility
-          : lerp(0.56, sunnyDay ? 0.14 : 0.08, highSun) * visibility;
+          : lerp(0.56, discDayAlpha, highSun) * visibility;
         if (discAlpha > 0.025) {
-          ctx.fillStyle = warm > 0.3 || sunnyDay
-            ? `rgba(255,229,181,${discAlpha})`
-            : `rgba(255,248,220,${discAlpha})`;
+          const discColor = mixRgb([255, 248, 220], [255, 229, 181], sunnyDayWeight);
+          ctx.fillStyle = rgb(discColor, discAlpha);
           ctx.beginPath();
           ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
           ctx.fill();
