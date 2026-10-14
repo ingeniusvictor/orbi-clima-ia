@@ -18,6 +18,10 @@ const transitionHook = read('src/hooks/useAtmosphereTransition.ts');
 const transitionHost = read('src/components/LivingWeatherAtmosphereHost.tsx');
 const transitionAtmosphere = read('src/components/LivingWeatherAtmosphereTransitionV11.tsx');
 const transitionSky = read('src/components/CinematicSkyTransitionCanvasV11.tsx');
+const foregroundHost = read('src/components/ImmersiveWeatherForegroundHost.tsx');
+const transitionForeground = read('src/components/ImmersiveWeatherForegroundTransitionV11.tsx');
+const precipitationCanvas = read('src/components/ImmersivePrecipitationCanvas.tsx');
+const snowCanvas = read('src/components/SnowFrostCanvas.tsx');
 const viteEnv = read('src/vite-env.d.ts');
 const packageJson = read('package.json');
 const orbCore = read('src/components/OrbiClimateCore.tsx');
@@ -73,6 +77,7 @@ expect(transitionHost.includes('OC22_ATMOSPHERIC_TRANSITIONS_ENABLED ? ('), 'Atm
 expect(transitionHost.includes('<LivingWeatherAtmosphereTransitionV11'), 'Feature-enabled Host path must mount the V11 transition atmosphere.');
 expect(transitionHost.includes('<LivingWeatherAtmosphere'), 'Feature-disabled Host path must retain the approved baseline renderer.');
 expect(transitionHost.includes("data-oc22-transitions={OC22_ATMOSPHERIC_TRANSITIONS_ENABLED ? 'enabled' : 'baseline'}"), 'Host must expose transition/baseline diagnostics.');
+expect(transitionHost.includes("phaseOverride={debugPhase === 'auto' ? undefined : debugPhase}"), 'Atmosphere Host must preserve the canonical non-destructive phase override contract.');
 
 expect(transitionAtmosphere.includes('useAtmosphereTransition(targetModel, !paused, transitionReason, true)'), 'V11 atmosphere must use the transition sampler only inside the opt-in component.');
 expect(transitionAtmosphere.includes('.slice(0, 3)'), 'V11 atmosphere must never render more than three cloud families.');
@@ -91,12 +96,35 @@ expect(transitionSky.includes('sunnyDayWeight'), 'V11 clear-sky treatment must b
 expect(transitionSky.includes('snowWeight'), 'V11 snow-sky treatment must blend continuously by snow-family weight.');
 expect(transitionSky.includes('}, [quality, active]);'), 'V11 sky Canvas lifecycle must not restart for every interpolated weather sample.');
 
+expect(foregroundHost.includes('if (OC22_ATMOSPHERIC_TRANSITIONS_ENABLED)'), 'Foreground Host must explicitly preserve baseline rendering unless OC-22H is enabled.');
+expect(foregroundHost.includes('<ImmersiveWeatherForegroundTransitionV11'), 'Feature-enabled foreground path must mount V11.');
+expect(foregroundHost.includes('<ImmersivePrecipitationCanvas'), 'Feature-disabled foreground path must retain the certified precipitation renderer.');
+expect(foregroundHost.includes('<SnowFrostCanvas'), 'Feature-disabled foreground path must retain the certified snow/frost renderer.');
+expect(foregroundHost.indexOf('if (OC22_ATMOSPHERIC_TRANSITIONS_ENABLED)') < foregroundHost.indexOf('if (!snowScene && !rainScene) return null;'), 'V11 foreground must receive dry targets so outgoing precipitation can fade instead of disappearing early.');
+
+expect(transitionForeground.includes('useAtmosphereTransition(targetModel, active, transitionReason, true)'), 'V11 foreground must consume the same transition-controller contract.');
+expect(transitionForeground.includes('.slice(0, 2)'), 'V11 foreground overlap must remain bounded to at most two wet families.');
+expect(transitionForeground.includes('sceneModelsRef.current = new Map([[targetModel.scene, targetModel]])'), 'V11 foreground must release transient wet-family state after settling.');
+expect(transitionForeground.includes('<ImmersivePrecipitationCanvas'), 'V11 foreground must reuse the certified V6 precipitation renderer.');
+expect(transitionForeground.includes('<SnowFrostCanvas'), 'V11 foreground must reuse the certified snow/frost renderer.');
+expect(transitionForeground.includes('transition.stormEnergy > 0.62'), 'V11 foreground must delay storm lightning until storm energy crosses the safe threshold.');
+expect(transitionForeground.includes('transition.wetGlassIntensity'), 'V11 foreground must use the delayed wet-glass transition channel.');
+expect(transitionForeground.includes("const canvasScene: AtmosphereScene = lightningReady ? 'storm' : 'rain'"), 'V11 must prevent the certified V6 renderer from flashing lightning before storm formation.');
+expect(!transitionForeground.includes('OrbiClimateCore'), 'V11 foreground must not import or manipulate the Golden Orb.');
+expect(!transitionForeground.includes('WelcomeHeroSection'), 'V11 foreground must not import or manipulate the protected Hero.');
+
+expect(precipitationCanvas.includes("android ? 24"), 'Certified V6 precipitation Android FPS cap must remain 24.');
+expect(precipitationCanvas.includes("android ? 1.35"), 'Certified V6 precipitation Android DPR cap must remain 1.35.');
+expect(snowCanvas.includes('? 18'), 'Certified snow/frost Android FPS cap must remain 18.');
+expect(snowCanvas.includes("android ? 1.05"), 'Certified snow/frost Android DPR cap must remain 1.05.');
+
 for (const forbidden of ['transform:none', 'animation:none', 'backdrop-filter', 'mix-blend-mode', 'translateZ']) {
   expect(!controller.includes(forbidden), `Transition controller contains forbidden compositor token: ${forbidden}`);
   expect(!profiles.includes(forbidden), `Transition profiles contain forbidden compositor token: ${forbidden}`);
   expect(!transitionHook.includes(forbidden), `Transition sampler contains forbidden compositor token: ${forbidden}`);
   expect(!transitionAtmosphere.includes(forbidden), `V11 atmosphere contains forbidden compositor token: ${forbidden}`);
   expect(!transitionSky.includes(forbidden), `V11 sky contains forbidden compositor token: ${forbidden}`);
+  expect(!transitionForeground.includes(forbidden), `V11 foreground contains forbidden compositor token: ${forbidden}`);
 }
 
 expect(packageJson.includes('ui:verify-atmospheric-transitions'), 'Dedicated OC-22H verification command is not wired into package scripts.');
@@ -108,7 +136,8 @@ for (const protectedSource of [orbCore, orbCss, hero]) {
   expect(!protectedSource.includes('AtmosphereTransitionController'), 'Frozen Golden Orb surface imports the OC-22H controller.');
   expect(!protectedSource.includes('atmosphereTransitionProfiles'), 'Frozen Golden Orb surface imports OC-22H transition profiles.');
   expect(!protectedSource.includes('useAtmosphereTransition'), 'Frozen Golden Orb surface imports the OC-22H transition sampler.');
-  expect(!protectedSource.includes('LivingWeatherAtmosphereTransitionV11'), 'Frozen Golden Orb surface imports the OC-22H V11 renderer.');
+  expect(!protectedSource.includes('LivingWeatherAtmosphereTransitionV11'), 'Frozen Golden Orb surface imports the OC-22H V11 atmosphere renderer.');
+  expect(!protectedSource.includes('ImmersiveWeatherForegroundTransitionV11'), 'Frozen Golden Orb surface imports the OC-22H V11 foreground renderer.');
 }
 
 console.log('OC-22H Atmospheric Transitions source gate: PASS');
