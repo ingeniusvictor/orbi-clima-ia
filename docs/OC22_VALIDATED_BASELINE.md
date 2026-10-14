@@ -57,108 +57,127 @@ Retain the established systems rather than recreating them:
 
 Weather Truth remains authoritative. Preserve exact phenomenon semantics and labels for current, hourly and daily weather.
 
-Do not collapse specific phenomena back into generic families. This includes drizzle, freezing precipitation, rain intensity variants, showers, snow variants, fog and storm / hail states.
-
-Visual atmosphere family selection and exact user-facing phenomenon wording remain separate responsibilities.
+Do not collapse specific phenomena back into generic families. Visual atmosphere family selection and exact user-facing phenomenon wording remain separate responsibilities.
 
 ### 10623 / 10624 — Native Widget Parity + launcher adaptation
 
 **Status: IMPLEMENTED**
 
-Retain native widget parity contracts, launcher-size adaptation and truthful weather rendering.
-
 ### 10629+ — Persistent physical-QA update channel
 
 **Status: IMPLEMENTED / REQUIRED**
 
-Physical-QA builds must preserve the persistent package / certificate update path. Do not regress to isolated packages for normal OC-22 physical iteration.
+Physical-QA builds must preserve the persistent package / certificate update path.
 
 ### 10631 — Fluid Native Canvas V3
 
 **Status: IMPLEMENTED / CERTIFIED**
 
-Retain native Canvas V3 scaling and Kotlin-safe launcher rendering as the fallback/native baseline.
-
 ### 10632 — Widget preview parity + official ORBI branding
 
 **Status: IMPLEMENTED / CERTIFIED**
-
-Retain official ORBI Clima icon / brand treatment and parity between in-app widget preview and native launcher surface.
 
 ### 10633 — SkyOrb Commander Orbital V4
 
 **Status: PHYSICALLY APPROVED / FROZEN**
 
-COMMAND 4x4 and PREMIUM COMMAND 4x4 use the approved Orbital V4 architecture, with V3 fallback.
-
-Do not redesign or replace the accepted Commander architecture while working on unrelated OC-22 modules.
-
-Retain:
-
-- central climate core;
-- orbital ring architecture;
-- upper forecast satellites;
-- lower metrics;
-- ORBI premium brand treatment;
-- ORBI IA narrative rail;
-- exact Weather Truth labels in the widget contract;
-- V3 fallback behavior.
+COMMAND 4x4 and PREMIUM COMMAND 4x4 use the approved Orbital V4 architecture, with V3 fallback. Do not redesign it during unrelated work.
 
 ### 10634 — Alerts Inbox UX
 
 **Status: PHYSICALLY APPROVED / FROZEN FUNCTIONAL MODEL**
 
-The alerts model is no longer `active condition count = unread badge`.
+Retain `Nuevas / Activas / Historial`, unread-only badge semantics, persistent read state and active-condition separation.
 
-Retain these semantics:
+## OC-22H — Atmospheric Transitions
 
-- active weather condition and unread notification are different states;
-- mobile/nav badge counts only unread/new notifications;
-- reading an alert removes its unread state immediately;
-- an ongoing condition remains under **Activas** after its notification is read;
-- notification read state persists across restart;
-- existing historical alerts do not flood **Nuevas** after upgrade;
-- **Nuevas / Activas / Historial** remain distinct information states;
-- history clearing keeps explicit confirmation / accessibility behavior.
+### 10635 — PHYSICAL QA REJECTED
 
-Do not reopen the alerts architecture during unrelated atmosphere work.
+The transition runtime compiled and passed its functional gates, but physical Android QA exposed a compositor regression: while V11 was active, the Golden Orb body/gradient intermittently disappeared for one-frame intervals while its icon, temperature, labels and outline remained stable.
+
+Evidence showed:
+
+- the protected Golden Orb files were unchanged from the accepted baseline;
+- the Orb body opacity was not intentionally animated;
+- the adjacent background remained effectively stable during the one-frame Orb luminance drops;
+- the regression appeared only after OC-22H added overlapping full-screen Canvas families.
+
+**Classification:** `OC-22H / Android compositor regression`, not a Golden Orb redesign defect.
+
+10635 is therefore **not** an accepted baseline.
+
+### 10636 — Android Compositor Fix
+
+**Status: IMPLEMENTED / CERTIFIED IN CI / PHYSICAL QA PENDING**
+
+Candidate head at promotion:
+
+`9a42bf6a347efbb79c3de63b35ae37acd0cbcc62`
+
+Mitigation is intentionally outside the Golden Orb:
+
+- desktop/web may retain up to three cloud families;
+- Android is capped to **two** cloud families during crossfade;
+- Android removes residual cloud-family weights below `0.035`;
+- only **one** cloud-family Canvas remains animated during an Android crossfade;
+- the outgoing family may remain visible while fading but is frozen;
+- runtime diagnostics expose `data-android-cloud-budget` and `data-animated-cloud-family`;
+- `scripts/verify-android-compositor-budget.mjs` prevents accidental regression.
+
+Protected Golden Orb files were not modified by the mitigation.
+
+#### Exact-head certification
+
+Quality Gate run `38550653583` on `9a42bf6...`:
+
+- `web-quality`: **GREEN** through TypeScript, Mobile Home, Premium Home, OC-22/OC-22H including the Android compositor budget gate, Weather Truth, Android background/performance/target/runtime gates, widget gates and production build.
+
+Visual Preview run `38550653662` with OC-22H explicitly ON:
+
+- TypeScript: PASS
+- OC-22/OC-22H + Android compositor budget: PASS
+- Weather Truth: PASS
+- Native Widget Parity: PASS
+- Premium Widget Snapshot: PASS
+- native widget Kotlin compile: PASS
+- physical-QA feature declaration: PASS
+- V11 web build: PASS
+- Capacitor copy: PASS
+- non-installable 10636 Android Compositor Fix payload: PASS
+- inherited repository Zen audio gate: FAIL
+- non-audio recovery payload archive: PASS
+
+No gate was weakened.
+
+#### Physical QA priority
+
+First reproduce the exact scenario that rejected 10635, especially **Niebla / atmospheric transition** while continuously watching the Golden Orb.
+
+Acceptance requires:
+
+1. Golden Orb body/gradient never disappears or flashes.
+2. Orb 10615 appearance/motion remains unchanged.
+3. Atmospheric transitions remain progressive instead of snapping.
+4. Weather Truth labels remain exact.
+5. Commander V4 remains unchanged.
+6. Alerts 10634 remain unchanged.
+7. No black WebView rectangles/tiles.
+8. No obvious sustained performance/heat regression.
 
 ## Known technical debt that is not a product regression
 
 ### Repository Zen audio integrity
 
-The inherited repository Zen MP3 corruption remains a packaging / CI debt. Healthy physical-QA packages have used the certified Beneath the Crystal Arch source.
+The inherited repository Zen MP3 corruption remains a packaging / CI debt. Healthy physical-QA packages use exactly two certified Beneath the Crystal Arch MP3s:
 
-This debt must be resolved before release certification, but it must not be mistaken for a reason to reopen already accepted UI, Weather Truth, widgets, alerts or atmosphere behavior.
+`sha256: 7717bd6f5461f6ab3a0e4a297fd9db4288656a183039d3d08f833ec167ff0341`
 
-## Next functional phase
-
-`OC-22H — Atmospheric Transitions` is the next genuinely unfinished visual-runtime phase.
-
-OC-22H may consume existing atmosphere models and renderer inputs, but must not modify the frozen product surfaces above.
-
-Preferred implementation boundaries remain:
-
-- `src/services/atmosphereTransitionController.ts`
-- `src/services/atmosphereTransitionProfiles.ts`
-- `scripts/verify-atmospheric-transitions-v11.mjs`
-- focused integration in `LivingWeatherAtmosphereHost` / `LivingWeatherAtmosphere` inputs only when required.
-
-## OC-22H non-negotiable gates
-
-Before any physical APK is promoted:
-
-- Golden Orb frozen files remain untouched by the phase;
-- Commander V4 and Alerts frozen behavior remain untouched;
-- Weather Truth remains independent from visual transition state;
-- ATM LAB remains visual-only and cannot leak stale semantics into LIVE;
-- transition interruption must start from the current interpolated state rather than snap backward;
-- precipitation intensity must ramp rather than hard-switch;
-- cloud crossfade must be temporary / bounded and release outgoing resources;
-- hidden/inactive lifecycle must avoid expensive background animation work;
-- existing Android renderer FPS / DPR caps must remain unchanged;
-- no integrity or quality gate may be weakened to obtain GREEN.
+No `.ogg` Zen payload is allowed.
 
 ## Source of truth rule
 
 When future documents, chat context or stale roadmap entries disagree about whether an OC-22 capability is already complete, check this file plus the actual branch history and current code before implementing anything.
+
+## Merge rule
+
+**DO NOT MERGE PR #27 before explicit physical approval.**
