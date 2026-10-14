@@ -80,8 +80,11 @@ export default function SmartAlertsPanel({ alerts, hourly, profile }: SmartAlert
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5" role="tablist" aria-label="Secciones de alertas">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'new'}
             onClick={() => setActiveTab('new')}
             className={`px-2.5 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'new'
@@ -99,6 +102,9 @@ export default function SmartAlertsPanel({ alerts, hourly, profile }: SmartAlert
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'active'}
             onClick={() => setActiveTab('active')}
             className={`px-2.5 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'active'
@@ -116,6 +122,9 @@ export default function SmartAlertsPanel({ alerts, hourly, profile }: SmartAlert
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'history'}
             onClick={() => setActiveTab('history')}
             className={`px-2.5 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'history'
@@ -130,16 +139,16 @@ export default function SmartAlertsPanel({ alerts, hourly, profile }: SmartAlert
       </div>
 
       {activeTab === 'new' && (
-        <div className="relative z-10">
+        <div className="relative z-10" role="tabpanel">
           <NotificationHistoryPanel mode="unread" />
         </div>
       )}
 
       {activeTab === 'active' && (
-        <div className="flex flex-col gap-4 relative z-10">
+        <div className="flex flex-col gap-4 relative z-10" role="tabpanel">
           <div className="rounded-xl border border-cyan-500/10 bg-cyan-500/[0.035] px-3 py-2.5">
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              <span className="font-semibold text-cyan-300">Condiciones activas</span> muestran lo que sigue ocurriendo ahora o en las próximas horas. Pueden permanecer aquí aunque ya hayas leído la notificación y no generan por sí solas el contador rojo.
+              <span className="font-semibold text-cyan-300">Condiciones activas:</span> aquí verás lo que sigue vigente, aunque ya hayas leído el aviso.
             </p>
           </div>
 
@@ -169,6 +178,7 @@ export default function SmartAlertsPanel({ alerts, hourly, profile }: SmartAlert
 
               {activeAlerts.length > 1 && (
                 <button
+                  type="button"
                   onClick={() => setShowAll(!showAll)}
                   className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/10 rounded-xl transition-all cursor-pointer"
                 >
@@ -191,7 +201,7 @@ export default function SmartAlertsPanel({ alerts, hourly, profile }: SmartAlert
       )}
 
       {activeTab === 'history' && (
-        <div className="relative z-10">
+        <div className="relative z-10" role="tabpanel">
           <NotificationHistoryPanel mode="all" />
         </div>
       )}
