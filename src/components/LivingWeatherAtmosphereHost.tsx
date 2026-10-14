@@ -95,7 +95,6 @@ export default function LivingWeatherAtmosphereHost() {
 
   if (!onboardingDone || !snapshot || !renderedCurrent) return null;
 
-  const phaseOverride = debugPhase === 'auto' ? undefined : debugPhase;
   const transitionReason = debugPreset !== 'live' || debugPhase !== 'auto'
     ? 'atm-lab' as const
     : 'weather-truth' as const;
@@ -114,7 +113,7 @@ export default function LivingWeatherAtmosphereHost() {
           dailyForecast={snapshot.daily[0]}
           timezone={snapshot.location.timezone}
           active={homeVisible}
-          phaseOverride={phaseOverride}
+          phaseOverride={debugPhase === 'auto' ? undefined : debugPhase}
           transitionReason={transitionReason}
         />
       ) : (
@@ -123,7 +122,7 @@ export default function LivingWeatherAtmosphereHost() {
           dailyForecast={snapshot.daily[0]}
           timezone={snapshot.location.timezone}
           active={homeVisible}
-          phaseOverride={phaseOverride}
+          phaseOverride={debugPhase === 'auto' ? undefined : debugPhase}
         />
       )}
     </div>
